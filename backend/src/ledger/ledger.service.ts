@@ -1,5 +1,6 @@
 import { Injectable, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 
 @Injectable()
@@ -9,6 +10,7 @@ export class LedgerService {
   /**
    * Append entry to ledger (idempotent)
    * Calculates balance_after from previous entries
+   * @param tx - Optional transaction client. If provided, uses it instead of this.prisma
    */
   async appendEntry(
     tenantId: string,
@@ -17,9 +19,11 @@ export class LedgerService {
     idempotencyKey: string,
     transactionId: string,
     operationType: string = 'TRANSACTION',
+    tx?: Prisma.TransactionClient,
   ): Promise<{ id: string; balanceAfter: number }> {
+    const prismaClient = tx || this.prisma;
     // Check idempotency
-    const existing = await this.prisma.loyaltyLedgerEntry.findFirst({
+    const existing = await prismaClient.loyaltyLedgerEntry.findFirst({
       where: {
         tenantId,
         idempotencyKey,
@@ -35,7 +39,7 @@ export class LedgerService {
     }
 
     // Calculate current balance from all previous entries
-    const previousEntries = await this.prisma.loyaltyLedgerEntry.findMany({
+    const previousEntries = await prismaClient.loyaltyLedgerEntry.findMany({
       where: {
         tenantId,
         customerId,
@@ -54,7 +58,7 @@ export class LedgerService {
 
     // Insert ledger entry
     try {
-      const entry = await this.prisma.loyaltyLedgerEntry.create({
+      const entry = await prismaClient.loyaltyLedgerEntry.create({
         data: {
           tenantId,
           customerId,
@@ -73,7 +77,7 @@ export class LedgerService {
     } catch (error: any) {
       // Handle unique constraint violation (idempotency race condition)
       if (error.code === 'P2002') {
-        const existing = await this.prisma.loyaltyLedgerEntry.findFirst({
+        const existing = await prismaClient.loyaltyLedgerEntry.findFirst({
           where: {
             tenantId,
             idempotencyKey,

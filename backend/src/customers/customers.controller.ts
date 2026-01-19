@@ -1,8 +1,10 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { CustomersService } from './customers.service';
 import { ScopeGuard } from '../common/guards/scope.guard';
 import { TenantGuard } from '../common/guards/tenant.guard';
+import { RequireScope } from '../common/decorators/require-scope.decorator';
+import { TenantContext } from '../common/decorators/tenant-context.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @ApiTags('customers')
@@ -11,6 +13,32 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 @ApiBearerAuth('JWT-auth')
 export class CustomersController {
   constructor(private readonly customersService: CustomersService) {}
+
+  @Get()
+  @RequireScope('merchant:*')
+  async findAll(
+    @TenantContext() tenantId: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('status') status?: string,
+  ) {
+    return this.customersService.findAll(tenantId, {
+      page: page ? parseInt(page, 10) : undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
+      search,
+      status,
+    });
+  }
+
+  @Get(':id')
+  @RequireScope('merchant:*')
+  async findOne(
+    @TenantContext() tenantId: string,
+    @Param('id') id: string,
+  ) {
+    return this.customersService.findOne(tenantId, id);
+  }
 
   @Get('me/qr-token')
   async getQrToken(@CurrentUser() user: any) {

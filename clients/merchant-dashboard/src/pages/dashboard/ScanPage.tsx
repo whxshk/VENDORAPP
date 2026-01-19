@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { simulateScan } from '../../api/merchant';
 import { useRewards } from '../../hooks/useRewards';
@@ -19,28 +19,80 @@ export default function ScanPage() {
   const [scanLogs, setScanLogs] = useState<Array<Transaction & { result: 'success' | 'error'; error?: string }>>([]);
   
   const { data: rewards } = useRewards();
-  const { data: customersData } = useCustomers({ limit: 100 });
+  const { data: customersData, refetch: refetchCustomers, isLoading: customersLoading } = useCustomers({ limit: 100 });
   const queryClient = useQueryClient();
+
+  // Track last successful transaction result to show updated balance
+  const [lastTransactionResult, setLastTransactionResult] = useState<ScanResult | null>(null);
+
+  // Find customer by ID or shortId - use useMemo to ensure it updates correctly
+  const selectedCustomer = useMemo(() => {
+    if (!customerId || !customersData?.data) return null;
+    const trimmedId = customerId.trim();
+    
+    // Try exact match first (UUID or short ID)
+    let customer = customersData.data.find(
+      c => c.id === trimmedId || (c as any).shortId === trimmedId || c.qrCode === trimmedId
+    );
+    
+    // If not found and it's a 4-digit number, try as short ID
+    if (!customer && /^\d{4}$/.test(trimmedId)) {
+      customer = customersData.data.find(
+        c => (c as any).shortId === trimmedId
+      );
+    }
+    
+    // If we have a recent transaction result for this customer, use updated balance from it
+    if (customer && lastTransactionResult?.success && lastTransactionResult.customer) {
+      const resultCustomer = lastTransactionResult.customer;
+      if (resultCustomer.id === customer.id) {
+        return {
+          ...customer,
+          pointsBalance: resultCustomer.pointsBalance, // Use updated balance from transaction
+        };
+      }
+    }
+    
+    return customer || null;
+  }, [customerId, customersData?.data, lastTransactionResult]);
 
   const scanMutation = useMutation({
     mutationFn: (params: SimulateScanParams) => simulateScan(params),
-    onSuccess: (result: ScanResult) => {
+    onSuccess: async (result: ScanResult) => {
+      // Store the result to update selectedCustomer balance
+      setLastTransactionResult(result);
+      
       if (result.success && result.transaction) {
+        // Use customer from result if available (most accurate), otherwise use selectedCustomer
+        const transactionCustomer = result.customer || selectedCustomer;
+        
         setScanLogs(prev => [{
           ...result.transaction!,
+          customerName: result.transaction!.customerName || transactionCustomer?.name || 'Unknown',
           result: 'success' as const,
         }, ...prev.slice(0, 9)]);
+        
+        // Invalidate all queries to force refresh
         queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-        queryClient.invalidateQueries({ queryKey: ['customers'] });
+        queryClient.invalidateQueries({ queryKey: ['customers'], exact: false }); // Invalidate all customer queries
         queryClient.invalidateQueries({ queryKey: ['transactions'] });
+        
+        // Refetch customers immediately to get updated balances
+        await refetchCustomers();
+        
+        // Clear form after successful scan
         setCustomerId('');
         setAmount('');
         setRewardId('');
+        // Clear transaction result after a delay so UI can show updated balance
+        setTimeout(() => setLastTransactionResult(null), 2000);
       } else {
+        // Use result.customer if available, otherwise use selectedCustomer
+        const errorCustomer = result.customer || selectedCustomer;
         setScanLogs(prev => [{
           id: `error-${Date.now()}`,
-          customerId: customerId,
-          customerName: customersData?.data.find(c => c.id === customerId)?.name || 'Unknown',
+          customerId: errorCustomer?.id || customerId,
+          customerName: errorCustomer?.name || 'Unknown',
           type: scanType,
           points: 0,
           staffId: 'staff-1',
@@ -55,20 +107,23 @@ export default function ScanPage() {
   });
 
   const handleScan = () => {
-    if (!customerId) return;
+    if (!customerId || !selectedCustomer) {
+      return;
+    }
 
     if (scanType === 'earn' && !amount) return;
     if (scanType === 'redeem' && !rewardId) return;
 
+    // Always use the selectedCustomer's ID to ensure we're using the resolved customer
+    const actualCustomerId = selectedCustomer.id;
+
     scanMutation.mutate({
-      customerId,
+      customerId: actualCustomerId,
       type: scanType,
       amount: scanType === 'earn' ? parseFloat(amount) : undefined,
       rewardId: scanType === 'redeem' ? rewardId : undefined,
     });
   };
-
-  const selectedCustomer = customersData?.data.find(c => c.id === customerId);
 
   return (
     <div className="space-y-8">
@@ -91,7 +146,8 @@ export default function ScanPage() {
             <Input
               value={customerId}
               onChange={(e) => setCustomerId(e.target.value)}
-              placeholder="Enter QR code or customer ID"
+              onBlur={(e) => setCustomerId(e.target.value.trim())}
+              placeholder="Enter customer ID (e.g., 0001) or QR code"
             />
             {selectedCustomer && (
               <div className="mt-2 text-sm text-slate-400">
@@ -169,10 +225,16 @@ export default function ScanPage() {
             </div>
           )}
 
+          {!selectedCustomer && customerId && (
+            <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-sm">
+              Customer not found. Please check the customer ID and try again.
+            </div>
+          )}
+
           {/* Confirm Button */}
           <Button
             onClick={handleScan}
-            disabled={!customerId || scanMutation.isPending || (scanType === 'earn' && !amount) || (scanType === 'redeem' && !rewardId)}
+            disabled={!customerId || !selectedCustomer || scanMutation.isPending || (scanType === 'earn' && !amount) || (scanType === 'redeem' && !rewardId)}
             className="w-full"
             size="lg"
           >
@@ -215,7 +277,10 @@ export default function ScanPage() {
                       <div className="text-sm text-slate-400">
                         {log.result === 'success' ? (
                           <>
-                            {log.type === 'earn' ? 'Issued' : 'Redeemed'} {Math.abs(log.points)} points
+                            {log.type === 'earn' ? `Issued ${Math.abs(log.points)} points` : `Redeemed ${Math.abs(log.points)} points`}
+                            {log.type === 'earn' && log.amount && (
+                              <span className="text-slate-500 ml-2">({log.amount} QAR)</span>
+                            )}
                           </>
                         ) : (
                           log.error || 'Failed'

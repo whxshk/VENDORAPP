@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { RewardsService } from './rewards.service';
 import { RequireScope } from '../common/decorators/require-scope.decorator';
@@ -27,5 +27,18 @@ export class RewardsController {
   @Get(':id')
   async findOne(@Param('id') id: string, @TenantContext() tenantId: string) {
     return this.rewardsService.findOne(tenantId, id);
+  }
+
+  @Patch(':id')
+  @RequireScope('merchant:*')
+  async update(@Param('id') id: string, @Body() data: any, @TenantContext() tenantId: string) {
+    return this.rewardsService.update(tenantId, id, data);
+  }
+
+  @Delete(':id')
+  @RequireScope('merchant:*')
+  async delete(@Param('id') id: string, @TenantContext() tenantId: string) {
+    await this.rewardsService.delete(tenantId, id);
+    return { success: true };
   }
 }

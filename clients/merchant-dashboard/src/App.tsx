@@ -16,14 +16,8 @@ import PilotReportPage from './pages/PilotReport';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, accessToken } = useAuthStore();
-  const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true' || import.meta.env.VITE_DEMO_MODE === '1';
   
-  // In demo mode, always allow access
-  if (isDemoMode) {
-    return <>{children}</>;
-  }
-  
-  // In production mode, require user or token
+  // Always require authentication
   return user || accessToken ? <>{children}</> : <Navigate to="/login" replace />;
 }
 
@@ -45,20 +39,6 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 }
 
 function App() {
-  const { user, accessToken, setTokens, setUser } = useAuthStore();
-  const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true' || import.meta.env.VITE_DEMO_MODE === '1';
-
-  // Ensure demo mode user is set on mount
-  useEffect(() => {
-    if (isDemoMode && !user && !accessToken) {
-      const demoToken = 'demo-token-' + Date.now();
-      setTokens(demoToken, 'demo-refresh-token');
-      setUser({ email: 'admin@demo.com', id: 'demo-user' });
-    } else if (isDemoMode && accessToken && !user) {
-      setUser({ email: 'admin@demo.com', id: 'demo-user' });
-    }
-  }, [isDemoMode, user, accessToken, setTokens, setUser]);
-
   return (
     <BrowserRouter>
       <Routes>
@@ -87,7 +67,7 @@ function App() {
           <Route path="settings" element={<SettingsPage />} />
           <Route path="pilot-report" element={<PilotReportPage />} />
         </Route>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
   );

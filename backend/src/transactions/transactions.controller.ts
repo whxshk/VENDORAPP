@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiHeader } from '@nestjs/swagger';
 import { TransactionsService } from './transactions.service';
 import { IssuePointsDto } from './dto/issue-points.dto';
@@ -15,6 +15,35 @@ import { TenantGuard } from '../common/guards/tenant.guard';
 @ApiBearerAuth('JWT-auth')
 export class TransactionsController {
   constructor(private readonly transactionsService: TransactionsService) {}
+
+  @Get()
+  @RequireScope('merchant:*')
+  @ApiOperation({ summary: 'List all transactions' })
+  async findAll(
+    @TenantContext() tenantId: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('type') type?: string,
+    @Query('customerId') customerId?: string,
+    @Query('staffId') staffId?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    // Map frontend type (earn/redeem) to backend type (ISSUE/REDEEM)
+    let backendType: 'ISSUE' | 'REDEEM' | undefined;
+    if (type === 'earn') backendType = 'ISSUE';
+    else if (type === 'redeem') backendType = 'REDEEM';
+    
+    return this.transactionsService.findAll(tenantId, {
+      page: page ? parseInt(page, 10) : undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
+      type: backendType,
+      customerId,
+      staffId,
+      startDate: startDate ? new Date(startDate) : undefined,
+      endDate: endDate ? new Date(endDate) : undefined,
+    });
+  }
 
   @Post('issue')
   @RequireScope('scan:*')

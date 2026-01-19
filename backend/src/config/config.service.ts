@@ -49,7 +49,7 @@ export const ConfigService = {
     nodeEnv: process.env.NODE_ENV || 'development',
     port: parseInt(process.env.PORT || '3000', 10),
     database: {
-      url: process.env.DATABASE_URL || 'postgresql://sharkband:sharkband@localhost:5432/sharkband',
+      url: process.env.DATABASE_URL || 'postgresql://sharkband:sharkband@localhost:5433/sharkband',
     },
     jwt: {
       secret: process.env.JWT_SECRET || 'dev-secret-change-in-production',

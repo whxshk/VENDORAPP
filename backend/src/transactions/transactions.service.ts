@@ -10,6 +10,7 @@ import { LedgerService } from '../ledger/ledger.service';
 import { OutboxService } from '../outbox/outbox.service';
 import { FraudSignalsService } from '../fraud-signals/fraud-signals.service';
 import { PilotMetricsService } from '../pilot-metrics/pilot-metrics.service';
+import { getCustomerInfoById } from '../common/customer-data';
 
 @Injectable()
 export class TransactionsService {
@@ -90,7 +91,7 @@ export class TransactionsService {
         },
       });
 
-      // Append ledger entry (idempotent)
+      // Append ledger entry (idempotent) - use transaction client
       const ledgerEntry = await this.ledgerService.appendEntry(
         tenantId,
         customerId,
@@ -98,6 +99,7 @@ export class TransactionsService {
         idempotencyKey,
         transaction.id,
         'ISSUE',
+        tx, // Pass transaction client
       );
 
       // Write outbox event (atomic with transaction)
@@ -210,7 +212,7 @@ export class TransactionsService {
         },
       });
 
-      // Append ledger entry (negative amount)
+      // Append ledger entry (negative amount) - use transaction client
       const ledgerEntry = await this.ledgerService.appendEntry(
         tenantId,
         customerId,
@@ -218,6 +220,7 @@ export class TransactionsService {
         idempotencyKey,
         transaction.id,
         'REDEEM',
+        tx, // Pass transaction client
       );
 
       // Write outbox event
@@ -253,5 +256,78 @@ export class TransactionsService {
   async redeemPointsFailure(tenantId: string, customerId: string) {
     // Track failed redemption
     await this.fraudSignalsService.trackRedemption(tenantId, customerId, false);
+  }
+
+  async findAll(
+    tenantId: string,
+    params?: {
+      page?: number;
+      limit?: number;
+      type?: 'ISSUE' | 'REDEEM';
+      customerId?: string;
+      staffId?: string;
+      startDate?: Date;
+      endDate?: Date;
+    },
+  ) {
+    const page = params?.page || 1;
+    const limit = params?.limit || 20;
+    const skip = (page - 1) * limit;
+
+    const where: any = { tenantId };
+
+    if (params?.type) {
+      where.type = params.type;
+    }
+
+    if (params?.customerId) {
+      where.customerId = params.customerId;
+    }
+
+    if (params?.startDate) {
+      where.createdAt = { ...where.createdAt, gte: params.startDate };
+    }
+
+    if (params?.endDate) {
+      const endDate = new Date(params.endDate);
+      endDate.setHours(23, 59, 59, 999);
+      where.createdAt = { ...where.createdAt, lte: endDate };
+    }
+
+    const [transactions, total] = await Promise.all([
+      this.prisma.transaction.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          customer: true,
+        },
+      }),
+      this.prisma.transaction.count({ where }),
+    ]);
+
+    return {
+      data: transactions.map((tx) => {
+        const customerId = tx.customerId;
+        // Get customer name from transaction metadata or fallback
+        const txMeta = tx.metadata as any;
+        const customerName = txMeta?.customerName || getCustomerInfoById(customerId).name;
+
+        return {
+          id: tx.id,
+          customerId,
+          customerName,
+          type: tx.type === 'ISSUE' ? 'earn' : 'redeem',
+          points: tx.type === 'ISSUE' ? Number(tx.amount) : -Number(tx.amount),
+          amount: tx.type === 'ISSUE' ? Number(tx.amount) : undefined,
+          staffId: '',
+          staffName: 'System',
+          timestamp: tx.createdAt,
+          status: tx.status.toLowerCase() as 'completed' | 'failed' | 'pending',
+        };
+      }),
+      total,
+    };
   }
 }

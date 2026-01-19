@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { Button } from '../../components/ui/button';
 import { Select } from '../../components/ui/select';
 import { Badge } from '../../components/ui/badge';
-import { Download } from 'lucide-react';
+import { Download, X } from 'lucide-react';
 import { formatDateTime } from '../../lib/utils';
 import type { Transaction } from '../../api/types';
 
@@ -145,62 +145,86 @@ export default function TransactionsPage() {
         </CardHeader>
         <CardContent>
           {/* Filters */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div>
-              <label className="text-sm font-semibold text-white mb-2 block">Start Date</label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => {
-                  setStartDate(e.target.value);
-                  setPage(1);
-                }}
-                className="w-full h-11 rounded-lg border border-white/10 bg-slate-800/50 px-4 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50"
-              />
+          <div className="mb-6 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <label className="text-sm font-semibold text-white mb-2 block">Start Date</label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => {
+                    setStartDate(e.target.value);
+                    setPage(1);
+                  }}
+                  className="w-full h-11 rounded-lg border border-white/10 bg-slate-800/50 px-4 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-white mb-2 block">End Date</label>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => {
+                    setEndDate(e.target.value);
+                    setPage(1);
+                  }}
+                  className="w-full h-11 rounded-lg border border-white/10 bg-slate-800/50 px-4 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-white mb-2 block">Staff</label>
+                <Select
+                  value={staffId}
+                  onChange={(e) => {
+                    setStaffId(e.target.value);
+                    setPage(1);
+                  }}
+                >
+                  <option value="">All Staff</option>
+                  {staff?.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-white mb-2 block">Type</label>
+                <Select
+                  value={type}
+                  onChange={(e) => {
+                    setType(e.target.value as 'earn' | 'redeem' | '');
+                    setPage(1);
+                  }}
+                >
+                  <option value="">All Types</option>
+                  <option value="earn">Earn</option>
+                  <option value="redeem">Redeem</option>
+                </Select>
+              </div>
             </div>
-            <div>
-              <label className="text-sm font-semibold text-white mb-2 block">End Date</label>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => {
-                  setEndDate(e.target.value);
-                  setPage(1);
-                }}
-                className="w-full h-11 rounded-lg border border-white/10 bg-slate-800/50 px-4 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-white mb-2 block">Staff</label>
-              <Select
-                value={staffId}
-                onChange={(e) => {
-                  setStaffId(e.target.value);
-                  setPage(1);
-                }}
-              >
-                <option value="">All Staff</option>
-                {staff?.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-white mb-2 block">Type</label>
-              <Select
-                value={type}
-                onChange={(e) => {
-                  setType(e.target.value as 'earn' | 'redeem' | '');
-                  setPage(1);
-                }}
-              >
-                <option value="">All Types</option>
-                <option value="earn">Earn</option>
-                <option value="redeem">Redeem</option>
-              </Select>
-            </div>
+            {(startDate || endDate || staffId || type) && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setStartDate('');
+                    setEndDate('');
+                    setStaffId('');
+                    setType('');
+                    setPage(1);
+                  }}
+                  className="text-xs"
+                >
+                  <X className="h-3 w-3 mr-1" />
+                  Clear Filters
+                </Button>
+                <span className="text-xs text-slate-400">
+                  {[startDate && 'Start Date', endDate && 'End Date', staffId && 'Staff', type && 'Type'].filter(Boolean).join(', ')} active
+                </span>
+              </div>
+            )}
           </div>
 
           {transactionsData?.data.length === 0 ? (

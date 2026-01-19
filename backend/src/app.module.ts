@@ -22,6 +22,7 @@ import { OnboardingModule } from './onboarding/onboarding.module';
 import { FraudSignalsModule } from './fraud-signals/fraud-signals.module';
 import { OperatorToolsModule } from './operator-tools/operator-tools.module';
 import { PilotMetricsModule } from './pilot-metrics/pilot-metrics.module';
+import { ScanModule } from './scan/scan.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { PilotMetricsModule } from './pilot-metrics/pilot-metrics.module';
     FraudSignalsModule,
     OperatorToolsModule,
     PilotMetricsModule,
+    ScanModule,
   ],
   providers: [
     {

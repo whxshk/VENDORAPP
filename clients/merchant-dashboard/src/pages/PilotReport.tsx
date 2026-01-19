@@ -2,12 +2,14 @@ import { useQuery } from '@tanstack/react-query';
 import { getPilotReport } from '../api/merchant';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { Download } from 'lucide-react';
+import { Download, RefreshCw } from 'lucide-react';
 
 export default function PilotReportPage() {
-  const { data: report, isLoading, error } = useQuery({
+  const { data: report, isLoading, error, refetch } = useQuery({
     queryKey: ['pilot-report'],
     queryFn: () => getPilotReport(),
+    refetchOnWindowFocus: true,
+    staleTime: 30000, // Consider data stale after 30 seconds
   });
 
   const exportJson = () => {
@@ -72,10 +74,16 @@ export default function PilotReportPage() {
           <h1 className="text-3xl font-bold text-white mb-2">Pilot Report - Week {report.week}</h1>
           <p className="text-slate-400">Weekly analytics and insights</p>
         </div>
-        <Button onClick={exportJson} variant="outline">
-          <Download className="h-4 w-4 mr-2" />
-          Export JSON
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => refetch()} variant="outline" disabled={isLoading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          <Button onClick={exportJson} variant="outline">
+            <Download className="h-4 w-4 mr-2" />
+            Export JSON
+          </Button>
+        </div>
       </div>
 
       {report.summary && (
@@ -85,15 +93,19 @@ export default function PilotReportPage() {
               <CardTitle className="text-emerald-400">✓ What Improved This Week</CardTitle>
             </CardHeader>
             <CardContent>
-              <ul className="list-disc list-inside space-y-2 text-slate-300">
-                {report.summary.improved.map((item: string, idx: number) => (
-                  <li key={idx}>{item}</li>
-                ))}
-              </ul>
+              {report.summary.improved && report.summary.improved.length > 0 ? (
+                <ul className="list-disc list-inside space-y-2 text-slate-300">
+                  {report.summary.improved.map((item: string, idx: number) => (
+                    <li key={idx}>{item}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-slate-400">No improvements recorded this week.</p>
+              )}
             </CardContent>
           </Card>
 
-          {report.summary.needsFixing.length > 0 && (
+          {report.summary.needsFixing && report.summary.needsFixing.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-amber-400">⚠️ What Needs Fixing Next</CardTitle>
@@ -161,21 +173,29 @@ export default function PilotReportPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
-                    {report.metrics.daily.map((day: any, idx: number) => (
-                      <tr key={idx} className="hover:bg-white/5 transition-colors duration-150">
-                        <td className="py-4 px-6 text-sm text-white">{day.date}</td>
-                        <td className="py-4 px-6 text-sm text-right text-white">{day.activeCustomers}</td>
-                        <td className="py-4 px-6 text-sm text-right text-emerald-400">{day.transactionsIssue}</td>
-                        <td className="py-4 px-6 text-sm text-right text-purple-400">{day.transactionsRedeem}</td>
-                        <td
-                          className={`py-4 px-6 text-sm text-right ${
-                            day.scanErrorsTotal > 0 ? 'text-red-400 font-semibold' : 'text-slate-400'
-                          }`}
-                        >
-                          {day.scanErrorsTotal}
+                    {report.metrics.daily && report.metrics.daily.length > 0 ? (
+                      report.metrics.daily.map((day: any, idx: number) => (
+                        <tr key={idx} className="hover:bg-white/5 transition-colors duration-150">
+                          <td className="py-4 px-6 text-sm text-white">{day.date || 'N/A'}</td>
+                          <td className="py-4 px-6 text-sm text-right text-white">{day.activeCustomers || 0}</td>
+                          <td className="py-4 px-6 text-sm text-right text-emerald-400">{day.transactionsIssue || 0}</td>
+                          <td className="py-4 px-6 text-sm text-right text-purple-400">{day.transactionsRedeem || 0}</td>
+                          <td
+                            className={`py-4 px-6 text-sm text-right ${
+                              (day.scanErrorsTotal || 0) > 0 ? 'text-red-400 font-semibold' : 'text-slate-400'
+                            }`}
+                          >
+                            {day.scanErrorsTotal || 0}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={5} className="py-8 px-6 text-center text-slate-400">
+                          No daily metrics available for this week
                         </td>
                       </tr>
-                    ))}
+                    )}
                   </tbody>
                 </table>
               </div>

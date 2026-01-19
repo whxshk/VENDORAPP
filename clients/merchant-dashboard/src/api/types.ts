@@ -1,6 +1,7 @@
 // Core Entity Types
 export interface Customer {
   id: string;
+  shortId?: string;
   name: string;
   email?: string;
   phone?: string;

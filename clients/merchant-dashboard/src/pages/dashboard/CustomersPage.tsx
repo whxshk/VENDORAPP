@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -14,16 +14,28 @@ import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '../../components/ui/dialog';
 import { Badge } from '../../components/ui/badge';
-import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { formatDate } from '../../lib/utils';
 import type { Customer } from '../../api/types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function CustomersPage() {
+  const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [sorting, setSorting] = useState<{ id: string; desc: boolean }[]>([]);
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchInput);
+      setPage(1); // Reset to first page on search
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   const { data, isLoading } = useCustomers({ page, limit: 20, search });
 
@@ -32,29 +44,133 @@ export default function CustomersPage() {
   const columns: ColumnDef<Customer>[] = [
     {
       accessorKey: 'name',
-      header: 'Name',
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="h-8 px-2 lg:px-3 hover:bg-slate-700 -ml-2"
+          >
+            Name
+            {column.getIsSorted() === "asc" ? (
+              <ArrowUp className="ml-2 h-4 w-4" />
+            ) : column.getIsSorted() === "desc" ? (
+              <ArrowDown className="ml-2 h-4 w-4" />
+            ) : (
+              <ArrowUpDown className="ml-2 h-4 w-4" />
+            )}
+          </Button>
+        );
+      },
       cell: ({ row }) => <div className="font-semibold text-white">{row.getValue('name')}</div>,
     },
     {
-      accessorKey: 'qrCode',
-      header: 'QR Code',
-      cell: ({ row }) => <div className="text-slate-400 font-mono text-sm">{row.getValue('qrCode')}</div>,
+      accessorKey: 'shortId',
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="h-8 px-2 lg:px-3 hover:bg-slate-700 -ml-2"
+          >
+            Customer ID
+            {column.getIsSorted() === "asc" ? (
+              <ArrowUp className="ml-2 h-4 w-4" />
+            ) : column.getIsSorted() === "desc" ? (
+              <ArrowDown className="ml-2 h-4 w-4" />
+            ) : (
+              <ArrowUpDown className="ml-2 h-4 w-4" />
+            )}
+          </Button>
+        );
+      },
+      cell: ({ row }) => (
+        <div className="text-blue-400 font-mono text-sm font-semibold" title={row.original.id}>
+          {(row.original as any).shortId || '0000'}
+        </div>
+      ),
+      sortingFn: (rowA, rowB) => {
+        const a = (rowA.original as any).shortId || '0000';
+        const b = (rowB.original as any).shortId || '0000';
+        return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+      },
     },
     {
       accessorKey: 'pointsBalance',
-      header: 'Points Balance',
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="h-8 px-2 lg:px-3 hover:bg-slate-700 -ml-2"
+          >
+            Points Balance
+            {column.getIsSorted() === "asc" ? (
+              <ArrowUp className="ml-2 h-4 w-4" />
+            ) : column.getIsSorted() === "desc" ? (
+              <ArrowDown className="ml-2 h-4 w-4" />
+            ) : (
+              <ArrowUpDown className="ml-2 h-4 w-4" />
+            )}
+          </Button>
+        );
+      },
       cell: ({ row }) => (
         <div className="font-bold text-blue-400">{row.getValue('pointsBalance')}</div>
       ),
     },
     {
       accessorKey: 'lastVisit',
-      header: 'Last Visit',
-      cell: ({ row }) => <div className="text-slate-400">{formatDate(row.getValue('lastVisit'))}</div>,
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="h-8 px-2 lg:px-3 hover:bg-slate-700 -ml-2"
+          >
+            Last Visit
+            {column.getIsSorted() === "asc" ? (
+              <ArrowUp className="ml-2 h-4 w-4" />
+            ) : column.getIsSorted() === "desc" ? (
+              <ArrowDown className="ml-2 h-4 w-4" />
+            ) : (
+              <ArrowUpDown className="ml-2 h-4 w-4" />
+            )}
+          </Button>
+        );
+      },
+      cell: ({ row }) => {
+        const date = row.getValue('lastVisit');
+        return <div className="text-slate-400">{date ? formatDate(date) : 'Never'}</div>;
+      },
+      sortingFn: (rowA, rowB) => {
+        const a = rowA.getValue('lastVisit') as Date | string | null;
+        const b = rowB.getValue('lastVisit') as Date | string | null;
+        const aTime = a ? new Date(a).getTime() : 0;
+        const bTime = b ? new Date(b).getTime() : 0;
+        return aTime - bTime;
+      },
     },
     {
       accessorKey: 'totalVisits',
-      header: 'Total Visits',
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="h-8 px-2 lg:px-3 hover:bg-slate-700 -ml-2"
+          >
+            Total Visits
+            {column.getIsSorted() === "asc" ? (
+              <ArrowUp className="ml-2 h-4 w-4" />
+            ) : column.getIsSorted() === "desc" ? (
+              <ArrowDown className="ml-2 h-4 w-4" />
+            ) : (
+              <ArrowUpDown className="ml-2 h-4 w-4" />
+            )}
+          </Button>
+        );
+      },
       cell: ({ row }) => <div className="text-white">{row.getValue('totalVisits')}</div>,
     },
     {
@@ -79,7 +195,9 @@ export default function CustomersPage() {
     pageCount: data ? Math.ceil(data.total / 20) : 0,
     state: {
       globalFilter: search,
+      sorting,
     },
+    onSortingChange: setSorting,
   });
 
   const handleRowClick = (customerId: string) => {
@@ -113,11 +231,14 @@ export default function CustomersPage() {
             <div className="relative w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <Input
-                placeholder="Search customers..."
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(1);
+                placeholder="Search by name or customer ID (e.g., 0001)..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    setSearch(searchInput);
+                    setPage(1);
+                  }
                 }}
                 className="pl-9"
               />
@@ -196,21 +317,51 @@ export default function CustomersPage() {
       <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{customerDetail?.name}</DialogTitle>
+            <DialogTitle className="text-2xl font-bold">{customerDetail?.name}</DialogTitle>
+            {customerDetail && (customerDetail as any).shortId && (
+              <p className="text-sm text-slate-400 mt-1">Customer ID: <span className="font-mono font-semibold text-blue-400">{(customerDetail as any).shortId}</span></p>
+            )}
             <DialogClose onClose={() => setIsDetailOpen(false)} />
           </DialogHeader>
           {customerDetail && (
             <div className="space-y-6 mt-4">
-              <div className="grid grid-cols-2 gap-6">
-                <div className="p-4 rounded-xl bg-slate-800/50 border border-white/5">
-                  <div className="text-sm text-slate-400 mb-1">Points Balance</div>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="p-4 rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-600/20 border border-blue-500/30">
+                  <div className="text-sm text-slate-300 mb-1">Points Balance</div>
                   <div className="text-3xl font-bold text-blue-400">{customerDetail.pointsBalance}</div>
                 </div>
-                <div className="p-4 rounded-xl bg-slate-800/50 border border-white/5">
-                  <div className="text-sm text-slate-400 mb-1">Total Visits</div>
-                  <div className="text-3xl font-bold text-white">{customerDetail.totalVisits}</div>
+                <div className="p-4 rounded-xl bg-gradient-to-br from-purple-500/20 to-purple-600/20 border border-purple-500/30">
+                  <div className="text-sm text-slate-300 mb-1">Total Visits</div>
+                  <div className="text-3xl font-bold text-purple-400">{customerDetail.totalVisits}</div>
+                </div>
+                <div className="p-4 rounded-xl bg-gradient-to-br from-emerald-500/20 to-emerald-600/20 border border-emerald-500/30">
+                  <div className="text-sm text-slate-300 mb-1">Status</div>
+                  <div className="mt-2">
+                    <Badge variant={customerDetail.status === 'active' ? 'success' : 'secondary'}>
+                      {customerDetail.status === 'active' ? 'Active' : 'Inactive'}
+                    </Badge>
+                  </div>
                 </div>
               </div>
+              
+              {/* Customer Info */}
+              {(customerDetail.email || customerDetail.phone) && (
+                <div className="p-4 rounded-xl bg-slate-800/50 border border-white/5">
+                  <h4 className="text-sm font-semibold text-slate-300 mb-3">Contact Information</h4>
+                  <div className="space-y-2 text-sm">
+                    {customerDetail.email && (
+                      <div className="text-slate-400">
+                        <span className="font-semibold text-slate-300">Email:</span> {customerDetail.email}
+                      </div>
+                    )}
+                    {customerDetail.phone && (
+                      <div className="text-slate-400">
+                        <span className="font-semibold text-slate-300">Phone:</span> {customerDetail.phone}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Points History Chart */}
               {customerDetail.pointsHistory && customerDetail.pointsHistory.length > 0 && (
@@ -218,9 +369,18 @@ export default function CustomersPage() {
                   <h3 className="text-lg font-bold text-white mb-4">Points History (Last 30 Days)</h3>
                   <div className="p-4 rounded-xl bg-slate-800/30 border border-white/5">
                     <ResponsiveContainer width="100%" height={300}>
-                      <LineChart data={customerDetail.pointsHistory}>
+                      <LineChart data={customerDetail.pointsHistory.map(item => ({
+                        ...item,
+                        date: formatDate(item.date),
+                      }))}>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                        <XAxis dataKey="date" stroke="rgba(255,255,255,0.4)" />
+                        <XAxis 
+                          dataKey="date" 
+                          stroke="rgba(255,255,255,0.4)"
+                          angle={-45}
+                          textAnchor="end"
+                          height={80}
+                        />
                         <YAxis stroke="rgba(255,255,255,0.4)" />
                         <Tooltip
                           contentStyle={{

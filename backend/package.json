@@ -22,7 +22,7 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
-    "seed": "ts-node src/scripts/seed.ts",
+    "seed": "tsx src/scripts/seed.ts",
     "simulate:pilot": "cross-env NODE_ENV=development PILOT_MODE=true ts-node src/scripts/simulate_pilot.ts",
     "pilot:acceptance": "npm run test:e2e && npm run simulate:pilot"
   },
