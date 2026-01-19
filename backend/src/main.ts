@@ -13,6 +13,7 @@ import { validateEnv } from './config/env.validation';
 async function bootstrap() {
   // Validate environment variables on startup
   validateEnv();
+  // @ts-ignore - Fastify adapter type compatibility issue with SwaggerModule
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
     new FastifyAdapter({
@@ -45,7 +46,7 @@ async function bootstrap() {
   // API Versioning
   app.enableVersioning({
     type: VersioningType.URI,
-    defaultVersion: 'v1',
+    defaultVersion: '1',
     prefix: 'v',
   });
 
@@ -53,8 +54,8 @@ async function bootstrap() {
   app.useGlobalPipes(
     new ZodValidationPipe(),
     new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
+      whitelist: false, // Zod handles validation
+      forbidNonWhitelisted: false, // Zod handles validation
       transform: true,
       transformOptions: {
         enableImplicitConversion: true,
@@ -95,8 +96,8 @@ async function bootstrap() {
     )
     .build();
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document, {
+  const document = SwaggerModule.createDocument(app as any, config);
+  SwaggerModule.setup('api/docs', app as any, document, {
     swaggerOptions: {
       persistAuthorization: true,
     },

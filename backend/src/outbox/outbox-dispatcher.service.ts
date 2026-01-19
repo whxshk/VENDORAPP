@@ -16,14 +16,14 @@ export class OutboxDispatcherService implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   async onModuleInit() {
-    const natsUrl = this.configService.get<string>('nats.url') || 'nats://localhost:4222';
+    const natsUrl = this.configService.get<string>('app.nats.url') || 'nats://localhost:4222';
     
     try {
       this.nc = await connect({ servers: natsUrl });
       this.logger.log(`Connected to NATS at ${natsUrl}`);
 
-      const pollInterval = this.configService.get<number>('outbox.pollIntervalMs') || 5000;
-      const batchSize = this.configService.get<number>('outbox.batchSize') || 100;
+      const pollInterval = this.configService.get<number>('app.outbox.pollIntervalMs') || 5000;
+      const batchSize = this.configService.get<number>('app.outbox.batchSize') || 100;
 
       // Start polling for pending events
       this.intervalId = setInterval(() => {
@@ -93,7 +93,7 @@ export class OutboxDispatcherService implements OnModuleInit, OnModuleDestroy {
 
         // Increment retry count
         const retryCount = event.retryCount + 1;
-        const maxRetries = this.configService.get<number>('outbox.maxRetries') || 3;
+        const maxRetries = this.configService.get<number>('app.outbox.maxRetries') || 3;
 
         if (retryCount >= maxRetries) {
           await this.prisma.outboxEvent.update({

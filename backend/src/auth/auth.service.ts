@@ -64,14 +64,14 @@ export class AuthService {
     };
 
     const accessToken = this.jwtService.sign(payload, {
-      expiresIn: this.configService.get<string>('jwt.accessTokenExpiry') || '15m',
+      expiresIn: this.configService.get<string>('app.jwt.accessTokenExpiry') || '15m',
     });
 
     const refreshToken = this.jwtService.sign(
       { sub: user.id, tenantId: user.tenantId },
       {
-        secret: this.configService.get<string>('jwt.refreshTokenSecret'),
-        expiresIn: this.configService.get<string>('jwt.refreshTokenExpiry') || '7d',
+        secret: this.configService.get<string>('app.jwt.refreshTokenSecret'),
+        expiresIn: this.configService.get<string>('app.jwt.refreshTokenExpiry') || '7d',
       },
     );
 
@@ -86,7 +86,7 @@ export class AuthService {
   async refresh(refreshToken: string): Promise<AuthResponse> {
     try {
       const payload = this.jwtService.verify(refreshToken, {
-        secret: this.configService.get<string>('jwt.refreshTokenSecret'),
+        secret: this.configService.get<string>('app.jwt.refreshTokenSecret'),
       }) as { sub: string; tenantId: string };
 
       const user = await this.prisma.user.findUnique({
@@ -109,15 +109,15 @@ export class AuthService {
       };
 
       const accessToken = this.jwtService.sign(newPayload, {
-        expiresIn: this.configService.get<string>('jwt.accessTokenExpiry') || '15m',
+        expiresIn: this.configService.get<string>('app.jwt.accessTokenExpiry') || '15m',
       });
 
       // Optional: Rotate refresh token (issue new one)
       const newRefreshToken = this.jwtService.sign(
         { sub: user.id, tenantId: user.tenantId },
         {
-          secret: this.configService.get<string>('jwt.refreshTokenSecret'),
-          expiresIn: this.configService.get<string>('jwt.refreshTokenExpiry') || '7d',
+          secret: this.configService.get<string>('app.jwt.refreshTokenSecret'),
+          expiresIn: this.configService.get<string>('app.jwt.refreshTokenExpiry') || '7d',
         },
       );
 

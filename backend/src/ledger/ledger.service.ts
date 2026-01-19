@@ -46,7 +46,7 @@ export class LedgerService {
     });
 
     const currentBalance = previousEntries.reduce(
-      (sum, entry) => sum + Number(entry.amount),
+      (sum: number, entry: typeof previousEntries[0]) => sum + Number(entry.amount),
       0,
     );
 
@@ -144,7 +144,7 @@ export class LedgerService {
     ]);
 
     return {
-      entries: entries.map((entry) => ({
+      entries: entries.map((entry: typeof entries[0]) => ({
         id: entry.id,
         transactionId: entry.transactionId,
         amount: Number(entry.amount),

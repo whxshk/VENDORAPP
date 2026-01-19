@@ -31,7 +31,19 @@ export class PilotReportsService {
 
     // Aggregate weekly totals
     const weekly = dailyMetrics.reduce(
-      (acc, day) => ({
+      (
+        acc: {
+          activeCustomers: number;
+          repeatCustomers: number;
+          transactionsIssue: number;
+          transactionsRedeem: number;
+          transactionsAdjust: number;
+          transactionsReverse: number;
+          transactionsTotal: number;
+          scanErrorsTotal: number;
+        },
+        day: typeof dailyMetrics[0],
+      ) => ({
         activeCustomers: Math.max(acc.activeCustomers, day.activeCustomers),
         repeatCustomers: Math.max(acc.repeatCustomers, day.repeatCustomers),
         transactionsIssue: acc.transactionsIssue + day.transactionsIssue,
@@ -89,7 +101,7 @@ export class PilotReportsService {
       summary,
       metrics: {
         weekly,
-        daily: dailyMetrics.map((m) => ({
+        daily: dailyMetrics.map((m: typeof dailyMetrics[0]) => ({
           date: m.metricDate.toISOString().split('T')[0],
           activeCustomers: m.activeCustomers,
           repeatCustomers: m.repeatCustomers,
@@ -99,7 +111,7 @@ export class PilotReportsService {
           scanErrorsTotal: m.scanErrorsTotal,
         })),
       },
-      topRewards: topRewards.map((r) => ({
+      topRewards: topRewards.map((r: typeof topRewards[0]) => ({
         rewardId: r.rewardId,
         rewardName: r.reward.name,
         redemptionCount: r.redemptionCount,
@@ -171,7 +183,16 @@ export class PilotReportsService {
   }
 
   private generateSummary(
-    weekly: any,
+    weekly: {
+      activeCustomers: number;
+      repeatCustomers: number;
+      transactionsIssue: number;
+      transactionsRedeem: number;
+      transactionsAdjust: number;
+      transactionsReverse: number;
+      transactionsTotal: number;
+      scanErrorsTotal: number;
+    },
     redemptionRate: number,
     daysWithData: number,
   ): { improved: string[]; needsFixing: string[] } {

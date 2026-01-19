@@ -21,7 +21,7 @@ export class ReadmodelsConsumer implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   async onModuleInit() {
-    const natsUrl = this.configService.get<string>('nats.url') || 'nats://localhost:4222';
+    const natsUrl = this.configService.get<string>('app.nats.url') || 'nats://localhost:4222';
 
     try {
       this.nc = await connect({ servers: natsUrl });

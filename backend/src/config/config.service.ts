@@ -78,4 +78,6 @@ export const ConfigService = {
   }),
 };
 
+// Config is loaded via ConfigModule.forRoot({ load: [registerAs('app', ConfigService.loadConfig)] })
+// Access config values with 'app.' prefix, e.g., configService.get('app.nats.url')
 export default registerAs('app', ConfigService.loadConfig);

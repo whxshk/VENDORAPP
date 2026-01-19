@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
-import { ConfigService } from './config/config.service';
+import { ConfigService, default as appConfig } from './config/config.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { TenancyModule } from './tenancy/tenancy.module';
@@ -28,7 +28,7 @@ import { PilotMetricsModule } from './pilot-metrics/pilot-metrics.module';
     // Configuration
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [ConfigService.loadConfig],
+      load: [appConfig],
     }),
 
     // Database

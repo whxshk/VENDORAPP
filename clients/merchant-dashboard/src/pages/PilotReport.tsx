@@ -1,43 +1,19 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { pilotReportsApi } from '../api/client';
-import { useAuthStore } from '../store/authStore';
+import { useQuery } from '@tanstack/react-query';
+import { getPilotReport } from '../api/merchant';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Button } from '../components/ui/button';
+import { Download } from 'lucide-react';
 
-export default function PilotReport() {
-  const [report, setReport] = useState<any>(null);
-  const [funnel, setFunnel] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
-
-  useEffect(() => {
-    if (!user) {
-      navigate('/login');
-      return;
-    }
-
-    const loadReport = async () => {
-      try {
-        setError(null);
-        const [reportResponse, funnelResponse] = await Promise.all([
-          pilotReportsApi.getWeeklyReport(),
-          pilotReportsApi.getOnboardingFunnel().catch(() => null),
-        ]);
-        setReport(reportResponse.data);
-        setFunnel(funnelResponse?.data || null);
-      } catch (err: any) {
-        setError(err.response?.data?.error?.message || 'Failed to load pilot report');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadReport();
-  }, [user, navigate]);
+export default function PilotReportPage() {
+  const { data: report, isLoading, error } = useQuery({
+    queryKey: ['pilot-report'],
+    queryFn: () => getPilotReport(),
+  });
 
   const exportJson = () => {
-    const dataStr = JSON.stringify({ report, funnel }, null, 2);
+    if (!report) return;
+    
+    const dataStr = JSON.stringify(report, null, 2);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(dataBlob);
     const link = document.createElement('a');
@@ -46,147 +22,184 @@ export default function PilotReport() {
     link.click();
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
-      <div style={{ padding: '2rem', textAlign: 'center' }}>
-        <div>Loading pilot report...</div>
+      <div className="space-y-8">
+        <div>
+          <h1 className="text-3xl font-bold text-white mb-2">Pilot Report</h1>
+          <p className="text-slate-400">Weekly analytics and insights</p>
+        </div>
+        <div className="grid grid-cols-4 gap-6">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i} className="animate-pulse">
+              <CardContent className="p-6">
+                <div className="h-4 bg-slate-700 rounded w-24 mb-4" />
+                <div className="h-8 bg-slate-700 rounded w-32" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     );
   }
 
-  if (error && !report) {
+  if (error) {
     return (
-      <div style={{ padding: '2rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-          <h1>Pilot Report</h1>
-          <button onClick={() => navigate('/dashboard')}>Back to Dashboard</button>
+      <div className="space-y-8">
+        <div>
+          <h1 className="text-3xl font-bold text-white mb-2">Pilot Report</h1>
+          <p className="text-slate-400">Weekly analytics and insights</p>
         </div>
-        <div style={{ padding: '2rem', border: '2px solid #ff4444', borderRadius: '8px', backgroundColor: '#ffeeee', color: '#cc0000' }}>
-          <h3>Error Loading Report</h3>
-          <p>{error}</p>
-        </div>
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-center text-red-400">
+              Failed to load pilot report. Please try again.
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
+  }
+
+  if (!report) {
+    return null;
   }
 
   return (
-    <div style={{ padding: '2rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <h1>Pilot Report - Week {report?.week}</h1>
+    <div className="space-y-8">
+      <div className="flex items-center justify-between">
         <div>
-          <button onClick={exportJson} style={{ marginRight: '1rem', padding: '0.5rem 1rem' }}>
-            Export JSON
-          </button>
-          <button onClick={() => navigate('/dashboard')} style={{ padding: '0.5rem 1rem' }}>
-            Back to Dashboard
-          </button>
+          <h1 className="text-3xl font-bold text-white mb-2">Pilot Report - Week {report.week}</h1>
+          <p className="text-slate-400">Weekly analytics and insights</p>
         </div>
+        <Button onClick={exportJson} variant="outline">
+          <Download className="h-4 w-4 mr-2" />
+          Export JSON
+        </Button>
       </div>
 
-      {report?.summary && (
-        <div style={{ marginBottom: '2rem' }}>
-          <div style={{ padding: '1rem', border: '1px solid #4caf50', borderRadius: '8px', backgroundColor: '#e8f5e9', marginBottom: '1rem' }}>
-            <h3 style={{ marginTop: 0, color: '#2e7d32' }}>✓ What Improved This Week</h3>
-            <ul>
-              {report.summary.improved.map((item: string, idx: number) => (
-                <li key={idx}>{item}</li>
-              ))}
-            </ul>
-          </div>
-          {report.summary.needsFixing.length > 0 && (
-            <div style={{ padding: '1rem', border: '1px solid #ff9800', borderRadius: '8px', backgroundColor: '#fff3e0' }}>
-              <h3 style={{ marginTop: 0, color: '#e65100' }}>⚠️ What Needs Fixing Next</h3>
-              <ul>
-                {report.summary.needsFixing.map((item: string, idx: number) => (
+      {report.summary && (
+        <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-emerald-400">✓ What Improved This Week</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="list-disc list-inside space-y-2 text-slate-300">
+                {report.summary.improved.map((item: string, idx: number) => (
                   <li key={idx}>{item}</li>
                 ))}
               </ul>
-            </div>
+            </CardContent>
+          </Card>
+
+          {report.summary.needsFixing.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-amber-400">⚠️ What Needs Fixing Next</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="list-disc list-inside space-y-2 text-slate-300">
+                  {report.summary.needsFixing.map((item: string, idx: number) => (
+                    <li key={idx}>{item}</li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
           )}
         </div>
       )}
 
-      {funnel && (
-        <div style={{ marginBottom: '2rem', padding: '1rem', border: '1px solid #ccc', borderRadius: '8px' }}>
-          <h3>Onboarding Funnel</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem', marginTop: '1rem' }}>
-            <div>
-              <strong>Time to Location:</strong> {funnel.durations.timeToLocationMinutes ? `${funnel.durations.timeToLocationMinutes} minutes` : 'N/A'}
-            </div>
-            <div>
-              <strong>Time to Staff:</strong> {funnel.durations.timeToStaffMinutes ? `${funnel.durations.timeToStaffMinutes} minutes` : 'N/A'}
-            </div>
-            <div>
-              <strong>Time to Device:</strong> {funnel.durations.timeToDeviceMinutes ? `${funnel.durations.timeToDeviceMinutes} minutes` : 'N/A'}
-            </div>
-            <div>
-              <strong>Time to First Scan:</strong> {funnel.durations.timeToFirstScanMinutes ? `${funnel.durations.timeToFirstScanMinutes} minutes` : 'N/A'}
-            </div>
+      {report.metrics && (
+        <div className="space-y-6">
+          <h2 className="text-2xl font-bold text-white">Weekly Metrics</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card>
+              <CardContent className="p-6">
+                <div className="text-sm text-slate-400 uppercase tracking-wider mb-2">Active Customers</div>
+                <div className="text-3xl font-bold text-white">{report.metrics.weekly.activeCustomers}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6">
+                <div className="text-sm text-slate-400 uppercase tracking-wider mb-2">Repeat Customers</div>
+                <div className="text-3xl font-bold text-white">{report.metrics.weekly.repeatCustomers}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6">
+                <div className="text-sm text-slate-400 uppercase tracking-wider mb-2">Total Transactions</div>
+                <div className="text-3xl font-bold text-white">{report.metrics.weekly.transactionsTotal}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6">
+                <div className="text-sm text-slate-400 uppercase tracking-wider mb-2">Redemption Rate</div>
+                <div className="text-3xl font-bold text-blue-400">
+                  {report.metrics.weekly.transactionsIssue > 0
+                    ? ((report.metrics.weekly.transactionsRedeem / report.metrics.weekly.transactionsIssue) * 100).toFixed(1)
+                    : 0}%
+                </div>
+              </CardContent>
+            </Card>
           </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Daily Breakdown</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto -mx-2">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-white/10">
+                      <th className="text-left py-4 px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider">Date</th>
+                      <th className="text-right py-4 px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider">Active Customers</th>
+                      <th className="text-right py-4 px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider">Issues</th>
+                      <th className="text-right py-4 px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider">Redeems</th>
+                      <th className="text-right py-4 px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider">Errors</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {report.metrics.daily.map((day: any, idx: number) => (
+                      <tr key={idx} className="hover:bg-white/5 transition-colors duration-150">
+                        <td className="py-4 px-6 text-sm text-white">{day.date}</td>
+                        <td className="py-4 px-6 text-sm text-right text-white">{day.activeCustomers}</td>
+                        <td className="py-4 px-6 text-sm text-right text-emerald-400">{day.transactionsIssue}</td>
+                        <td className="py-4 px-6 text-sm text-right text-purple-400">{day.transactionsRedeem}</td>
+                        <td
+                          className={`py-4 px-6 text-sm text-right ${
+                            day.scanErrorsTotal > 0 ? 'text-red-400 font-semibold' : 'text-slate-400'
+                          }`}
+                        >
+                          {day.scanErrorsTotal}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 
-      {report?.metrics && (
-        <div style={{ marginBottom: '2rem' }}>
-          <h3>Weekly Metrics</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1rem' }}>
-            <div style={{ padding: '1rem', border: '1px solid #ccc', borderRadius: '8px' }}>
-              <strong>Active Customers</strong>
-              <p style={{ fontSize: '1.5rem', margin: 0 }}>{report.metrics.weekly.activeCustomers}</p>
-            </div>
-            <div style={{ padding: '1rem', border: '1px solid #ccc', borderRadius: '8px' }}>
-              <strong>Repeat Customers</strong>
-              <p style={{ fontSize: '1.5rem', margin: 0 }}>{report.metrics.weekly.repeatCustomers}</p>
-            </div>
-            <div style={{ padding: '1rem', border: '1px solid #ccc', borderRadius: '8px' }}>
-              <strong>Total Transactions</strong>
-              <p style={{ fontSize: '1.5rem', margin: 0 }}>{report.metrics.weekly.transactionsTotal}</p>
-            </div>
-            <div style={{ padding: '1rem', border: '1px solid #ccc', borderRadius: '8px' }}>
-              <strong>Redemption Rate</strong>
-              <p style={{ fontSize: '1.5rem', margin: 0 }}>{(report.metrics.weekly.transactionsIssue > 0 ? (report.metrics.weekly.transactionsRedeem / report.metrics.weekly.transactionsIssue * 100) : 0).toFixed(1)}%</p>
-            </div>
-          </div>
-
-          <h4>Daily Breakdown</h4>
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '1rem' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid #ccc' }}>
-                <th style={{ padding: '0.5rem', textAlign: 'left' }}>Date</th>
-                <th style={{ padding: '0.5rem', textAlign: 'right' }}>Active Customers</th>
-                <th style={{ padding: '0.5rem', textAlign: 'right' }}>Issues</th>
-                <th style={{ padding: '0.5rem', textAlign: 'right' }}>Redeems</th>
-                <th style={{ padding: '0.5rem', textAlign: 'right' }}>Errors</th>
-              </tr>
-            </thead>
-            <tbody>
-              {report.metrics.daily.map((day: any, idx: number) => (
-                <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
-                  <td style={{ padding: '0.5rem' }}>{day.date}</td>
-                  <td style={{ padding: '0.5rem', textAlign: 'right' }}>{day.activeCustomers}</td>
-                  <td style={{ padding: '0.5rem', textAlign: 'right' }}>{day.transactionsIssue}</td>
-                  <td style={{ padding: '0.5rem', textAlign: 'right' }}>{day.transactionsRedeem}</td>
-                  <td style={{ padding: '0.5rem', textAlign: 'right', color: day.scanErrorsTotal > 0 ? '#d32f2f' : 'inherit' }}>
-                    {day.scanErrorsTotal}
-                  </td>
-                </tr>
+      {report.topRewards && report.topRewards.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Top Rewards This Week</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {report.topRewards.map((reward: any, idx: number) => (
+                <div key={idx} className="flex items-center justify-between py-3 px-4 rounded-xl border border-white/5 bg-slate-800/30 hover:bg-slate-800/50 transition-colors">
+                  <span className="font-semibold text-white">{reward.rewardName}</span>
+                  <span className="text-slate-400">{reward.redemptionCount} redemptions</span>
+                </div>
               ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {report?.topRewards && report.topRewards.length > 0 && (
-        <div style={{ marginBottom: '2rem' }}>
-          <h3>Top Rewards This Week</h3>
-          <ul>
-            {report.topRewards.map((reward: any, idx: number) => (
-              <li key={idx}>
-                <strong>{reward.rewardName}</strong>: {reward.redemptionCount} redemptions
-              </li>
-            ))}
-          </ul>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

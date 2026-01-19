@@ -22,7 +22,7 @@ export class OutboxService {
       data: {
         tenantId,
         eventType,
-        payload: payload as Prisma.InputJsonValue,
+        payload: payload as any,
         status: 'PENDING',
       },
     });

@@ -3,7 +3,9 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import * as SecureStore from 'expo-secure-store';
 import LoginScreen from './src/screens/LoginScreen';
-import QrScreen from './src/screens/QrScreen';
+import HomeScreen from './src/screens/HomeScreen';
+import RewardsScreen from './src/screens/RewardsScreen';
+import HistoryScreen from './src/screens/HistoryScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -21,13 +23,23 @@ export default function App() {
 
   return (
     <NavigationContainer>
-      <Stack.Navigator>
+      <Stack.Navigator
+        screenOptions={{
+          headerStyle: { backgroundColor: '#0c1829' },
+          headerTintColor: '#f1f5f9',
+          headerTitleStyle: { fontWeight: 'bold' },
+        }}
+      >
         {!isAuthenticated ? (
-          <Stack.Screen name="Login">
+          <Stack.Screen name="Login" options={{ headerShown: false }}>
             {(props) => <LoginScreen {...props} onLogin={() => setIsAuthenticated(true)} />}
           </Stack.Screen>
         ) : (
-          <Stack.Screen name="QR" component={QrScreen} />
+          <>
+            <Stack.Screen name="Home" component={HomeScreen} />
+            <Stack.Screen name="Rewards" component={RewardsScreen} />
+            <Stack.Screen name="History" component={HistoryScreen} />
+          </>
         )}
       </Stack.Navigator>
     </NavigationContainer>

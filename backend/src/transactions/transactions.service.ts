@@ -5,6 +5,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 import { LedgerService } from '../ledger/ledger.service';
 import { OutboxService } from '../outbox/outbox.service';
 import { FraudSignalsService } from '../fraud-signals/fraud-signals.service';
@@ -75,7 +76,7 @@ export class TransactionsService {
     }
 
     // Create transaction and ledger entry atomically
-    const result = await this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Create transaction record
       const transaction = await tx.transaction.create({
         data: {
@@ -177,7 +178,7 @@ export class TransactionsService {
     const pointsRequired = Number(reward.pointsRequired);
 
     // Check balance with lock (SELECT FOR UPDATE)
-    const result = await this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const balance = await this.ledgerService.getBalance(tenantId, customerId);
 
       if (balance < pointsRequired) {
