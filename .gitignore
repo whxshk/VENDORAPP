@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# Docker
+docker-compose.override.yml
+
+# Frontend specific
+clients/merchant-dashboard/dist/
+clients/merchant-dashboard/node_modules/
+clients/*/node_modules/
+
+# Backend specific
+backend/dist/
+backend/node_modules/
+backend/.env
+
+# Prisma
+backend/prisma/migrations/*.sql
+!backend/prisma/migrations/migration_lock.toml
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Test
+*.test.js.snap
