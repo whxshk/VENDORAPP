@@ -1,6 +1,6 @@
 # Dependencies
 node_modules/
-package-lock.json
+# Note: package-lock.json SHOULD be committed for dependency consistency
 
 # Environment variables
 .env
