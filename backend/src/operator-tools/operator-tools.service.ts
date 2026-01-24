@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { LedgerService } from '../ledger/ledger.service';
@@ -13,6 +13,62 @@ export class OperatorToolsService {
     private outboxService: OutboxService,
     private auditService: AuditService,
   ) {}
+
+  async disableTenant(tenantId: string, id: string) {
+    if (id !== tenantId) throw new ForbiddenException('Can only disable own tenant');
+    const t = await this.prisma.tenant.findUnique({ where: { id } });
+    if (!t) throw new NotFoundException('Tenant not found');
+    await this.prisma.tenant.update({ where: { id }, data: { isActive: false } });
+    return { id, isActive: false };
+  }
+
+  async enableTenant(tenantId: string, id: string) {
+    if (id !== tenantId) throw new ForbiddenException('Can only enable own tenant');
+    const t = await this.prisma.tenant.findUnique({ where: { id } });
+    if (!t) throw new NotFoundException('Tenant not found');
+    await this.prisma.tenant.update({ where: { id }, data: { isActive: true } });
+    return { id, isActive: true };
+  }
+
+  async disableUser(tenantId: string, userId: string, operatorId: string) {
+    const u = await this.prisma.user.findFirst({ where: { id: userId, tenantId } });
+    if (!u) throw new NotFoundException('User not found');
+    await this.prisma.user.update({ where: { id: userId }, data: { isActive: false } });
+    await this.auditService.log(tenantId, operatorId, 'USER_DISABLED', 'user', userId, {});
+    return { id: userId, isActive: false };
+  }
+
+  async enableUser(tenantId: string, userId: string, operatorId: string) {
+    const u = await this.prisma.user.findFirst({ where: { id: userId, tenantId } });
+    if (!u) throw new NotFoundException('User not found');
+    await this.prisma.user.update({ where: { id: userId }, data: { isActive: true } });
+    await this.auditService.log(tenantId, operatorId, 'USER_ENABLED', 'user', userId, {});
+    return { id: userId, isActive: true };
+  }
+
+  async disableCustomer(tenantId: string, customerId: string) {
+    const acc = await this.prisma.customerMerchantAccount.findFirst({
+      where: { customerId, tenantId },
+    });
+    if (!acc) throw new NotFoundException('Customer not found');
+    await this.prisma.customerMerchantAccount.updateMany({
+      where: { customerId, tenantId },
+      data: { membershipStatus: 'DISABLED' },
+    });
+    return { customerId, membershipStatus: 'DISABLED' };
+  }
+
+  async enableCustomer(tenantId: string, customerId: string) {
+    const acc = await this.prisma.customerMerchantAccount.findFirst({
+      where: { customerId, tenantId },
+    });
+    if (!acc) throw new NotFoundException('Customer not found');
+    await this.prisma.customerMerchantAccount.updateMany({
+      where: { customerId, tenantId },
+      data: { membershipStatus: 'ACTIVE' },
+    });
+    return { customerId, membershipStatus: 'ACTIVE' };
+  }
 
   /**
    * Manual adjustment (credit/debit)

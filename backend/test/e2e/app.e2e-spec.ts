@@ -643,4 +643,79 @@ describe('SharkBand E2E Tests', () => {
         .expect(400);
     });
   });
+
+  describe('Kill-Switch', () => {
+    it('PATCH disable/enable tenant', async () => {
+      await request(app.getHttpServer())
+        .patch(`/api/v1/operator-tools/tenants/${tenantA.id}/disable`)
+        .set('Authorization', `Bearer ${tokens.merchantAdminA}`)
+        .expect(200);
+      const qrRes = await request(app.getHttpServer())
+        .get('/api/v1/customers/me/qr-token')
+        .set('Authorization', `Bearer ${tokens.customer}`)
+        .expect(200);
+      await request(app.getHttpServer())
+        .post('/api/v1/scans/apply')
+        .set('Authorization', `Bearer ${tokens.staffA}`)
+        .set('Idempotency-Key', uuidv4())
+        .send({ qrPayload: qrRes.body.qrPayload, purpose: 'CHECKIN' })
+        .expect(403);
+      await request(app.getHttpServer())
+        .patch(`/api/v1/operator-tools/tenants/${tenantA.id}/enable`)
+        .set('Authorization', `Bearer ${tokens.merchantAdminA}`)
+        .expect(200);
+      const qr2 = await request(app.getHttpServer())
+        .get('/api/v1/customers/me/qr-token')
+        .set('Authorization', `Bearer ${tokens.customer}`)
+        .expect(200);
+      await request(app.getHttpServer())
+        .post('/api/v1/scans/apply')
+        .set('Authorization', `Bearer ${tokens.staffA}`)
+        .set('Idempotency-Key', uuidv4())
+        .send({ qrPayload: qr2.body.qrPayload, purpose: 'CHECKIN' })
+        .expect(201);
+    });
+
+    it('PATCH disable/enable user', async () => {
+      await request(app.getHttpServer())
+        .patch(`/api/v1/operator-tools/users/${staffA.id}/disable`)
+        .set('Authorization', `Bearer ${tokens.merchantAdminA}`)
+        .expect(200);
+      const qrRes = await request(app.getHttpServer())
+        .get('/api/v1/customers/me/qr-token')
+        .set('Authorization', `Bearer ${tokens.customer}`)
+        .expect(200);
+      await request(app.getHttpServer())
+        .post('/api/v1/scans/apply')
+        .set('Authorization', `Bearer ${tokens.staffA}`)
+        .set('Idempotency-Key', uuidv4())
+        .send({ qrPayload: qrRes.body.qrPayload, purpose: 'CHECKIN' })
+        .expect(403);
+      await request(app.getHttpServer())
+        .patch(`/api/v1/operator-tools/users/${staffA.id}/enable`)
+        .set('Authorization', `Bearer ${tokens.merchantAdminA}`)
+        .expect(200);
+    });
+
+    it('PATCH disable/enable customer', async () => {
+      await request(app.getHttpServer())
+        .patch(`/api/v1/operator-tools/customers/${customerA.id}/disable`)
+        .set('Authorization', `Bearer ${tokens.merchantAdminA}`)
+        .expect(200);
+      const qrRes = await request(app.getHttpServer())
+        .get('/api/v1/customers/me/qr-token')
+        .set('Authorization', `Bearer ${tokens.customer}`)
+        .expect(200);
+      await request(app.getHttpServer())
+        .post('/api/v1/scans/apply')
+        .set('Authorization', `Bearer ${tokens.staffA}`)
+        .set('Idempotency-Key', uuidv4())
+        .send({ qrPayload: qrRes.body.qrPayload, purpose: 'CHECKIN' })
+        .expect(403);
+      await request(app.getHttpServer())
+        .patch(`/api/v1/operator-tools/customers/${customerA.id}/enable`)
+        .set('Authorization', `Bearer ${tokens.merchantAdminA}`)
+        .expect(200);
+    });
+  });
 });
