@@ -380,6 +380,27 @@ export async function simulateScan(params: SimulateScanParams): Promise<ScanResu
   return response.data;
 }
 
+export type ScanApplyParams = {
+  qrPayload: string;
+  purpose: 'CHECKIN' | 'PURCHASE' | 'REDEEM';
+  amount?: number;
+  rewardId?: string;
+};
+
+export async function scanApply(params: ScanApplyParams): Promise<{ success: boolean; purpose: string; customerId?: string; transactionId?: string; balance?: number }> {
+  if (shouldUseMockData()) {
+    await new Promise(resolve => setTimeout(resolve, 400));
+    return { success: true, purpose: params.purpose };
+  }
+  const idempotencyKey = typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `scan-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const response = await apiClient.post('/scans/apply', params, {
+    headers: { 'Idempotency-Key': idempotencyKey },
+  });
+  return response.data;
+}
+
 // Pilot Report API
 export async function getPilotReport(week?: string): Promise<PilotReport> {
   if (shouldUseMockData()) {

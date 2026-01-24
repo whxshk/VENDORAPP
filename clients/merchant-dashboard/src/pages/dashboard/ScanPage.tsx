@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { simulateScan } from '../../api/merchant';
+import { simulateScan, scanApply, type ScanApplyParams } from '../../api/merchant';
 import { useRewards } from '../../hooks/useRewards';
 import { useCustomers } from '../../hooks/useCustomers';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
@@ -17,9 +17,15 @@ export default function ScanPage() {
   const [amount, setAmount] = useState('');
   const [rewardId, setRewardId] = useState('');
   const [scanLogs, setScanLogs] = useState<Array<Transaction & { result: 'success' | 'error'; error?: string }>>([]);
+
+  const [qrPayload, setQrPayload] = useState('');
+  const [scanTestPurpose, setScanTestPurpose] = useState<'CHECKIN' | 'PURCHASE' | 'REDEEM'>('CHECKIN');
+  const [scanTestAmount, setScanTestAmount] = useState('');
+  const [scanTestRewardId, setScanTestRewardId] = useState('');
+  const [scanTestResult, setScanTestResult] = useState<string | null>(null);
   
   const { data: rewards } = useRewards();
-  const { data: customersData, refetch: refetchCustomers, isLoading: customersLoading } = useCustomers({ limit: 100 });
+  const { data: customersData, refetch: refetchCustomers } = useCustomers({ limit: 100 });
   const queryClient = useQueryClient();
 
   // Track last successful transaction result to show updated balance
@@ -122,6 +128,29 @@ export default function ScanPage() {
       type: scanType,
       amount: scanType === 'earn' ? parseFloat(amount) : undefined,
       rewardId: scanType === 'redeem' ? rewardId : undefined,
+    });
+  };
+
+  const scanTestMutation = useMutation({
+    mutationFn: (params: ScanApplyParams) => scanApply(params),
+    onSuccess: (d) => {
+      setScanTestResult(`Success: ${d.purpose}${d.customerId ? ` customer=${d.customerId.slice(0, 8)}...` : ''}${d.balance != null ? ` balance=${d.balance}` : ''}`);
+    },
+    onError: (e: Error) => {
+      setScanTestResult(`Error: ${e.message}`);
+    },
+  });
+
+  const handleScanTest = () => {
+    if (!qrPayload.trim()) return;
+    if (scanTestPurpose === 'PURCHASE' && !scanTestAmount) return;
+    if (scanTestPurpose === 'REDEEM' && !scanTestRewardId) return;
+    setScanTestResult(null);
+    scanTestMutation.mutate({
+      qrPayload: qrPayload.trim(),
+      purpose: scanTestPurpose,
+      amount: scanTestPurpose === 'PURCHASE' ? parseFloat(scanTestAmount) : undefined,
+      rewardId: scanTestPurpose === 'REDEEM' ? scanTestRewardId : undefined,
     });
   };
 
@@ -244,6 +273,79 @@ export default function ScanPage() {
           {scanMutation.isError && (
             <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
               {(scanMutation.error as Error)?.message || 'Scan failed'}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Scan Test (QR) - minimal */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ScanLine className="h-5 w-5 text-blue-400" />
+            Scan Test (QR)
+          </CardTitle>
+          <p className="text-sm text-slate-400 mt-1">Paste qrPayload from customer app, then Apply CHECKIN / PURCHASE / REDEEM.</p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <label className="text-sm font-semibold text-white mb-2 block">QR Payload</label>
+            <textarea
+              className="w-full min-h-[80px] px-3 py-2 rounded-lg bg-slate-800 border border-white/10 text-white placeholder-slate-500 text-sm font-mono"
+              value={qrPayload}
+              onChange={(e) => setQrPayload(e.target.value)}
+              placeholder="Paste qrPayload from GET /customers/me/qr-token"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-semibold text-white mb-2 block">Purpose</label>
+            <div className="flex gap-2">
+              {(['CHECKIN', 'PURCHASE', 'REDEEM'] as const).map((p) => (
+                <Button
+                  key={p}
+                  variant={scanTestPurpose === p ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setScanTestPurpose(p)}
+                >
+                  {p}
+                </Button>
+              ))}
+            </div>
+          </div>
+          {scanTestPurpose === 'PURCHASE' && (
+            <div>
+              <label className="text-sm font-semibold text-white mb-2 block">Amount</label>
+              <Input
+                type="number"
+                value={scanTestAmount}
+                onChange={(e) => setScanTestAmount(e.target.value)}
+                placeholder="e.g. 50"
+              />
+            </div>
+          )}
+          {scanTestPurpose === 'REDEEM' && (
+            <div>
+              <label className="text-sm font-semibold text-white mb-2 block">Reward</label>
+              <Select
+                value={scanTestRewardId}
+                onChange={(e) => setScanTestRewardId(e.target.value)}
+              >
+                <option value="">Select reward</option>
+                {rewards?.map((r) => (
+                  <option key={r.id} value={r.id}>{r.name} ({(r as any).pointsRequired ?? r.pointsCost} pts)</option>
+                ))}
+              </Select>
+            </div>
+          )}
+          <Button
+            onClick={handleScanTest}
+            disabled={!qrPayload.trim() || scanTestMutation.isPending || (scanTestPurpose === 'PURCHASE' && !scanTestAmount) || (scanTestPurpose === 'REDEEM' && !scanTestRewardId)}
+          >
+            {scanTestMutation.isPending ? 'Applying...' : 'Apply'}
+          </Button>
+          {scanTestResult && (
+            <div className="p-3 rounded-lg bg-slate-800/50 border border-white/10 text-sm text-slate-300 font-mono">
+              {scanTestResult}
             </div>
           )}
         </CardContent>
