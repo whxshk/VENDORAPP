@@ -62,7 +62,7 @@ export class RateLimitMiddleware implements NestMiddleware {
 
   private getEndpointType(req: any): 'scan' | 'redeem' | null {
     const path = req.url || '';
-    if (path.includes('/transactions/issue')) return 'scan';
+    if (path.includes('/scans/apply') || path.includes('/transactions/issue')) return 'scan';
     if (path.includes('/transactions/redeem')) return 'redeem';
     return null;
   }

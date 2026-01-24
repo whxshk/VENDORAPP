@@ -28,6 +28,26 @@ function base64UrlDecode(b64: string): string {
 }
 
 /**
+ * Parse payload part of Design 1 qrToken only (no HMAC verify).
+ * Used to get customerId for DB lookup before verify.
+ */
+export function parseQrPayloadFields(qrToken: string): QrPayloadFields | null {
+  if (!qrToken || typeof qrToken !== 'string') return null;
+  const dot = qrToken.indexOf('.');
+  if (dot === -1) return null;
+  const payloadB64 = qrToken.slice(0, dot);
+  if (!payloadB64) return null;
+  try {
+    const payloadStr = base64UrlDecode(payloadB64);
+    const parsed = JSON.parse(payloadStr) as QrPayloadFields;
+    if (!parsed.c || typeof parsed.b !== 'number' || typeof parsed.e !== 'number') return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Build a Design 1 qrToken for a customer.
  * @param customerId - UUID
  * @param secret - Customer.qrTokenSecret

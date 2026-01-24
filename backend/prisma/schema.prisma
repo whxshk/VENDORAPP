@@ -14,6 +14,7 @@ model Tenant {
   id        String   @id @default(uuid())
   name      String   @db.VarChar(255)
   config    Json     @default("{}")
+  isActive  Boolean  @default(true) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -34,8 +35,10 @@ model Tenant {
   pilotOnboardingFunnel PilotOnboardingFunnel?
   pilotRewardUsage      PilotRewardUsage[]
   PilotCustomerActivity PilotCustomerActivity[]
+  scanEvents            ScanEvent[]
 
   @@index([createdAt])
+  @@index([isActive])
   @@map("tenants")
 }
 
@@ -69,10 +72,11 @@ model User {
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant            Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  customer          Customer?  @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  registeredDevices Device[]   @relation("DeviceRegistrar")
+  tenant            Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer          Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  registeredDevices Device[]     @relation("DeviceRegistrar")
   auditLogs         AuditLog[]
+  scanEventsAsStaff ScanEvent[]  @relation("ScanEventStaff")
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -97,6 +101,7 @@ model Customer {
   customerBalances      CustomerBalance[]
   transactionSummaries  TransactionSummary[]
   pilotCustomerActivity PilotCustomerActivity[]
+  scanEvents            ScanEvent[]
 
   @@index([createdAt])
   @@map("customers")
@@ -316,6 +321,30 @@ model OutboxEvent {
   @@index([createdAt])
   @@index([status, createdAt])
   @@map("outbox_events")
+}
+
+model ScanEvent {
+  id             String   @id @default(uuid())
+  tenantId       String   @map("tenant_id")
+  customerId     String   @map("customer_id")
+  staffUserId    String   @map("staff_user_id")
+  deviceId       String?  @map("device_id")
+  purpose        String   @db.VarChar(50)
+  amount         Decimal? @db.Decimal(15, 2)
+  rewardId       String?  @map("reward_id")
+  status         String   @db.VarChar(50)
+  idempotencyKey String   @map("idempotency_key") @db.VarChar(255)
+  metadata       Json     @default("{}")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer  Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  staffUser User     @relation("ScanEventStaff", fields: [staffUserId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, createdAt])
+  @@index([customerId, purpose, createdAt])
+  @@map("scan_events")
 }
 
 // Read Models (Denormalized)

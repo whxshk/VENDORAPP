@@ -1,7 +1,8 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer, RequestMethod } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
+import { RateLimitMiddleware } from './common/middleware/rate-limit.middleware';
 import { ConfigService, default as appConfig } from './config/config.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
@@ -59,10 +60,20 @@ import { ScanModule } from './scan/scan.module';
     ScanModule,
   ],
   providers: [
+    RateLimitMiddleware,
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(RateLimitMiddleware)
+      .forRoutes(
+        { path: 'scans', method: RequestMethod.ALL },
+        { path: 'transactions', method: RequestMethod.ALL },
+      );
+  }
+}

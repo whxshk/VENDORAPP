@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, ValidationPipe } from '@nestjs/common';
-import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
-import * as request from 'supertest';
+import { INestApplication, ValidationPipe, VersioningType } from '@nestjs/common';
+import { FastifyAdapter } from '@nestjs/platform-fastify';
+import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
@@ -21,10 +21,11 @@ describe('SharkBand E2E Tests', () => {
   let deviceA: any;
   let locationA: any;
   let rewardA: any;
-  let tokens: { merchantAdminA: string; staffA: string; merchantAdminB: string } = {
+  let tokens: { merchantAdminA: string; staffA: string; merchantAdminB: string; customer: string } = {
     merchantAdminA: '',
     staffA: '',
     merchantAdminB: '',
+    customer: '',
   };
 
   beforeAll(async () => {
@@ -32,9 +33,8 @@ describe('SharkBand E2E Tests', () => {
       imports: [AppModule],
     }).compile();
 
-    app = moduleFixture.createNestApplication<NestFastifyApplication>(
-      new FastifyAdapter(),
-    );
+    // @ts-expect-error FastifyAdapter vs Express type mismatch
+    app = moduleFixture.createNestApplication(new FastifyAdapter());
 
     app.useGlobalPipes(
       new ValidationPipe({
@@ -43,6 +43,9 @@ describe('SharkBand E2E Tests', () => {
         transform: true,
       }),
     );
+
+    app.setGlobalPrefix('api');
+    app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1', prefix: 'v' });
 
     await app.init();
     await app.getHttpAdapter().getInstance().ready();
@@ -145,6 +148,19 @@ describe('SharkBand E2E Tests', () => {
       },
     });
 
+    const customerUserPass = await bcrypt.hash('customer123', 10);
+    await prisma.user.create({
+      data: {
+        tenantId: tenantA.id,
+        email: 'customer-a@test.com',
+        hashedPassword: customerUserPass,
+        customerId: customerA.id,
+        roles: ['CUSTOMER'],
+        scopes: ['customer:*'],
+        isActive: true,
+      },
+    });
+
     // Create Reward A
     rewardA = await prisma.reward.create({
       data: {
@@ -174,9 +190,16 @@ describe('SharkBand E2E Tests', () => {
       .send({ email: 'admin-b@test.com', password: 'admin123' });
 
     tokens.merchantAdminB = adminBLogin.body.access_token;
+
+    const customerLogin = await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .send({ email: 'customer-a@test.com', password: 'customer123' });
+
+    tokens.customer = customerLogin.body.access_token;
   }
 
   async function cleanupTestData() {
+    await prisma.scanEvent.deleteMany({ where: { tenantId: { in: [tenantA.id, tenantB.id] } } });
     await prisma.pilotDailyMetric.deleteMany({ where: { tenantId: { in: [tenantA.id, tenantB.id] } } });
     await prisma.pilotOnboardingFunnel.deleteMany({ where: { tenantId: { in: [tenantA.id, tenantB.id] } } });
     await prisma.pilotCustomerActivity.deleteMany({ where: { tenantId: { in: [tenantA.id, tenantB.id] } } });
@@ -452,8 +475,172 @@ describe('SharkBand E2E Tests', () => {
       expect(transactions).toBeGreaterThanOrEqual(2);
 
       // Cleanup
-      await prisma.customerMerchantAccount.delete({ where: { customerId: customerB.id, tenantId: tenantA.id } });
+      await prisma.customerMerchantAccount.delete({
+        where: { customerId_tenantId: { customerId: customerB.id, tenantId: tenantA.id } },
+      });
       await prisma.customer.delete({ where: { id: customerB.id } });
+    });
+  });
+
+  describe('Scans Apply', () => {
+    it('valid QR -> PURCHASE success', async () => {
+      const qrRes = await request(app.getHttpServer())
+        .get('/api/v1/customers/me/qr-token')
+        .set('Authorization', `Bearer ${tokens.customer}`)
+        .expect(200);
+      const qrPayload = qrRes.body.qrPayload as string;
+      expect(qrPayload).toBeDefined();
+
+      const applyRes = await request(app.getHttpServer())
+        .post('/api/v1/scans/apply')
+        .set('Authorization', `Bearer ${tokens.staffA}`)
+        .set('Idempotency-Key', uuidv4())
+        .send({ qrPayload, purpose: 'PURCHASE', amount: 50 })
+        .expect(201);
+      expect(applyRes.body.success).toBe(true);
+      expect(applyRes.body.purpose).toBe('PURCHASE');
+      expect(applyRes.body.customerId).toBe(customerA.id);
+      expect(applyRes.body.transactionId).toBeDefined();
+      expect(typeof applyRes.body.balance).toBe('number');
+    });
+
+    it('idempotency retry -> no double award', async () => {
+      const qrRes = await request(app.getHttpServer())
+        .get('/api/v1/customers/me/qr-token')
+        .set('Authorization', `Bearer ${tokens.customer}`)
+        .expect(200);
+      const qrPayload = qrRes.body.qrPayload as string;
+      const key = uuidv4();
+
+      const first = await request(app.getHttpServer())
+        .post('/api/v1/scans/apply')
+        .set('Authorization', `Bearer ${tokens.staffA}`)
+        .set('Idempotency-Key', key)
+        .send({ qrPayload, purpose: 'PURCHASE', amount: 20 })
+        .expect(201);
+      const second = await request(app.getHttpServer())
+        .post('/api/v1/scans/apply')
+        .set('Authorization', `Bearer ${tokens.staffA}`)
+        .set('Idempotency-Key', key)
+        .send({ qrPayload, purpose: 'PURCHASE', amount: 20 })
+        .expect(201);
+      expect(second.body.transactionId).toBe(first.body.transactionId);
+    });
+
+    it('CHECKIN then again within throttle -> 409', async () => {
+      const qrRes = await request(app.getHttpServer())
+        .get('/api/v1/customers/me/qr-token')
+        .set('Authorization', `Bearer ${tokens.customer}`)
+        .expect(200);
+      const qrPayload = qrRes.body.qrPayload as string;
+
+      await request(app.getHttpServer())
+        .post('/api/v1/scans/apply')
+        .set('Authorization', `Bearer ${tokens.staffA}`)
+        .set('Idempotency-Key', uuidv4())
+        .send({ qrPayload, purpose: 'CHECKIN' })
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .post('/api/v1/scans/apply')
+        .set('Authorization', `Bearer ${tokens.staffA}`)
+        .set('Idempotency-Key', uuidv4())
+        .send({ qrPayload, purpose: 'CHECKIN' })
+        .expect(409);
+    });
+
+    it('disabled customer -> 403', async () => {
+      await prisma.customerMerchantAccount.updateMany({
+        where: { customerId: customerA.id, tenantId: tenantA.id },
+        data: { membershipStatus: 'DISABLED' },
+      });
+
+      const qrRes = await request(app.getHttpServer())
+        .get('/api/v1/customers/me/qr-token')
+        .set('Authorization', `Bearer ${tokens.customer}`)
+        .expect(200);
+      const qrPayload = qrRes.body.qrPayload as string;
+
+      await request(app.getHttpServer())
+        .post('/api/v1/scans/apply')
+        .set('Authorization', `Bearer ${tokens.staffA}`)
+        .set('Idempotency-Key', uuidv4())
+        .send({ qrPayload, purpose: 'CHECKIN' })
+        .expect(403);
+
+      await prisma.customerMerchantAccount.updateMany({
+        where: { customerId: customerA.id, tenantId: tenantA.id },
+        data: { membershipStatus: 'ACTIVE' },
+      });
+    });
+
+    it('disabled staff user -> 403', async () => {
+      await prisma.user.update({ where: { id: staffA.id }, data: { isActive: false } });
+
+      const qrRes = await request(app.getHttpServer())
+        .get('/api/v1/customers/me/qr-token')
+        .set('Authorization', `Bearer ${tokens.customer}`)
+        .expect(200);
+      const qrPayload = qrRes.body.qrPayload as string;
+
+      await request(app.getHttpServer())
+        .post('/api/v1/scans/apply')
+        .set('Authorization', `Bearer ${tokens.staffA}`)
+        .set('Idempotency-Key', uuidv4())
+        .send({ qrPayload, purpose: 'CHECKIN' })
+        .expect(403);
+
+      await prisma.user.update({ where: { id: staffA.id }, data: { isActive: true } });
+    });
+
+    it('disabled tenant -> 403', async () => {
+      await prisma.tenant.update({ where: { id: tenantA.id }, data: { isActive: false } });
+
+      const qrRes = await request(app.getHttpServer())
+        .get('/api/v1/customers/me/qr-token')
+        .set('Authorization', `Bearer ${tokens.customer}`)
+        .expect(200);
+      const qrPayload = qrRes.body.qrPayload as string;
+
+      await request(app.getHttpServer())
+        .post('/api/v1/scans/apply')
+        .set('Authorization', `Bearer ${tokens.staffA}`)
+        .set('Idempotency-Key', uuidv4())
+        .send({ qrPayload, purpose: 'CHECKIN' })
+        .expect(403);
+
+      await prisma.tenant.update({ where: { id: tenantA.id }, data: { isActive: true } });
+    });
+
+    it('tampered QR -> 400', async () => {
+      const qrRes = await request(app.getHttpServer())
+        .get('/api/v1/customers/me/qr-token')
+        .set('Authorization', `Bearer ${tokens.customer}`)
+        .expect(200);
+      const qrPayload = (qrRes.body.qrPayload as string).slice(0, -3) + 'xxx';
+
+      await request(app.getHttpServer())
+        .post('/api/v1/scans/apply')
+        .set('Authorization', `Bearer ${tokens.staffA}`)
+        .set('Idempotency-Key', uuidv4())
+        .send({ qrPayload, purpose: 'CHECKIN' })
+        .expect(400);
+    });
+
+    it('expired QR -> 400', async () => {
+      const qrRes = await request(app.getHttpServer())
+        .get('/api/v1/customers/me/qr-token')
+        .set('Authorization', `Bearer ${tokens.customer}`)
+        .expect(200);
+      const qrPayload = qrRes.body.qrPayload as string;
+      await new Promise((r) => setTimeout(r, 35000));
+
+      await request(app.getHttpServer())
+        .post('/api/v1/scans/apply')
+        .set('Authorization', `Bearer ${tokens.staffA}`)
+        .set('Idempotency-Key', uuidv4())
+        .send({ qrPayload, purpose: 'CHECKIN' })
+        .expect(400);
     });
   });
 });
