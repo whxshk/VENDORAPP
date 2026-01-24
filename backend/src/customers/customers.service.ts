@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { LedgerService } from '../ledger/ledger.service';
-import * as crypto from 'crypto';
+import { buildQrPayload } from '../common/qr-payload';
 import { getCustomerInfoById, getCustomerInfo } from '../common/customer-data';
 
 @Injectable()
@@ -11,26 +11,25 @@ export class CustomersService {
     private ledgerService: LedgerService,
   ) {}
 
-  async getQrToken(customerId: string) {
+  async getQrToken(customerId: string): Promise<{
+    qrPayload: string;
+    expiresAt: number;
+    refreshIntervalSec: number;
+  }> {
     const customer = await this.prisma.customer.findUnique({
       where: { id: customerId },
     });
 
     if (!customer) {
-      throw new Error('Customer not found');
+      throw new NotFoundException('Customer not found');
     }
 
-    const rotationInterval = customer.rotationIntervalSec || 30;
-    const timestampBucket = Math.floor(Date.now() / 1000 / rotationInterval);
-    const token = crypto
-      .createHmac('sha256', customer.qrTokenSecret)
-      .update(`${customerId}:${timestampBucket}`)
-      .digest('hex');
-
+    const rotationIntervalSec = customer.rotationIntervalSec ?? 120;
+    const out = buildQrPayload(customerId, customer.qrTokenSecret, rotationIntervalSec);
     return {
-      qrToken: token,
-      expiresAt: new Date((timestampBucket + 1) * rotationInterval * 1000),
-      refreshInterval: rotationInterval,
+      qrPayload: out.qrToken,
+      expiresAt: out.expiresAt,
+      refreshIntervalSec: out.refreshIntervalSec,
     };
   }
 

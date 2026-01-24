@@ -1,6 +1,8 @@
-import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Get, Param, Query, UseGuards, ForbiddenException } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { CustomersService } from './customers.service';
+import { QrTokenResponseDto } from './dto/qr-token-response.dto';
+import { PrismaService } from '../prisma/prisma.service';
 import { ScopeGuard } from '../common/guards/scope.guard';
 import { TenantGuard } from '../common/guards/tenant.guard';
 import { RequireScope } from '../common/decorators/require-scope.decorator';
@@ -12,7 +14,10 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 @UseGuards(ScopeGuard, TenantGuard)
 @ApiBearerAuth('JWT-auth')
 export class CustomersController {
-  constructor(private readonly customersService: CustomersService) {}
+  constructor(
+    private readonly customersService: CustomersService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   @Get()
   @RequireScope('merchant:*')
@@ -31,6 +36,25 @@ export class CustomersController {
     });
   }
 
+  @Get('me/qr-token')
+  @RequireScope('customer:*')
+  @ApiOperation({ summary: 'Get rotating QR payload for customer app' })
+  @ApiResponse({ status: 200, description: 'QR token', type: QrTokenResponseDto })
+  @ApiResponse({ status: 403, description: 'Not linked to a customer' })
+  async getQrToken(
+    @CurrentUser() user: { userId: string; tenantId: string },
+    @TenantContext() tenantId: string,
+  ): Promise<QrTokenResponseDto> {
+    const dbUser = await this.prisma.user.findFirst({
+      where: { id: user.userId, tenantId },
+      select: { customerId: true },
+    });
+    if (!dbUser?.customerId) {
+      throw new ForbiddenException('Not linked to a customer. Use a customer-linked account.');
+    }
+    return this.customersService.getQrToken(dbUser.customerId);
+  }
+
   @Get(':id')
   @RequireScope('merchant:*')
   async findOne(
@@ -38,11 +62,5 @@ export class CustomersController {
     @Param('id') id: string,
   ) {
     return this.customersService.findOne(tenantId, id);
-  }
-
-  @Get('me/qr-token')
-  async getQrToken(@CurrentUser() user: any) {
-    // TODO: Get customer ID from user context
-    return this.customersService.getQrToken(user.userId);
   }
 }

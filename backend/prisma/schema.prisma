@@ -60,6 +60,7 @@ model Location {
 model User {
   id             String   @id @default(uuid())
   tenantId       String   @map("tenant_id")
+  customerId     String?  @map("customer_id")
   email          String   @db.VarChar(255)
   hashedPassword String   @map("hashed_password") @db.VarChar(255)
   roles          Json     @default("[]")
@@ -69,6 +70,7 @@ model User {
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   tenant            Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer          Customer?  @relation(fields: [customerId], references: [id], onDelete: SetNull)
   registeredDevices Device[]   @relation("DeviceRegistrar")
   auditLogs         AuditLog[]
 
@@ -76,6 +78,7 @@ model User {
   @@index([tenantId])
   @@index([email])
   @@index([isActive])
+  @@index([customerId])
   @@map("users")
 }
 
@@ -87,6 +90,7 @@ model Customer {
   updatedAt           DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   accounts              CustomerMerchantAccount[]
+  users                 User[]
   transactions          Transaction[]
   ledgerEntries         LoyaltyLedgerEntry[]
   redemptions           Redemption[]
