@@ -121,8 +121,12 @@ export class AnalyticsService {
     scanEvents.forEach(se => {
       const staffUser = (se as any).staffUserId;
       if (staffUser) {
+        // After populate, staffUserId is a User object, extract the ID
+        const staffUserId = typeof staffUser === 'object' && staffUser._id 
+          ? staffUser._id 
+          : (typeof staffUser === 'string' ? staffUser : se.staffUserId);
         staffMap.set(se.idempotencyKey, {
-          id: se.staffUserId,
+          id: staffUserId,
           name: staffUser.email?.split('@')[0] || 'Staff',
         });
       }

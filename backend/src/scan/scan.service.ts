@@ -5,20 +5,34 @@ import {
   ForbiddenException,
   ConflictException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 import { TransactionsService } from '../transactions/transactions.service';
 import { CustomersService } from '../customers/customers.service';
 import { AuditService } from '../audit/audit.service';
 import { RulesetsService } from '../rulesets/rulesets.service';
-import { PrismaService } from '../prisma/prisma.service';
+import { Tenant, TenantDocument } from '../database/schemas/Tenant.schema';
+import { User, UserDocument } from '../database/schemas/User.schema';
+import { Customer, CustomerDocument } from '../database/schemas/Customer.schema';
+import { CustomerMerchantAccount, CustomerMerchantAccountDocument } from '../database/schemas/CustomerMerchantAccount.schema';
+import { ScanEvent, ScanEventDocument } from '../database/schemas/ScanEvent.schema';
+import { Reward, RewardDocument } from '../database/schemas/Reward.schema';
+import { Transaction, TransactionDocument } from '../database/schemas/Transaction.schema';
 import { verifyQrPayload, parseQrPayloadFields } from '../common/qr-payload';
+import { v4 as uuidv4 } from 'uuid';
 
 const CHECKIN_THROTTLE_SEC = 60;
 
 @Injectable()
 export class ScanService {
   constructor(
-    private prisma: PrismaService,
+    @InjectModel(Tenant.name) private tenantModel: Model<TenantDocument>,
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(Customer.name) private customerModel: Model<CustomerDocument>,
+    @InjectModel(CustomerMerchantAccount.name) private accountModel: Model<CustomerMerchantAccountDocument>,
+    @InjectModel(ScanEvent.name) private scanEventModel: Model<ScanEventDocument>,
+    @InjectModel(Reward.name) private rewardModel: Model<RewardDocument>,
+    @InjectModel(Transaction.name) private transactionModel: Model<TransactionDocument>,
     private transactionsService: TransactionsService,
     private customersService: CustomersService,
     private auditService: AuditService,
@@ -38,24 +52,17 @@ export class ScanService {
     idempotencyKey: string,
   ) {
     const [tenant, user] = await Promise.all([
-      this.prisma.tenant.findUnique({ where: { id: tenantId }, select: { isActive: true } }),
-      this.prisma.user.findFirst({
-        where: { id: staffUserId, tenantId },
-        select: { isActive: true },
-      }),
+      this.tenantModel.findById(tenantId).select('isActive').exec(),
+      this.userModel.findOne({ _id: staffUserId, tenantId }).select('isActive').exec(),
     ]);
     if (!tenant?.isActive) throw new ForbiddenException('Tenant is disabled');
     if (!user?.isActive) throw new ForbiddenException('Staff user is disabled');
 
     const parsed = parseQrPayloadFields(dto.qrPayload);
     if (!parsed) throw new BadRequestException('Invalid or missing QR payload');
-    const customer = await this.prisma.customer.findUnique({
-      where: { id: parsed.c },
-    });
+    const customer = await this.customerModel.findById(parsed.c).exec();
     if (!customer) throw new BadRequestException('Customer not found');
-    const account = await this.prisma.customerMerchantAccount.findFirst({
-      where: { tenantId, customerId: parsed.c },
-    });
+    const account = await this.accountModel.findOne({ tenantId, customerId: parsed.c }).exec();
     if (!account) throw new BadRequestException('Customer not associated with this merchant');
     if (account.membershipStatus === 'DISABLED')
       throw new ForbiddenException('Customer account is disabled');
@@ -68,31 +75,34 @@ export class ScanService {
     const customerDetail = await this.customersService.findOne(tenantId, customerId);
 
     if (dto.purpose === 'CHECKIN') {
-      const existing = await this.prisma.scanEvent.findUnique({
-        where: { tenantId_idempotencyKey: { tenantId, idempotencyKey } },
-      });
+      const existing = await this.scanEventModel.findOne({
+        tenantId,
+        idempotencyKey,
+      }).exec();
       if (existing)
         return { success: true, purpose: 'CHECKIN' as const, customerId };
 
       const since = new Date(Date.now() - CHECKIN_THROTTLE_SEC * 1000);
-      const recent = await this.prisma.scanEvent.findFirst({
-        where: { customerId, purpose: 'CHECKIN', createdAt: { gte: since } },
-      });
+      const recent = await this.scanEventModel.findOne({
+        customerId,
+        purpose: 'CHECKIN',
+        createdAt: { $gte: since },
+      }).exec();
       if (recent)
         throw new ConflictException('Check-in throttled. Try again later.');
 
-      const ev = await this.prisma.scanEvent.create({
-        data: {
-          tenantId,
-          customerId,
-          staffUserId,
-          deviceId: dto.deviceId ?? undefined,
-          purpose: 'CHECKIN',
-          status: 'OK',
-          idempotencyKey,
-        },
+      const ev = new this.scanEventModel({
+        _id: uuidv4(),
+        tenantId,
+        customerId,
+        staffUserId,
+        deviceId: dto.deviceId ?? undefined,
+        purpose: 'CHECKIN',
+        status: 'OK',
+        idempotencyKey,
       });
-      await this.auditService.log(tenantId, staffUserId, 'SCAN_APPLY', 'scan', ev.id, {
+      await ev.save();
+      await this.auditService.log(tenantId, staffUserId, 'SCAN_APPLY', 'scan', ev._id, {
         purpose: 'CHECKIN',
         customerId,
       });
@@ -115,9 +125,8 @@ export class ScanService {
         dto.deviceId ?? null,
         idempotencyKey,
       );
-      await this.prisma.transaction.update({
-        where: { id: result.id },
-        data: {
+      await this.transactionModel.findByIdAndUpdate(result.id, {
+        $set: {
           metadata: {
             purchaseAmount: amount,
             pointsEarned: points,
@@ -126,25 +135,25 @@ export class ScanService {
             customerPhone: customerDetail.phone,
           },
         },
-      });
+      }).exec();
 
       let scanEvId: string | null = null;
       try {
-        const ev = await this.prisma.scanEvent.create({
-          data: {
-            tenantId,
-            customerId,
-            staffUserId,
-            deviceId: dto.deviceId ?? undefined,
-            purpose: 'PURCHASE',
-            amount: new Prisma.Decimal(amount),
-            status: 'OK',
-            idempotencyKey,
-          },
+        const ev = new this.scanEventModel({
+          _id: uuidv4(),
+          tenantId,
+          customerId,
+          staffUserId,
+          deviceId: dto.deviceId ?? undefined,
+          purpose: 'PURCHASE',
+          amount: amount,
+          status: 'OK',
+          idempotencyKey,
         });
-        scanEvId = ev.id;
+        await ev.save();
+        scanEvId = ev._id;
       } catch (e: any) {
-        if (e?.code !== 'P2002') throw e;
+        if (e?.code !== 11000) throw e; // MongoDB duplicate key error
       }
       if (scanEvId) {
         await this.auditService.log(tenantId, staffUserId, 'SCAN_APPLY', 'scan', scanEvId, {
@@ -165,9 +174,11 @@ export class ScanService {
     }
 
     if (!dto.rewardId) throw new BadRequestException('rewardId is required for REDEEM');
-    const reward = await this.prisma.reward.findFirst({
-      where: { id: dto.rewardId, tenantId, isActive: true },
-    });
+    const reward = await this.rewardModel.findOne({
+      _id: dto.rewardId,
+      tenantId,
+      isActive: true,
+    }).exec();
     if (!reward) throw new NotFoundException(`Reward ${dto.rewardId} not found`);
 
     const result = await this.transactionsService.redeemPoints(
@@ -176,18 +187,14 @@ export class ScanService {
       dto.rewardId,
       idempotencyKey,
     );
-    const tx = await this.prisma.transaction.findFirst({
-      where: {
-        tenantId,
-        customerId,
-        idempotencyKey: `${idempotencyKey}-tx`,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const tx = await this.transactionModel.findOne({
+      tenantId,
+      customerId,
+      idempotencyKey: `${idempotencyKey}-tx`,
+    }).sort({ createdAt: -1 }).exec();
     if (tx) {
-      await this.prisma.transaction.update({
-        where: { id: tx.id },
-        data: {
+      await this.transactionModel.findByIdAndUpdate(tx._id, {
+        $set: {
           metadata: {
             ...((tx.metadata as Record<string, unknown>) || {}),
             customerName: customerDetail.name,
@@ -196,27 +203,27 @@ export class ScanService {
             rewardName: reward.name,
           },
         },
-      });
+      }).exec();
     }
 
     let scanEvId: string | null = null;
     try {
-      const ev = await this.prisma.scanEvent.create({
-        data: {
-          tenantId,
-          customerId,
-          staffUserId,
-          deviceId: dto.deviceId ?? undefined,
-          purpose: 'REDEEM',
-          rewardId: dto.rewardId,
-          amount: new Prisma.Decimal(-Number(reward.pointsRequired)),
-          status: 'OK',
-          idempotencyKey,
-        },
+      const ev = new this.scanEventModel({
+        _id: uuidv4(),
+        tenantId,
+        customerId,
+        staffUserId,
+        deviceId: dto.deviceId ?? undefined,
+        purpose: 'REDEEM',
+        rewardId: dto.rewardId,
+        amount: -Number(reward.pointsRequired),
+        status: 'OK',
+        idempotencyKey,
       });
-      scanEvId = ev.id;
+      await ev.save();
+      scanEvId = ev._id;
     } catch (e: any) {
-      if (e?.code !== 'P2002') throw e;
+      if (e?.code !== 11000) throw e; // MongoDB duplicate key error
     }
     if (scanEvId) {
       await this.auditService.log(tenantId, staffUserId, 'SCAN_APPLY', 'scan', scanEvId, {
@@ -266,15 +273,20 @@ export class ScanService {
       // Check if it's a 4-digit short ID
       if (/^\d{4}$/.test(actualCustomerId)) {
         // Get all customers ordered by creation date
-        const allAccounts = await this.prisma.customerMerchantAccount.findMany({
-          where: { tenantId },
-          include: { customer: true },
-          orderBy: { createdAt: 'asc' },
-        });
+        const allAccounts = await this.accountModel
+          .find({ tenantId })
+          .sort({ createdAt: 1 })
+          .exec();
+
+        const allCustomerIds = allAccounts.map(acc => acc.customerId);
+        const allCustomers = await this.customerModel
+          .find({ _id: { $in: allCustomerIds } })
+          .exec();
+        const customerMap = new Map(allCustomers.map(c => [c._id, c]));
 
         const index = parseInt(actualCustomerId, 10) - 1;
         if (index >= 0 && index < allAccounts.length) {
-          actualCustomerId = allAccounts[index].customer.id;
+          actualCustomerId = allAccounts[index].customerId;
         } else {
           return {
             success: false,
@@ -283,12 +295,10 @@ export class ScanService {
         }
       } else {
         // Try to find by UUID
-        const account = await this.prisma.customerMerchantAccount.findFirst({
-          where: {
-            tenantId,
-            customerId: actualCustomerId,
-          },
-        });
+        const account = await this.accountModel.findOne({
+          tenantId,
+          customerId: actualCustomerId,
+        }).exec();
 
         if (!account) {
           return {
@@ -347,9 +357,8 @@ export class ScanService {
         );
 
         // Update transaction metadata to store QAR amount
-        await this.prisma.transaction.update({
-          where: { id: result.id },
-          data: {
+        await this.transactionModel.findByIdAndUpdate(result.id, {
+          $set: {
             metadata: {
               purchaseAmount: qarAmount,
               pointsEarned: pointsToIssue,
@@ -358,12 +367,10 @@ export class ScanService {
               customerPhone: customer.phone,
             },
           },
-        });
+        }).exec();
 
         // Get the transaction record with updated metadata
-        const transaction = await this.prisma.transaction.findUnique({
-          where: { id: result.id },
-        });
+        const transaction = await this.transactionModel.findById(result.id).exec();
 
         // Get updated customer balance
         const updatedCustomer = await this.customersService.findOne(tenantId, actualCustomerId);
@@ -373,7 +380,7 @@ export class ScanService {
         return {
           success: true,
           transaction: {
-            id: transaction?.id || result.id,
+            id: transaction?._id || result.id,
             customerId: actualCustomerId,
             customerName: customer.name,
             type: 'earn',
@@ -407,25 +414,22 @@ export class ScanService {
         );
 
         // Get reward details
-        const reward = await this.prisma.reward.findFirst({
-          where: { id: rewardId, tenantId },
-        });
+        const reward = await this.rewardModel.findOne({
+          _id: rewardId,
+          tenantId,
+        }).exec();
 
         // Get the transaction record (the transaction uses idempotencyKey with -tx suffix)
-        const transaction = await this.prisma.transaction.findFirst({
-          where: {
-            tenantId,
-            customerId: actualCustomerId,
-            idempotencyKey: `${actualIdempotencyKey}-tx`,
-          },
-          orderBy: { createdAt: 'desc' },
-        });
+        const transaction = await this.transactionModel.findOne({
+          tenantId,
+          customerId: actualCustomerId,
+          idempotencyKey: `${actualIdempotencyKey}-tx`,
+        }).sort({ createdAt: -1 }).exec();
 
         // Update transaction metadata with customer info
         if (transaction) {
-          await this.prisma.transaction.update({
-            where: { id: transaction.id },
-            data: {
+          await this.transactionModel.findByIdAndUpdate(transaction._id, {
+            $set: {
               metadata: {
                 ...((transaction.metadata as any) || {}),
                 customerName: customer.name,
@@ -434,7 +438,7 @@ export class ScanService {
                 rewardName: reward?.name,
               },
             },
-          });
+          }).exec();
         }
 
         // Get updated customer balance
@@ -443,7 +447,7 @@ export class ScanService {
         return {
           success: true,
           transaction: {
-            id: transaction?.id || '',
+            id: transaction?._id || '',
             customerId: actualCustomerId,
             customerName: customer.name,
             type: 'redeem',

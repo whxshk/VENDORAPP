@@ -1,5 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Customer, CustomerDocument } from '../database/schemas/Customer.schema';
+import { CustomerMerchantAccount, CustomerMerchantAccountDocument } from '../database/schemas/CustomerMerchantAccount.schema';
+import { Transaction, TransactionDocument, TransactionType } from '../database/schemas/Transaction.schema';
+import { LoyaltyLedgerEntry, LoyaltyLedgerEntryDocument } from '../database/schemas/LoyaltyLedgerEntry.schema';
 import { LedgerService } from '../ledger/ledger.service';
 import { buildQrPayload } from '../common/qr-payload';
 import { getCustomerInfoById, getCustomerInfo } from '../common/customer-data';
@@ -7,7 +12,10 @@ import { getCustomerInfoById, getCustomerInfo } from '../common/customer-data';
 @Injectable()
 export class CustomersService {
   constructor(
-    private prisma: PrismaService,
+    @InjectModel(Customer.name) private customerModel: Model<CustomerDocument>,
+    @InjectModel(CustomerMerchantAccount.name) private accountModel: Model<CustomerMerchantAccountDocument>,
+    @InjectModel(Transaction.name) private transactionModel: Model<TransactionDocument>,
+    @InjectModel(LoyaltyLedgerEntry.name) private ledgerModel: Model<LoyaltyLedgerEntryDocument>,
     private ledgerService: LedgerService,
   ) {}
 
@@ -16,9 +24,7 @@ export class CustomersService {
     expiresAt: number;
     refreshIntervalSec: number;
   }> {
-    const customer = await this.prisma.customer.findUnique({
-      where: { id: customerId },
-    });
+    const customer = await this.customerModel.findById(customerId).exec();
 
     if (!customer) {
       throw new NotFoundException('Customer not found');
@@ -39,50 +45,52 @@ export class CustomersService {
     const skip = (page - 1) * limit;
 
     // Get customer accounts for this tenant
-    const where: any = { tenantId };
+    const query: any = { tenantId };
     if (params?.status) {
-      where.membershipStatus = params.status.toUpperCase();
+      query.membershipStatus = params.status.toUpperCase();
     }
 
     const [accounts, initialTotal] = await Promise.all([
-      this.prisma.customerMerchantAccount.findMany({
-        where,
-        skip,
-        take: limit,
-        include: {
-          customer: true,
-        },
-        orderBy: { createdAt: 'desc' },
-      }),
-      this.prisma.customerMerchantAccount.count({ where }),
+      this.accountModel
+        .find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .exec(),
+      this.accountModel.countDocuments(query).exec(),
     ]);
     
     let total = initialTotal;
 
     // Get balances for all customers - calculate from ledger entries (source of truth)
     const customerIds = accounts.map((acc) => acc.customerId);
-    const [transactionCounts, lastTransactions] = await Promise.all([
-      this.prisma.transaction.groupBy({
-        by: ['customerId'],
-        where: {
-          tenantId,
-          customerId: { in: customerIds },
+    
+    // Get transaction counts
+    const transactionCounts = await this.transactionModel.aggregate([
+      { $match: { tenantId, customerId: { $in: customerIds } } },
+      {
+        $group: {
+          _id: '$customerId',
+          count: { $sum: 1 },
         },
-        _count: { id: true },
-      }),
-      this.prisma.transaction.findMany({
-        where: {
-          tenantId,
-          customerId: { in: customerIds },
-        },
-        select: {
-          customerId: true,
-          createdAt: true,
-        },
-        orderBy: { createdAt: 'desc' },
-        distinct: ['customerId'],
-      }),
-    ]);
+      },
+    ]).exec();
+
+    // Get last transactions
+    const lastTransactions = await this.transactionModel
+      .find({ tenantId, customerId: { $in: customerIds } })
+      .sort({ createdAt: -1 })
+      .exec();
+
+    // Group by customerId and get first (most recent) for each
+    const lastVisitMap = new Map<string, Date>();
+    const seen = new Set<string>();
+    lastTransactions.forEach((tx) => {
+      if (!seen.has(tx.customerId)) {
+        lastVisitMap.set(tx.customerId, tx.createdAt);
+        seen.add(tx.customerId);
+      }
+    });
 
     // Calculate balances from ledger entries for each customer
     const balanceMap = new Map<string, number>();
@@ -93,25 +101,17 @@ export class CustomersService {
       })
     );
     const visitCountMap = new Map(
-      transactionCounts.map((t) => [t.customerId, t._count.id]),
-    );
-    const lastVisitMap = new Map(
-      lastTransactions.map((t) => [t.customerId, t.createdAt]),
+      transactionCounts.map((t) => [t._id, t.count]),
     );
 
     // Get customer metadata from transactions (stored in first transaction)
-    const customerTransactions = await this.prisma.transaction.findMany({
-      where: {
+    const customerTransactions = await this.transactionModel
+      .find({
         tenantId,
-        customerId: { in: customerIds },
-      },
-      select: {
-        customerId: true,
-        metadata: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: 'asc' },
-    });
+        customerId: { $in: customerIds },
+      })
+      .sort({ createdAt: 1 })
+      .exec();
 
     // Build customer info map from transaction metadata
     const customerInfoMap = new Map<string, { name: string; email?: string; phone?: string }>();
@@ -128,37 +128,54 @@ export class CustomersService {
 
     // Get short customer IDs FIRST (4-digit format: 0001, 0002, etc.)
     // Map by creation order across all customers in tenant
-    const allAccounts = await this.prisma.customerMerchantAccount.findMany({
-      where: { tenantId },
-      include: { customer: true },
-      orderBy: { createdAt: 'asc' },
-    });
+    const allAccounts = await this.accountModel
+      .find({ tenantId })
+      .sort({ createdAt: 1 })
+      .exec();
+
+    // Get customers for accounts
+    const allCustomerIds = allAccounts.map(acc => acc.customerId);
+    const allCustomers = await this.customerModel
+      .find({ _id: { $in: allCustomerIds } })
+      .exec();
+    const customerMap = new Map(allCustomers.map(c => [c._id, c]));
 
     const shortIdMap = new Map<string, string>();
     allAccounts.forEach((account, index) => {
       const shortId = String(index + 1).padStart(4, '0');
-      shortIdMap.set(account.customer.id, shortId);
+      shortIdMap.set(account.customerId, shortId);
     });
 
     // Get customers ordered by creation date to match seed order
-    const customersOrdered = [...accounts].sort(
-      (a, b) => a.customer.createdAt.getTime() - b.customer.createdAt.getTime(),
+    const customersOrdered = accounts.map(acc => ({
+      account: acc,
+      customer: customerMap.get(acc.customerId),
+    })).filter(item => item.customer).sort(
+      (a, b) => a.customer!.createdAt!.getTime() - b.customer!.createdAt!.getTime(),
     );
 
     // Create mapping by creation order index
     const customerInfoByOrder = new Map<string, { name: string; email?: string; phone?: string }>();
-    customersOrdered.forEach((account, index) => {
+    customersOrdered.forEach((item, index) => {
       const customerInfo = getCustomerInfo(index);
-      customerInfoByOrder.set(account.customer.id, {
+      customerInfoByOrder.set(item.account.customerId, {
         name: customerInfo.name,
         email: customerInfo.email,
         phone: customerInfo.phone,
       });
     });
 
+    // Get customers for current accounts
+    const currentCustomerIds = accounts.map(acc => acc.customerId);
+    const currentCustomers = await this.customerModel
+      .find({ _id: { $in: currentCustomerIds } })
+      .exec();
+    const currentCustomerMap = new Map(currentCustomers.map(c => [c._id, c]));
+
     // Transform to frontend format with shortId
     let customers = accounts.map((account) => {
-      const customerId = account.customer.id;
+      const customerId = account.customerId;
+      const customer = currentCustomerMap.get(customerId);
       // Priority: transaction metadata > creation order > hash fallback
       const info =
         customerInfoMap.get(customerId) ||
@@ -174,9 +191,9 @@ export class CustomersService {
         qrCode: customerId, // Use customer ID as QR code identifier
         pointsBalance: balanceMap.get(customerId) || 0,
         totalVisits: visitCountMap.get(customerId) || 0,
-        lastVisit: lastVisitMap.get(customerId) || account.customer.updatedAt,
+        lastVisit: lastVisitMap.get(customerId) || customer?.updatedAt || new Date(),
         status: account.membershipStatus === 'ACTIVE' ? 'active' : 'inactive',
-        createdAt: account.customer.createdAt,
+        createdAt: customer?.createdAt || new Date(),
         tenantId: account.tenantId,
       };
     });
@@ -213,31 +230,38 @@ export class CustomersService {
     let actualCustomerId = customerId;
     if (/^\d{4}$/.test(customerId)) {
       // It's a short ID, need to resolve it
-      const allAccounts = await this.prisma.customerMerchantAccount.findMany({
-        where: { tenantId },
-        include: { customer: true },
-        orderBy: { createdAt: 'asc' },
-      });
+      const allAccounts = await this.accountModel
+        .find({ tenantId })
+        .sort({ createdAt: 1 })
+        .exec();
+      
+      const allCustomerIds = allAccounts.map(acc => acc.customerId);
+      const allCustomers = await this.customerModel
+        .find({ _id: { $in: allCustomerIds } })
+        .exec();
+      const customerMap = new Map(allCustomers.map(c => [c._id, c]));
       
       const index = parseInt(customerId, 10) - 1;
       if (index >= 0 && index < allAccounts.length) {
-        actualCustomerId = allAccounts[index].customer.id;
+        actualCustomerId = allAccounts[index].customerId;
       } else {
         throw new NotFoundException('Customer not found');
       }
     }
 
-    const account = await this.prisma.customerMerchantAccount.findFirst({
-      where: {
+    const account = await this.accountModel
+      .findOne({
         tenantId,
         customerId: actualCustomerId,
-      },
-      include: {
-        customer: true,
-      },
-    });
+      })
+      .exec();
 
     if (!account) {
+      throw new NotFoundException('Customer not found');
+    }
+
+    const customer = await this.customerModel.findById(actualCustomerId).exec();
+    if (!customer) {
       throw new NotFoundException('Customer not found');
     }
 
@@ -245,24 +269,24 @@ export class CustomersService {
     const balance = await this.ledgerService.getBalance(tenantId, actualCustomerId);
 
     // Get transactions for this customer
-    const transactions = await this.prisma.transaction.findMany({
-      where: {
+    const transactions = await this.transactionModel
+      .find({
         tenantId,
-        customerId,
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 50,
-    });
+        customerId: actualCustomerId,
+      })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .exec();
 
     // Get ledger entries for points history
-    const ledgerEntries = await this.prisma.loyaltyLedgerEntry.findMany({
-      where: {
+    const ledgerEntries = await this.ledgerModel
+      .find({
         tenantId,
-        customerId,
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 30,
-    });
+        customerId: actualCustomerId,
+      })
+      .sort({ createdAt: -1 })
+      .limit(30)
+      .exec();
 
     // Generate points history (last 30 days)
     const pointsHistory = [];
@@ -309,37 +333,36 @@ export class CustomersService {
     }
 
     // Get short ID
-    const allAccounts = await this.prisma.customerMerchantAccount.findMany({
-      where: { tenantId },
-      include: { customer: true },
-      orderBy: { createdAt: 'asc' },
-    });
-    const shortIdIndex = allAccounts.findIndex(acc => acc.customer.id === actualCustomerId);
+    const allAccounts = await this.accountModel
+      .find({ tenantId })
+      .sort({ createdAt: 1 })
+      .exec();
+    const shortIdIndex = allAccounts.findIndex(acc => acc.customerId === actualCustomerId);
     const shortId = shortIdIndex >= 0 ? String(shortIdIndex + 1).padStart(4, '0') : '0000';
 
-      return {
-        id: account.customer.id,
-        shortId,
-        name: customerInfo.name,
-        email: customerInfo.email,
-        phone: customerInfo.phone,
-        qrCode: account.customer.id,
-        pointsBalance: balance, // Already a number from ledgerService
-        totalVisits: transactions.length,
-        lastVisit: transactions[0]?.createdAt || account.customer.updatedAt,
-        status: account.membershipStatus === 'ACTIVE' ? 'active' : 'inactive',
-        createdAt: account.customer.createdAt,
-        tenantId: account.tenantId,
-        pointsHistory,
-        transactions: transactions.map((tx) => {
+    return {
+      id: customer._id,
+      shortId,
+      name: customerInfo.name,
+      email: customerInfo.email,
+      phone: customerInfo.phone,
+      qrCode: customer._id,
+      pointsBalance: balance,
+      totalVisits: transactions.length,
+      lastVisit: transactions[0]?.createdAt || customer.updatedAt || customer.createdAt,
+      status: account.membershipStatus === 'ACTIVE' ? 'active' : 'inactive',
+      createdAt: customer.createdAt,
+      tenantId: account.tenantId,
+      pointsHistory,
+      transactions: transactions.map((tx) => {
         const txMeta = tx.metadata as any;
         return {
-          id: tx.id,
+          id: tx._id,
           customerId: tx.customerId,
           customerName: txMeta?.customerName || customerInfo.name,
-          type: tx.type === 'ISSUE' ? 'earn' : 'redeem',
-          points: tx.type === 'ISSUE' ? Number(tx.amount) : -Number(tx.amount),
-          amount: tx.type === 'ISSUE' ? Number(tx.amount) : undefined,
+          type: tx.type === TransactionType.ISSUE ? 'earn' : 'redeem',
+          points: tx.type === TransactionType.ISSUE ? Number(tx.amount) : -Number(tx.amount),
+          amount: tx.type === TransactionType.ISSUE ? Number(tx.amount) : undefined,
           staffId: '',
           staffName: 'System',
           timestamp: tx.createdAt,

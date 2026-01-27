@@ -1,16 +1,20 @@
 import { Injectable, ConflictException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, ClientSession } from 'mongoose';
+import { LoyaltyLedgerEntry, LoyaltyLedgerEntryDocument } from '../database/schemas/LoyaltyLedgerEntry.schema';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class LedgerService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    @InjectModel(LoyaltyLedgerEntry.name) 
+    private ledgerModel: Model<LoyaltyLedgerEntryDocument>,
+  ) {}
 
   /**
    * Append entry to ledger (idempotent)
    * Calculates balance_after from previous entries
-   * @param tx - Optional transaction client. If provided, uses it instead of this.prisma
+   * @param session - Optional MongoDB session for transactions
    */
   async appendEntry(
     tenantId: string,
@@ -19,38 +23,37 @@ export class LedgerService {
     idempotencyKey: string,
     transactionId: string,
     operationType: string = 'TRANSACTION',
-    tx?: Prisma.TransactionClient,
+    session?: ClientSession,
   ): Promise<{ id: string; balanceAfter: number }> {
-    const prismaClient = tx || this.prisma;
     // Check idempotency
-    const existing = await prismaClient.loyaltyLedgerEntry.findFirst({
-      where: {
+    const existing = await this.ledgerModel
+      .findOne({
         tenantId,
         idempotencyKey,
         operationType,
-      },
-    });
+      })
+      .session(session || null)
+      .exec();
 
     if (existing) {
       return {
-        id: existing.id,
+        id: existing._id,
         balanceAfter: Number(existing.balanceAfter),
       };
     }
 
     // Calculate current balance from all previous entries
-    const previousEntries = await prismaClient.loyaltyLedgerEntry.findMany({
-      where: {
+    const previousEntries = await this.ledgerModel
+      .find({
         tenantId,
         customerId,
-      },
-      orderBy: {
-        createdAt: 'asc',
-      },
-    });
+      })
+      .sort({ createdAt: 1 })
+      .session(session || null)
+      .exec();
 
     const currentBalance = previousEntries.reduce(
-      (sum: number, entry: typeof previousEntries[0]) => sum + Number(entry.amount),
+      (sum: number, entry) => sum + Number(entry.amount),
       0,
     );
 
@@ -58,36 +61,38 @@ export class LedgerService {
 
     // Insert ledger entry
     try {
-      const entry = await prismaClient.loyaltyLedgerEntry.create({
-        data: {
-          tenantId,
-          customerId,
-          transactionId,
-          amount: new Decimal(amount),
-          balanceAfter: new Decimal(newBalance),
-          idempotencyKey,
-          operationType,
-        },
+      const entry = new this.ledgerModel({
+        _id: uuidv4(),
+        tenantId,
+        customerId,
+        transactionId,
+        amount: amount,
+        balanceAfter: newBalance,
+        idempotencyKey,
+        operationType,
       });
 
+      await entry.save({ session });
+
       return {
-        id: entry.id,
+        id: entry._id,
         balanceAfter: Number(entry.balanceAfter),
       };
     } catch (error: any) {
       // Handle unique constraint violation (idempotency race condition)
-      if (error.code === 'P2002') {
-        const existing = await prismaClient.loyaltyLedgerEntry.findFirst({
-          where: {
+      if (error.code === 11000) {
+        const existing = await this.ledgerModel
+          .findOne({
             tenantId,
             idempotencyKey,
             operationType,
-          },
-        });
+          })
+          .session(session || null)
+          .exec();
 
         if (existing) {
           return {
-            id: existing.id,
+            id: existing._id,
             balanceAfter: Number(existing.balanceAfter),
           };
         }
@@ -100,17 +105,22 @@ export class LedgerService {
    * Get customer balance (derived from ledger entries)
    */
   async getBalance(tenantId: string, customerId: string): Promise<number> {
-    const result = await this.prisma.loyaltyLedgerEntry.aggregate({
-      where: {
-        tenantId,
-        customerId,
+    const result = await this.ledgerModel.aggregate([
+      {
+        $match: {
+          tenantId,
+          customerId,
+        },
       },
-      _sum: {
-        amount: true,
+      {
+        $group: {
+          _id: null,
+          total: { $sum: { $toDouble: '$amount' } },
+        },
       },
-    });
+    ]).exec();
 
-    return Number(result._sum.amount || 0);
+    return result.length > 0 ? result[0].total : 0;
   }
 
   /**
@@ -125,31 +135,24 @@ export class LedgerService {
     const skip = (page - 1) * limit;
 
     const [entries, total] = await Promise.all([
-      this.prisma.loyaltyLedgerEntry.findMany({
-        where: {
+      this.ledgerModel
+        .find({
           tenantId,
           customerId,
-        },
-        orderBy: {
-          createdAt: 'desc',
-        },
-        skip,
-        take: limit,
-        include: {
-          transaction: true,
-        },
-      }),
-      this.prisma.loyaltyLedgerEntry.count({
-        where: {
-          tenantId,
-          customerId,
-        },
-      }),
+        })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .exec(),
+      this.ledgerModel.countDocuments({
+        tenantId,
+        customerId,
+      }).exec(),
     ]);
 
     return {
-      entries: entries.map((entry: typeof entries[0]) => ({
-        id: entry.id,
+      entries: entries.map((entry) => ({
+        id: entry._id,
         transactionId: entry.transactionId,
         amount: Number(entry.amount),
         balanceAfter: Number(entry.balanceAfter),

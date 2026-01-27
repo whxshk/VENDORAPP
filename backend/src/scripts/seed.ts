@@ -1,269 +1,204 @@
 /**
- * Enhanced seed script for demo/pilot tenants with realistic data
+ * Enhanced seed script for MongoDB with realistic data
  * Run with: npm run seed
  * 
  * This script uses upsert operations to be idempotent - safe to run multiple times
  */
 
-import { PrismaClient, Prisma } from '@prisma/client';
+import mongoose from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { CUSTOMER_DATA } from '../common/customer-data';
+import { Tenant, TenantSchema } from '../database/schemas/Tenant.schema';
+import { Location, LocationSchema } from '../database/schemas/Location.schema';
+import { User, UserSchema } from '../database/schemas/User.schema';
+import { Customer, CustomerSchema } from '../database/schemas/Customer.schema';
+import { CustomerMerchantAccount, CustomerMerchantAccountSchema } from '../database/schemas/CustomerMerchantAccount.schema';
+import { Device, DeviceSchema } from '../database/schemas/Device.schema';
+import { Reward, RewardSchema } from '../database/schemas/Reward.schema';
+import { Transaction, TransactionSchema, TransactionType, TransactionStatus } from '../database/schemas/Transaction.schema';
+import { LoyaltyLedgerEntry, LoyaltyLedgerEntrySchema } from '../database/schemas/LoyaltyLedgerEntry.schema';
+import { Redemption, RedemptionSchema, RedemptionStatus } from '../database/schemas/Redemption.schema';
+import { CustomerBalance, CustomerBalanceSchema } from '../database/schemas/CustomerBalance.schema';
+import { v4 as uuidv4 } from 'uuid';
 
-const prisma = new PrismaClient();
-
-// Helper function to convert Prisma Decimal to number
-function toNumber(value: Prisma.Decimal | null | undefined): number {
-  if (!value) return 0;
-  return typeof value === 'number' ? value : Number(value);
-}
+const TENANT_ID = '00000000-0000-0000-0000-000000000001';
+const PASSWORD = 'password123'; // Consistent password for all example users
 
 async function main() {
-  console.log('🌱 Seeding database with realistic data...\n');
+  console.log('🌱 Seeding MongoDB database with realistic data...\n');
+
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) {
+    throw new Error('DATABASE_URL is not defined in environment variables');
+  }
 
   try {
+    // Connect to MongoDB
+    await mongoose.connect(databaseUrl);
+    console.log('✅ Connected to MongoDB\n');
+
+    // Create models
+    const TenantModel = mongoose.model('Tenant', TenantSchema);
+    const LocationModel = mongoose.model('Location', LocationSchema);
+    const UserModel = mongoose.model('User', UserSchema);
+    const CustomerModel = mongoose.model('Customer', CustomerSchema);
+    const AccountModel = mongoose.model('CustomerMerchantAccount', CustomerMerchantAccountSchema);
+    const DeviceModel = mongoose.model('Device', DeviceSchema);
+    const RewardModel = mongoose.model('Reward', RewardSchema);
+    const TransactionModel = mongoose.model('Transaction', TransactionSchema);
+    const LedgerModel = mongoose.model('LoyaltyLedgerEntry', LoyaltyLedgerEntrySchema);
+    const RedemptionModel = mongoose.model('Redemption', RedemptionSchema);
+    const BalanceModel = mongoose.model('CustomerBalance', CustomerBalanceSchema);
+
     // Create demo tenant
-    const tenant = await prisma.tenant.upsert({
-      where: { id: '00000000-0000-0000-0000-000000000001' },
-      update: {
+    const tenant = await TenantModel.findOneAndUpdate(
+      { _id: TENANT_ID },
+      {
+        _id: TENANT_ID,
         name: 'Arabian Coffee House',
         config: {
           pointsPerQAR: 0.5,
           currency: 'QAR',
         },
+        isActive: true,
       },
-      create: {
-        id: '00000000-0000-0000-0000-000000000001',
-        name: 'Arabian Coffee House',
-        config: {
-          pointsPerQAR: 0.5,
-          currency: 'QAR',
-        },
-      },
-    });
+      { upsert: true, new: true }
+    ).exec();
 
     console.log(`✅ Created/Updated tenant: ${tenant.name}`);
 
     // Create multiple locations
-    const locations = await Promise.all([
-      prisma.location.upsert({
-        where: { id: '00000000-0000-0000-0000-000000000002' },
-        update: {},
-        create: {
-          id: '00000000-0000-0000-0000-000000000002',
-          tenantId: tenant.id,
-          name: 'The Pearl Branch',
-          address: 'The Pearl-Qatar, Doha',
-          isActive: true,
-        },
-      }),
-      prisma.location.upsert({
-        where: { id: '00000000-0000-0000-0000-000000000003' },
-        update: {},
-        create: {
-          id: '00000000-0000-0000-0000-000000000003',
-          tenantId: tenant.id,
-          name: 'City Center Branch',
-          address: 'City Center Doha, West Bay',
-          isActive: true,
-        },
-      }),
-      prisma.location.upsert({
-        where: { id: '00000000-0000-0000-0000-000000000004' },
-        update: {},
-        create: {
-          id: '00000000-0000-0000-0000-000000000004',
-          tenantId: tenant.id,
-          name: 'Villaggio Branch',
-          address: 'Villaggio Mall, Doha',
-          isActive: true,
-        },
-      }),
-    ]);
-
-    console.log(`✅ Created/Updated ${locations.length} locations`);
-
-    // Create admin user
-    const hashedPassword = await bcrypt.hash('demo123456', 10);
-    const adminUser = await prisma.user.upsert({
-      where: {
-        tenantId_email: {
-          tenantId: tenant.id,
-          email: 'admin@coffee.com',
-        },
-      },
-      update: {
-        hashedPassword,
-        roles: ['MERCHANT_ADMIN'],
-        scopes: ['merchant:*'],
-        isActive: true,
-      },
-      create: {
-        tenantId: tenant.id,
-        email: 'admin@coffee.com',
-        hashedPassword,
-        roles: ['MERCHANT_ADMIN'],
-        scopes: ['merchant:*'],
-        isActive: true,
-      },
-    });
-
-    console.log(`✅ Created/Updated admin user: ${adminUser.email}`);
-
-    // Create staff users
-    const staffPasswords = ['staff123456', 'cashier123', 'manager123'];
-    const staffData = [
-      { email: 'ahmed@coffee.com', name: 'Ahmed Ali', role: 'MANAGER' },
-      { email: 'fatima@coffee.com', name: 'Fatima Hassan', role: 'CASHIER' },
-      { email: 'mohammed@coffee.com', name: 'Mohammed Salim', role: 'CASHIER' },
+    const locationsData = [
+      { id: '00000000-0000-0000-0000-000000000002', name: 'The Pearl Branch', address: 'The Pearl-Qatar, Doha' },
+      { id: '00000000-0000-0000-0000-000000000003', name: 'City Center Branch', address: 'City Center Doha, West Bay' },
+      { id: '00000000-0000-0000-0000-000000000004', name: 'Villaggio Branch', address: 'Villaggio Mall, Doha' },
     ];
 
-    const staffUsers = await Promise.all(
-      staffData.map(async (staff, index) => {
-        const hashed = await bcrypt.hash(staffPasswords[index], 10);
-        return prisma.user.upsert({
-          where: {
-            tenantId_email: {
-              tenantId: tenant.id,
-              email: staff.email,
-            },
-          },
-          update: {
-            hashedPassword: hashed,
-            roles: [staff.role],
-            scopes: ['scan:*'],
+    const locations = await Promise.all(
+      locationsData.map(async (loc) => {
+        return LocationModel.findOneAndUpdate(
+          { _id: loc.id },
+          {
+            _id: loc.id,
+            tenantId: tenant._id,
+            name: loc.name,
+            address: loc.address,
             isActive: true,
           },
-          create: {
-            tenantId: tenant.id,
-            email: staff.email,
-            hashedPassword: hashed,
-            roles: [staff.role],
-            scopes: ['scan:*'],
-            isActive: true,
-          },
-        });
+          { upsert: true, new: true }
+        ).exec();
       })
     );
 
-    console.log(`✅ Created/Updated ${staffUsers.length} staff users`);
+    console.log(`✅ Created/Updated ${locations.length} locations`);
 
-    // Create devices for each location
-    const deviceIdentifiers = [
-      'POS-THE-1',
-      'POS-CIT-1',
-      'POS-VIL-1',
+    // Create role-based example users
+    const hashedPassword = await bcrypt.hash(PASSWORD, 10);
+    
+    const usersData = [
+      { email: 'admin@example.com', role: 'MERCHANT_ADMIN', scopes: ['merchant:*'] },
+      { email: 'manager@example.com', role: 'MANAGER', scopes: ['scan:*'] },
+      { email: 'cashier@example.com', role: 'CASHIER', scopes: ['scan:*'] },
+      { email: 'staff@example.com', role: 'STAFF', scopes: ['scan:*'] },
     ];
 
+    const users = await Promise.all(
+      usersData.map(async (userData) => {
+        return UserModel.findOneAndUpdate(
+          { tenantId: tenant._id, email: userData.email },
+          {
+            _id: uuidv4(),
+            tenantId: tenant._id,
+            email: userData.email,
+            hashedPassword,
+            roles: [userData.role],
+            scopes: userData.scopes,
+            isActive: true,
+          },
+          { upsert: true, new: true }
+        ).exec();
+      })
+    );
+
+    console.log(`✅ Created/Updated ${users.length} users with role-based access`);
+
+    // Create devices for each location
+    const deviceIdentifiers = ['POS-THE-1', 'POS-CIT-1', 'POS-VIL-1'];
     const devices = await Promise.all(
       locations.map((location, index) =>
-        prisma.device.upsert({
-          where: {
-            tenantId_deviceIdentifier: {
-              tenantId: tenant.id,
-              deviceIdentifier: deviceIdentifiers[index],
-            },
-          },
-          update: {
-            locationId: location.id,
-            isActive: true,
-          },
-          create: {
-            tenantId: tenant.id,
-            locationId: location.id,
+        DeviceModel.findOneAndUpdate(
+          { tenantId: tenant._id, deviceIdentifier: deviceIdentifiers[index] },
+          {
+            _id: uuidv4(),
+            tenantId: tenant._id,
+            locationId: location._id,
             deviceIdentifier: deviceIdentifiers[index],
-            registeredByUserId: adminUser.id,
+            registeredByUserId: users[0]._id,
             isActive: true,
           },
-        })
+          { upsert: true, new: true }
+        ).exec()
       )
     );
 
     console.log(`✅ Created/Updated ${devices.length} devices`);
 
-    // Create customers with QR token secrets and store metadata in first transaction
-    // Clear existing customers first to avoid duplicates on reseed
-    await prisma.customerMerchantAccount.deleteMany({
-      where: { tenantId: tenant.id },
-    });
-    await prisma.customerBalance.deleteMany({
-      where: { tenantId: tenant.id },
-    });
-    
-    // Create customers with real data
+    // Create customers
+    await AccountModel.deleteMany({ tenantId: tenant._id }).exec();
+    await BalanceModel.deleteMany({ tenantId: tenant._id }).exec();
+
     const customers = await Promise.all(
-      CUSTOMER_DATA.map(async (customerInfo) => {
-        // Generate a unique QR token secret for each customer
+      CUSTOMER_DATA.map(async () => {
         const qrTokenSecret = crypto.randomBytes(32).toString('hex');
-        return prisma.customer.create({
-          data: {
-            qrTokenSecret,
-            rotationIntervalSec: 30,
-          },
-        });
+        return new CustomerModel({
+          _id: uuidv4(),
+          qrTokenSecret,
+          rotationIntervalSec: 30,
+        }).save();
       })
     );
 
-
     console.log(`✅ Created ${customers.length} customers`);
 
-    // Create customer-merchant accounts and balances
-    // Generate balance amounts for all 25 customers
+    // Create customer-merchant accounts
     const balanceAmounts = Array.from({ length: CUSTOMER_DATA.length }, (_, i) => {
-      if (i < 12) {
-        // First 12 get varied balances
-        return [0, 25, 50, 75, 100, 125, 150, 200, 250, 300, 350, 450][i] || 0;
-      } else if (i < 20) {
-        // Next 8 get moderate balances
-        return [100, 150, 200, 75, 250, 300, 175, 400][i - 12] || 0;
-      } else {
-        // Last 5 get lower or zero balances
-        return [50, 125, 0, 200, 75][i - 20] || 0;
-      }
+      if (i < 12) return [0, 25, 50, 75, 100, 125, 150, 200, 250, 300, 350, 450][i] || 0;
+      if (i < 20) return [100, 150, 200, 75, 250, 300, 175, 400][i - 12] || 0;
+      return [50, 125, 0, 200, 75][i - 20] || 0;
     });
 
-    const customerAccounts = await Promise.all(
+    const accounts = await Promise.all(
       customers.map((customer, index) =>
-        prisma.customerMerchantAccount.upsert({
-          where: {
-            customerId_tenantId: {
-              customerId: customer.id,
-              tenantId: tenant.id,
-            },
-          },
-          update: {
+        AccountModel.findOneAndUpdate(
+          { customerId: customer._id, tenantId: tenant._id },
+          {
+            _id: uuidv4(),
+            customerId: customer._id,
+            tenantId: tenant._id,
             membershipStatus: index < 20 ? 'ACTIVE' : 'INACTIVE',
           },
-          create: {
-            customerId: customer.id,
-            tenantId: tenant.id,
-            membershipStatus: index < 20 ? 'ACTIVE' : 'INACTIVE',
-          },
-        })
+          { upsert: true, new: true }
+        ).exec()
       )
     );
 
-    console.log(`✅ Created/Updated ${customerAccounts.length} customer accounts`);
+    console.log(`✅ Created/Updated ${accounts.length} customer accounts`);
 
-    // Create customer balances (points earned)
+    // Create customer balances
     await Promise.all(
       customers.map((customer, index) =>
-        prisma.customerBalance.upsert({
-          where: {
-            tenantId_customerId: {
-              tenantId: tenant.id,
-              customerId: customer.id,
-            },
-          },
-          update: {
+        BalanceModel.findOneAndUpdate(
+          { tenantId: tenant._id, customerId: customer._id },
+          {
+            _id: uuidv4(),
+            tenantId: tenant._id,
+            customerId: customer._id,
             balance: balanceAmounts[index],
+            lastUpdatedAt: new Date(),
           },
-          create: {
-            tenantId: tenant.id,
-            customerId: customer.id,
-            balance: balanceAmounts[index],
-          },
-        })
+          { upsert: true, new: true }
+        ).exec()
       )
     );
 
@@ -271,98 +206,57 @@ async function main() {
 
     // Create rewards
     const rewardsData = [
-      {
-        id: '00000000-0000-0000-0000-000000000003',
-        name: 'Free Coffee',
-        pointsRequired: 100,
-        description: 'Redeem for one free coffee of any size',
-      },
-      {
-        id: '00000000-0000-0000-0000-000000000004',
-        name: 'Free Pastry',
-        pointsRequired: 75,
-        description: 'Redeem for one free pastry from our selection',
-      },
-      {
-        id: '00000000-0000-0000-0000-000000000005',
-        name: '10% Discount',
-        pointsRequired: 50,
-        description: 'Get 10% off your next purchase',
-      },
-      {
-        id: '00000000-0000-0000-0000-000000000006',
-        name: 'Free Cappuccino',
-        pointsRequired: 120,
-        description: 'Redeem for one free cappuccino',
-      },
-      {
-        id: '00000000-0000-0000-0000-000000000007',
-        name: 'Buy 1 Get 1 Free',
-        pointsRequired: 150,
-        description: 'Buy one coffee, get one free',
-      },
-      {
-        id: '00000000-0000-0000-0000-000000000008',
-        name: 'Free Meal Combo',
-        pointsRequired: 300,
-        description: 'Redeem for a free coffee and pastry combo',
-      },
+      { name: 'Free Coffee', pointsRequired: 100, description: 'Redeem for one free coffee of any size' },
+      { name: 'Free Pastry', pointsRequired: 75, description: 'Redeem for one free pastry from our selection' },
+      { name: '10% Discount', pointsRequired: 50, description: 'Get 10% off your next purchase' },
+      { name: 'Free Cappuccino', pointsRequired: 120, description: 'Redeem for one free cappuccino' },
+      { name: 'Buy 1 Get 1 Free', pointsRequired: 150, description: 'Buy one coffee, get one free' },
+      { name: 'Free Meal Combo', pointsRequired: 300, description: 'Redeem for a free coffee and pastry combo' },
     ];
 
     const rewards = await Promise.all(
       rewardsData.map((reward) =>
-        prisma.reward.upsert({
-          where: { id: reward.id },
-          update: {
+        RewardModel.findOneAndUpdate(
+          { tenantId: tenant._id, name: reward.name },
+          {
+            _id: uuidv4(),
+            tenantId: tenant._id,
             name: reward.name,
             pointsRequired: reward.pointsRequired,
             description: reward.description,
             isActive: true,
           },
-          create: {
-            id: reward.id,
-            tenantId: tenant.id,
-            name: reward.name,
-            pointsRequired: reward.pointsRequired,
-            description: reward.description,
-            isActive: true,
-          },
-        })
+          { upsert: true, new: true }
+        ).exec()
       )
     );
 
     console.log(`✅ Created/Updated ${rewards.length} rewards`);
 
-    // Clear existing transactions and related data for clean reseed
-    await prisma.loyaltyLedgerEntry.deleteMany({
-      where: { tenantId: tenant.id },
-    });
-    await prisma.redemption.deleteMany({
-      where: { tenantId: tenant.id },
-    });
-    await prisma.transaction.deleteMany({
-      where: { tenantId: tenant.id },
-    });
+    // Clear existing transactions
+    await LedgerModel.deleteMany({ tenantId: tenant._id }).exec();
+    await RedemptionModel.deleteMany({ tenantId: tenant._id }).exec();
+    await TransactionModel.deleteMany({ tenantId: tenant._id }).exec();
 
     console.log(`✅ Cleared existing transactions for clean reseed`);
 
-    // Create welcome transactions for ALL customers to store their metadata
-    // This must happen after clearing transactions
+    // Create welcome transactions with customer metadata
     await Promise.all(
       customers.map((customer, index) => {
         const customerInfo = CUSTOMER_DATA[index];
-        const welcomeIdempotencyKey = `welcome-${customer.id}-${tenant.id}`;
+        const welcomeIdempotencyKey = `welcome-${customer._id}-${tenant._id}`;
         
-        // Create a welcome transaction with 0 points to store customer metadata
-        return prisma.transaction.create({
-          data: {
-            tenantId: tenant.id,
-            customerId: customer.id,
-            type: 'ISSUE',
+        return TransactionModel.findOneAndUpdate(
+          { idempotencyKey: welcomeIdempotencyKey },
+          {
+            _id: uuidv4(),
+            tenantId: tenant._id,
+            customerId: customer._id,
+            type: TransactionType.ISSUE,
             amount: 0,
-            status: 'COMPLETED',
+            status: TransactionStatus.COMPLETED,
             idempotencyKey: welcomeIdempotencyKey,
-            deviceId: devices[0].id,
+            deviceId: devices[0]._id,
             metadata: {
               customerName: customerInfo.name,
               customerEmail: customerInfo.email,
@@ -371,229 +265,36 @@ async function main() {
             },
             createdAt: new Date(customerInfo.joinDate),
           },
-        }).catch(() => {
-          // Ignore errors if welcome transaction already exists
-        });
+          { upsert: true, new: true }
+        ).exec().catch(() => null);
       })
     );
 
     console.log(`✅ Created welcome transactions with customer metadata`);
 
-    // Create some sample transactions for active customers
-    const transactionDates = [];
-    const now = new Date();
-    for (let i = 0; i < 30; i++) {
-      transactionDates.push(new Date(now.getTime() - i * 24 * 60 * 60 * 1000));
-    }
-
-    const transactions = [];
-
-    // Create ISSUE transactions (earn points) - use all active customers
-    const activeCustomers = customers.slice(0, 20); // First 20 are active
-    for (let i = 0; i < 30; i++) {
-      const customer = activeCustomers[i % activeCustomers.length]!;
-      const date = transactionDates[i % 30];
-      const amount = Math.floor(Math.random() * 150 + 50); // 50-200 QAR
-      const points = Math.floor(amount * 0.5); // 0.5 points per QAR
-
-      const idempotencyKey = crypto.randomUUID();
-
-      const customerIndex = customers.findIndex((c) => c.id === customer.id);
-      const customerInfo = CUSTOMER_DATA[customerIndex % CUSTOMER_DATA.length];
-      const transaction = await prisma.transaction.create({
-        data: {
-          tenantId: tenant.id,
-          customerId: customer.id,
-          type: 'ISSUE',
-          amount,
-          status: 'COMPLETED',
-          idempotencyKey,
-          deviceId: devices[i % devices.length].id,
-          metadata: {
-            purchaseAmount: amount,
-            pointsEarned: points,
-            customerName: customerInfo?.name,
-            customerEmail: customerInfo?.email,
-            customerPhone: customerInfo?.phone,
-          },
-          createdAt: date,
-        },
-      });
-
-      transactions.push(transaction);
-
-      // Get current balance before this transaction
-      const balanceBefore = await prisma.customerBalance.findUnique({
-        where: {
-          tenantId_customerId: {
-            tenantId: tenant.id,
-            customerId: customer.id,
-          },
-        },
-      });
-
-      const currentBalance = toNumber(balanceBefore?.balance);
-      const balanceAfter = currentBalance + points;
-
-      // Create ledger entry
-      await prisma.loyaltyLedgerEntry.create({
-        data: {
-          tenantId: tenant.id,
-          transactionId: transaction.id,
-          customerId: customer.id,
-          amount: points,
-          balanceAfter,
-          idempotencyKey: transaction.idempotencyKey,
-          operationType: 'ISSUE',
-          createdAt: date,
-        },
-      });
-
-      // Update customer balance
-      await prisma.customerBalance.update({
-        where: {
-          tenantId_customerId: {
-            tenantId: tenant.id,
-            customerId: customer.id,
-          },
-        },
-        data: {
-          balance: balanceAfter,
-          lastUpdatedAt: date,
-        },
-      });
-    }
-
-    // Create REDEEM transactions (spend points)
-    const redeemCount = 8;
-    for (let i = 0; i < redeemCount; i++) {
-      const customer = customers[i % 8]!; // Use customers with points
-      const reward = rewards[i % rewards.length];
-      const date = transactionDates[25 + (i % 5)];
-      
-      // Check if customer has enough points
-      const balance = await prisma.customerBalance.findUnique({
-        where: {
-          tenantId_customerId: {
-            tenantId: tenant.id,
-            customerId: customer.id,
-          },
-        },
-      });
-
-      const currentBalance = toNumber(balance?.balance);
-      const pointsRequired = toNumber(reward.pointsRequired);
-
-      if (currentBalance >= pointsRequired) {
-        const idempotencyKey = crypto.randomUUID();
-
-        const customerIndex = customers.findIndex((c) => c.id === customer.id);
-      const customerInfo = CUSTOMER_DATA[customerIndex % CUSTOMER_DATA.length];
-        const transaction = await prisma.transaction.create({
-          data: {
-            tenantId: tenant.id,
-            customerId: customer.id,
-            type: 'REDEEM',
-            amount: reward.pointsRequired,
-            status: 'COMPLETED',
-            idempotencyKey,
-            deviceId: devices[i % devices.length].id,
-            metadata: {
-              rewardId: reward.id,
-              rewardName: reward.name,
-              customerName: customerInfo?.name,
-              customerEmail: customerInfo?.email,
-              customerPhone: customerInfo?.phone,
-            },
-            createdAt: date,
-          },
-        });
-
-        const balanceAfter = currentBalance - pointsRequired;
-
-        // Create ledger entry
-        await prisma.loyaltyLedgerEntry.create({
-          data: {
-            tenantId: tenant.id,
-            transactionId: transaction.id,
-            customerId: customer.id,
-            amount: -pointsRequired,
-            balanceAfter,
-            idempotencyKey: transaction.idempotencyKey,
-            operationType: 'REDEEM',
-            createdAt: date,
-          },
-        });
-
-        // Update customer balance
-        await prisma.customerBalance.update({
-          where: {
-            tenantId_customerId: {
-              tenantId: tenant.id,
-              customerId: customer.id,
-            },
-          },
-          data: {
-            balance: balanceAfter,
-            lastUpdatedAt: date,
-          },
-        });
-
-        // Create redemption record
-        await prisma.redemption.upsert({
-          where: {
-            tenantId_idempotencyKey: {
-              tenantId: tenant.id,
-              idempotencyKey: transaction.idempotencyKey,
-            },
-          },
-          update: {
-            status: 'COMPLETED',
-            completedAt: date,
-          },
-          create: {
-            tenantId: tenant.id,
-            customerId: customer.id,
-            rewardId: reward.id,
-            pointsDeducted: reward.pointsRequired,
-            status: 'COMPLETED',
-            idempotencyKey: transaction.idempotencyKey,
-            completedAt: date,
-          },
-        });
-
-        transactions.push(transaction);
-      }
-    }
-
-    console.log(`✅ Created ${transactions.length} transactions`);
-    console.log(`✅ Created ledger entries`);
-
     console.log('\n✅ Seeding complete!');
     console.log('\n📊 Summary:');
     console.log(`  - 1 Tenant: ${tenant.name}`);
     console.log(`  - ${locations.length} Locations`);
-    console.log(`  - ${1 + staffUsers.length} Users (1 admin + ${staffUsers.length} staff)`);
+    console.log(`  - ${users.length} Users (role-based)`);
     console.log(`  - ${devices.length} Devices`);
     console.log(`  - ${customers.length} Customers`);
     console.log(`  - ${rewards.length} Rewards`);
-    console.log(`  - ${transactions.length} Transactions`);
-    console.log('\n🔑 Login Credentials:');
-    console.log('  Admin: admin@coffee.com / demo123456');
-    console.log('  Manager: ahmed@coffee.com / staff123456');
-    console.log('  Cashier: fatima@coffee.com / cashier123');
-    console.log('  Cashier: mohammed@coffee.com / manager123');
+    console.log('\n🔑 Login Credentials (Password for all: password123):');
+    console.log('  MERCHANT_ADMIN: admin@example.com');
+    console.log('  MANAGER: manager@example.com');
+    console.log('  CASHIER: cashier@example.com');
+    console.log('  STAFF: staff@example.com');
   } catch (error) {
     console.error('\n❌ Error during seeding:', error);
     throw error;
+  } finally {
+    await mongoose.disconnect();
+    console.log('\n✅ Disconnected from MongoDB');
   }
 }
 
-main()
-  .catch((e) => {
-    console.error('\n❌ Seeding failed:', e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+main().catch((e) => {
+  console.error('\n❌ Seeding failed:', e);
+  process.exit(1);
+});

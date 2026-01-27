@@ -97,7 +97,7 @@ export default function DashboardHome() {
         <KPICard
           title="Repeat Customers"
           value={repeatCustomers}
-          description={`${totalTransactions > 0 ? Math.round((repeatCustomers / totalTransactions) * 100) : 0}% repeat rate`}
+          description={`${todaysCustomers > 0 ? Math.round((repeatCustomers / todaysCustomers) * 100) : 0}% of today's customers are repeat visitors`}
           icon={<Repeat className="h-6 w-6" />}
         />
         <KPICard
