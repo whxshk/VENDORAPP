@@ -4,18 +4,35 @@ import {
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import { InjectModel, InjectConnection } from '@nestjs/mongoose';
+import { Model, Connection, ClientSession } from 'mongoose';
+import { Transaction, TransactionDocument, TransactionType, TransactionStatus } from '../database/schemas/Transaction.schema';
+import { Customer, CustomerDocument } from '../database/schemas/Customer.schema';
+import { Device, DeviceDocument } from '../database/schemas/Device.schema';
+import { Redemption, RedemptionDocument, RedemptionStatus } from '../database/schemas/Redemption.schema';
+import { Reward, RewardDocument } from '../database/schemas/Reward.schema';
+import { ScanEvent, ScanEventDocument } from '../database/schemas/ScanEvent.schema';
+import { User, UserDocument } from '../database/schemas/User.schema';
+import { PilotOnboardingFunnel, PilotOnboardingFunnelDocument } from '../database/schemas/PilotOnboardingFunnel.schema';
 import { LedgerService } from '../ledger/ledger.service';
 import { OutboxService } from '../outbox/outbox.service';
 import { FraudSignalsService } from '../fraud-signals/fraud-signals.service';
 import { PilotMetricsService } from '../pilot-metrics/pilot-metrics.service';
 import { getCustomerInfoById } from '../common/customer-data';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class TransactionsService {
   constructor(
-    private prisma: PrismaService,
+    @InjectConnection() private connection: Connection,
+    @InjectModel(Transaction.name) private transactionModel: Model<TransactionDocument>,
+    @InjectModel(Customer.name) private customerModel: Model<CustomerDocument>,
+    @InjectModel(Device.name) private deviceModel: Model<DeviceDocument>,
+    @InjectModel(Redemption.name) private redemptionModel: Model<RedemptionDocument>,
+    @InjectModel(Reward.name) private rewardModel: Model<RewardDocument>,
+    @InjectModel(ScanEvent.name) private scanEventModel: Model<ScanEventDocument>,
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(PilotOnboardingFunnel.name) private funnelModel: Model<PilotOnboardingFunnelDocument>,
     private ledgerService: LedgerService,
     private outboxService: OutboxService,
     private fraudSignalsService: FraudSignalsService,
@@ -34,17 +51,15 @@ export class TransactionsService {
     }
 
     // Check idempotency
-    const existing = await this.prisma.transaction.findFirst({
-      where: {
-        tenantId,
-        idempotencyKey,
-      },
-    });
+    const existing = await this.transactionModel.findOne({
+      tenantId,
+      idempotencyKey,
+    }).exec();
 
     if (existing) {
       const balance = await this.ledgerService.getBalance(tenantId, customerId);
       return {
-        id: existing.id,
+        id: existing._id,
         type: existing.type,
         amount: Number(existing.amount),
         status: existing.status,
@@ -53,9 +68,7 @@ export class TransactionsService {
     }
 
     // Validate customer exists
-    const customer = await this.prisma.customer.findUnique({
-      where: { id: customerId },
-    });
+    const customer = await this.customerModel.findById(customerId).exec();
 
     if (!customer) {
       throw new NotFoundException(`Customer ${customerId} not found`);
@@ -63,43 +76,45 @@ export class TransactionsService {
 
     // Validate device if provided
     if (deviceId) {
-      const device = await this.prisma.device.findFirst({
-        where: {
-          id: deviceId,
-          tenantId,
-          isActive: true,
-        },
-      });
+      const device = await this.deviceModel.findOne({
+        _id: deviceId,
+        tenantId,
+        isActive: true,
+      }).exec();
 
       if (!device) {
         throw new NotFoundException(`Device ${deviceId} not found or inactive`);
       }
     }
 
-    // Create transaction and ledger entry atomically
-    const result = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    // Create transaction and ledger entry atomically using MongoDB session
+    const session = await this.connection.startSession();
+    session.startTransaction();
+
+    try {
       // Create transaction record
-      const transaction = await tx.transaction.create({
-        data: {
-          tenantId,
-          customerId,
-          type: 'ISSUE',
-          amount,
-          status: 'COMPLETED',
-          idempotencyKey,
-          deviceId,
-        },
+      const transaction = new this.transactionModel({
+        _id: uuidv4(),
+        tenantId,
+        customerId,
+        type: TransactionType.ISSUE,
+        amount: amount,
+        status: TransactionStatus.COMPLETED,
+        idempotencyKey,
+        deviceId: deviceId || undefined,
       });
 
-      // Append ledger entry (idempotent) - use transaction client
+      await transaction.save({ session });
+
+      // Append ledger entry (idempotent) - use session
       const ledgerEntry = await this.ledgerService.appendEntry(
         tenantId,
         customerId,
         amount,
         idempotencyKey,
-        transaction.id,
+        transaction._id,
         'ISSUE',
-        tx, // Pass transaction client
+        session,
       );
 
       // Write outbox event (atomic with transaction)
@@ -107,37 +122,40 @@ export class TransactionsService {
         tenantId,
         'points.issued',
         {
-          transactionId: transaction.id,
+          transactionId: transaction._id,
           customerId,
           amount,
           balanceAfter: ledgerEntry.balanceAfter,
           deviceId,
           idempotencyKey,
         },
-        tx,
+        session,
       );
 
-      return { transaction, balanceAfter: ledgerEntry.balanceAfter };
-    });
+      await session.commitTransaction();
 
-    // Track fraud signals
-    await this.fraudSignalsService.trackScan(tenantId, deviceId, customerId);
+      // Track fraud signals (outside transaction)
+      await this.fraudSignalsService.trackScan(tenantId, deviceId, customerId);
 
-    // Track onboarding milestone (first scan only)
-    const funnel = await this.prisma.pilotOnboardingFunnel.findUnique({
-      where: { tenantId },
-    });
-    if (!funnel?.firstScanAt) {
-      await this.pilotMetricsService.trackOnboardingMilestone(tenantId, 'first_scan');
+      // Track onboarding milestone (first scan only)
+      const funnel = await this.funnelModel.findOne({ tenantId }).exec();
+      if (!funnel?.firstScanAt) {
+        await this.pilotMetricsService.trackOnboardingMilestone(tenantId, 'first_scan');
+      }
+
+      return {
+        id: transaction._id,
+        type: transaction.type,
+        amount: Number(transaction.amount),
+        status: transaction.status,
+        balance: ledgerEntry.balanceAfter,
+      };
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
     }
-
-    return {
-      id: result.transaction.id,
-      type: result.transaction.type,
-      amount: Number(result.transaction.amount),
-      status: result.transaction.status,
-      balance: result.balanceAfter,
-    };
   }
 
   async redeemPoints(
@@ -147,17 +165,15 @@ export class TransactionsService {
     idempotencyKey: string,
   ) {
     // Check idempotency
-    const existing = await this.prisma.redemption.findFirst({
-      where: {
-        tenantId,
-        idempotencyKey,
-      },
-    });
+    const existing = await this.redemptionModel.findOne({
+      tenantId,
+      idempotencyKey,
+    }).exec();
 
-    if (existing && existing.status === 'COMPLETED') {
+    if (existing && existing.status === RedemptionStatus.COMPLETED) {
       const balance = await this.ledgerService.getBalance(tenantId, customerId);
       return {
-        id: existing.id,
+        id: existing._id,
         status: existing.status,
         pointsDeducted: Number(existing.pointsDeducted),
         balance,
@@ -165,13 +181,11 @@ export class TransactionsService {
     }
 
     // Get reward
-    const reward = await this.prisma.reward.findFirst({
-      where: {
-        id: rewardId,
-        tenantId,
-        isActive: true,
-      },
-    });
+    const reward = await this.rewardModel.findOne({
+      _id: rewardId,
+      tenantId,
+      isActive: true,
+    }).exec();
 
     if (!reward) {
       throw new NotFoundException(`Reward ${rewardId} not found`);
@@ -179,48 +193,62 @@ export class TransactionsService {
 
     const pointsRequired = Number(reward.pointsRequired);
 
-    // Check balance with lock (SELECT FOR UPDATE)
-    const result = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    // Use MongoDB session for atomic transaction
+    const session = await this.connection.startSession();
+    session.startTransaction();
+
+    try {
       const balance = await this.ledgerService.getBalance(tenantId, customerId);
 
       if (balance < pointsRequired) {
-        throw new BadRequestException('Insufficient points');
+        throw new BadRequestException(
+          `Insufficient points. Customer has ${balance} points, but reward requires ${pointsRequired} points.`
+        );
+      }
+
+      // Ensure balance never goes below 0
+      if (balance - pointsRequired < 0) {
+        throw new BadRequestException(
+          `Insufficient points. Customer has ${balance} points, but reward requires ${pointsRequired} points.`
+        );
       }
 
       // Create redemption record
-      const redemption = await tx.redemption.create({
-        data: {
-          tenantId,
-          customerId,
-          rewardId,
-          pointsDeducted: pointsRequired,
-          status: 'COMPLETED',
-          idempotencyKey,
-          completedAt: new Date(),
-        },
+      const redemption = new this.redemptionModel({
+        _id: uuidv4(),
+        tenantId,
+        customerId,
+        rewardId,
+        pointsDeducted: pointsRequired,
+        status: RedemptionStatus.COMPLETED,
+        idempotencyKey,
+        completedAt: new Date(),
       });
+
+      await redemption.save({ session });
 
       // Create transaction record
-      const transaction = await tx.transaction.create({
-        data: {
-          tenantId,
-          customerId,
-          type: 'REDEEM',
-          amount: -pointsRequired,
-          status: 'COMPLETED',
-          idempotencyKey: `${idempotencyKey}-tx`,
-        },
+      const transaction = new this.transactionModel({
+        _id: uuidv4(),
+        tenantId,
+        customerId,
+        type: TransactionType.REDEEM,
+        amount: -pointsRequired,
+        status: TransactionStatus.COMPLETED,
+        idempotencyKey: `${idempotencyKey}-tx`,
       });
 
-      // Append ledger entry (negative amount) - use transaction client
+      await transaction.save({ session });
+
+      // Append ledger entry (negative amount) - use session
       const ledgerEntry = await this.ledgerService.appendEntry(
         tenantId,
         customerId,
         -pointsRequired,
         idempotencyKey,
-        transaction.id,
+        transaction._id,
         'REDEEM',
-        tx, // Pass transaction client
+        session,
       );
 
       // Write outbox event
@@ -228,29 +256,34 @@ export class TransactionsService {
         tenantId,
         'points.redeemed',
         {
-          redemptionId: redemption.id,
-          transactionId: transaction.id,
+          redemptionId: redemption._id,
+          transactionId: transaction._id,
           customerId,
           rewardId,
           pointsDeducted: pointsRequired,
           balanceAfter: ledgerEntry.balanceAfter,
           idempotencyKey,
         },
-        tx,
+        session,
       );
 
-      return { redemption, balanceAfter: ledgerEntry.balanceAfter };
-    });
+      await session.commitTransaction();
 
-    // Track fraud signals
-    await this.fraudSignalsService.trackRedemption(tenantId, customerId, true);
+      // Track fraud signals (outside transaction)
+      await this.fraudSignalsService.trackRedemption(tenantId, customerId, true);
 
-    return {
-      id: result.redemption.id,
-      status: result.redemption.status,
-      pointsDeducted: Number(result.redemption.pointsDeducted),
-      balance: result.balanceAfter,
-    };
+      return {
+        id: redemption._id,
+        status: redemption.status,
+        pointsDeducted: Number(redemption.pointsDeducted),
+        balance: ledgerEntry.balanceAfter,
+      };
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
+    }
   }
 
   async redeemPointsFailure(tenantId: string, customerId: string) {
@@ -274,38 +307,57 @@ export class TransactionsService {
     const limit = params?.limit || 20;
     const skip = (page - 1) * limit;
 
-    const where: any = { tenantId };
+    const query: any = { tenantId };
 
     if (params?.type) {
-      where.type = params.type;
+      query.type = params.type;
     }
 
     if (params?.customerId) {
-      where.customerId = params.customerId;
+      query.customerId = params.customerId;
     }
 
     if (params?.startDate) {
-      where.createdAt = { ...where.createdAt, gte: params.startDate };
+      query.createdAt = { $gte: params.startDate };
     }
 
     if (params?.endDate) {
       const endDate = new Date(params.endDate);
       endDate.setHours(23, 59, 59, 999);
-      where.createdAt = { ...where.createdAt, lte: endDate };
+      query.createdAt = { ...query.createdAt, $lte: endDate };
     }
 
     const [transactions, total] = await Promise.all([
-      this.prisma.transaction.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          customer: true,
-        },
-      }),
-      this.prisma.transaction.count({ where }),
+      this.transactionModel
+        .find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .exec(),
+      this.transactionModel.countDocuments(query).exec(),
     ]);
+
+    // Get staff info from ScanEvent for transactions
+    const idempotencyKeys = transactions.map(tx => tx.idempotencyKey);
+    const scanEvents = await this.scanEventModel
+      .find({
+        tenantId,
+        idempotencyKey: { $in: idempotencyKeys },
+      })
+      .populate('staffUserId', 'email', this.userModel)
+      .exec();
+
+    // Create a map of idempotencyKey -> staff info
+    const staffMap = new Map<string, { id: string; name: string }>();
+    scanEvents.forEach(se => {
+      const staffUser = (se as any).staffUserId;
+      if (staffUser) {
+        staffMap.set(se.idempotencyKey, {
+          id: se.staffUserId,
+          name: staffUser.email?.split('@')[0] || 'Staff',
+        });
+      }
+    });
 
     return {
       data: transactions.map((tx) => {
@@ -314,15 +366,23 @@ export class TransactionsService {
         const txMeta = tx.metadata as any;
         const customerName = txMeta?.customerName || getCustomerInfoById(customerId).name;
 
+        // Get staff info from scan event or metadata
+        const staffInfo = staffMap.get(tx.idempotencyKey) || 
+                         (txMeta?.staffUserId && txMeta?.staffName ? {
+                           id: txMeta.staffUserId,
+                           name: txMeta.staffName,
+                         } : null) ||
+                         { id: '', name: 'System' };
+
         return {
-          id: tx.id,
+          id: tx._id,
           customerId,
           customerName,
-          type: tx.type === 'ISSUE' ? 'earn' : 'redeem',
-          points: tx.type === 'ISSUE' ? Number(tx.amount) : -Number(tx.amount),
-          amount: tx.type === 'ISSUE' ? Number(tx.amount) : undefined,
-          staffId: '',
-          staffName: 'System',
+          type: tx.type === TransactionType.ISSUE ? 'earn' : 'redeem',
+          points: tx.type === TransactionType.ISSUE ? Number(tx.amount) : -Number(tx.amount),
+          amount: tx.type === TransactionType.ISSUE ? Number(tx.amount) : undefined,
+          staffId: staffInfo.id,
+          staffName: staffInfo.name,
           timestamp: tx.createdAt,
           status: tx.status.toLowerCase() as 'completed' | 'failed' | 'pending',
         };

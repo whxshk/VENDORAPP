@@ -1,6 +1,13 @@
-import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
+import axios, { AxiosInstance, InternalAxiosRequestConfig, AxiosError } from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+
+// Error handler instance (will be set from outside)
+let errorHandler: ((error: Error, context?: string) => void) | null = null;
+
+export function setErrorHandler(handler: (error: Error, context?: string) => void) {
+  errorHandler = handler;
+}
 
 class ApiClient {
   private client: AxiosInstance;
@@ -22,15 +29,25 @@ class ApiClient {
         }
         return config;
       },
-      (error) => Promise.reject(error),
+      (error) => {
+        // Capture request errors
+        if (errorHandler) {
+          const apiError = new Error(`Request failed: ${error.message}`);
+          (apiError as any).statusCode = 0;
+          (apiError as any).context = `Request to ${error.config?.url || 'unknown'}`;
+          errorHandler(apiError, 'API Request Error');
+        }
+        return Promise.reject(error);
+      },
     );
 
-    // Response interceptor: handle token refresh
+    // Response interceptor: handle token refresh and errors
     this.client.interceptors.response.use(
       (response) => response,
-      async (error) => {
-        const originalRequest = error.config;
+      async (error: AxiosError) => {
+        const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
+        // Handle 401 - token refresh
         if (error.response?.status === 401 && !originalRequest._retry) {
           originalRequest._retry = true;
 
@@ -48,14 +65,35 @@ class ApiClient {
             localStorage.setItem('access_token', access_token);
             localStorage.setItem('refresh_token', refresh_token);
 
-            originalRequest.headers.Authorization = `Bearer ${access_token}`;
+            originalRequest.headers!.Authorization = `Bearer ${access_token}`;
             return this.client(originalRequest);
           } catch (refreshError) {
             localStorage.removeItem('access_token');
             localStorage.removeItem('refresh_token');
+            if (errorHandler) {
+              const authError = new Error('Session expired. Please log in again.');
+              (authError as any).statusCode = 401;
+              (authError as any).context = 'Token refresh failed';
+              errorHandler(authError, 'Authentication Error');
+            }
             window.location.href = '/login';
             return Promise.reject(refreshError);
           }
+        }
+
+        // Capture and display API errors
+        if (errorHandler) {
+          const statusCode = error.response?.status || 0;
+          const errorMessage = error.response?.data?.error?.message 
+            || error.response?.data?.message 
+            || error.message 
+            || 'An API error occurred';
+          
+          const apiError = new Error(errorMessage);
+          (apiError as any).statusCode = statusCode;
+          (apiError as any).context = `API ${originalRequest?.method?.toUpperCase()} ${originalRequest?.url || 'unknown'}`;
+          
+          errorHandler(apiError, 'API Error');
         }
 
         return Promise.reject(error);

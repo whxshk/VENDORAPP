@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -141,7 +141,7 @@ export default function CustomersPage() {
       },
       cell: ({ row }) => {
         const date = row.getValue('lastVisit');
-        return <div className="text-slate-400">{date ? formatDate(date) : 'Never'}</div>;
+        return <div className="text-slate-400">{date && (typeof date === 'string' || date instanceof Date) ? formatDate(date as string | Date) : 'Never'}</div>;
       },
       sortingFn: (rowA, rowB) => {
         const a = rowA.getValue('lastVisit') as Date | string | null;
@@ -172,15 +172,6 @@ export default function CustomersPage() {
         );
       },
       cell: ({ row }) => <div className="text-white">{row.getValue('totalVisits')}</div>,
-    },
-    {
-      accessorKey: 'status',
-      header: 'Status',
-      cell: ({ row }) => (
-        <Badge variant={row.getValue('status') === 'active' ? 'success' : 'secondary'}>
-          {row.getValue('status')}
-        </Badge>
-      ),
     },
   ];
 
@@ -325,7 +316,7 @@ export default function CustomersPage() {
           </DialogHeader>
           {customerDetail && (
             <div className="space-y-6 mt-4">
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="p-4 rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-600/20 border border-blue-500/30">
                   <div className="text-sm text-slate-300 mb-1">Points Balance</div>
                   <div className="text-3xl font-bold text-blue-400">{customerDetail.pointsBalance}</div>
@@ -333,14 +324,6 @@ export default function CustomersPage() {
                 <div className="p-4 rounded-xl bg-gradient-to-br from-purple-500/20 to-purple-600/20 border border-purple-500/30">
                   <div className="text-sm text-slate-300 mb-1">Total Visits</div>
                   <div className="text-3xl font-bold text-purple-400">{customerDetail.totalVisits}</div>
-                </div>
-                <div className="p-4 rounded-xl bg-gradient-to-br from-emerald-500/20 to-emerald-600/20 border border-emerald-500/30">
-                  <div className="text-sm text-slate-300 mb-1">Status</div>
-                  <div className="mt-2">
-                    <Badge variant={customerDetail.status === 'active' ? 'success' : 'secondary'}>
-                      {customerDetail.status === 'active' ? 'Active' : 'Inactive'}
-                    </Badge>
-                  </div>
                 </div>
               </div>
               

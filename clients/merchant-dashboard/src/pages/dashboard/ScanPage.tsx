@@ -242,15 +242,22 @@ export default function ScanPage() {
                   </option>
                 ))}
               </Select>
-              {selectedCustomer && rewardId && (
-                <div className="mt-2 text-sm">
-                  {selectedCustomer.pointsBalance >= (rewards?.find(r => r.id === rewardId)?.pointsCost || 0) ? (
-                    <span className="text-emerald-400 font-medium">✓ Sufficient points</span>
-                  ) : (
-                    <span className="text-red-400 font-medium">✗ Insufficient points</span>
-                  )}
-                </div>
-              )}
+              {selectedCustomer && rewardId && (() => {
+                const selectedReward = rewards?.find(r => r.id === rewardId);
+                const pointsRequired = selectedReward?.pointsCost || 0;
+                const hasEnough = selectedCustomer.pointsBalance >= pointsRequired;
+                return (
+                  <div className="mt-2 text-sm">
+                    {hasEnough ? (
+                      <span className="text-emerald-400 font-medium">✓ Sufficient points</span>
+                    ) : (
+                      <span className="text-red-400 font-medium">
+                        ✗ Insufficient points. Customer has {selectedCustomer.pointsBalance} points, but reward requires {pointsRequired} points.
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           )}
 
@@ -261,18 +268,38 @@ export default function ScanPage() {
           )}
 
           {/* Confirm Button */}
-          <Button
-            onClick={handleScan}
-            disabled={!customerId || !selectedCustomer || scanMutation.isPending || (scanType === 'earn' && !amount) || (scanType === 'redeem' && !rewardId)}
-            className="w-full"
-            size="lg"
-          >
-            {scanMutation.isPending ? 'Processing...' : 'Confirm Transaction'}
-          </Button>
+          {(() => {
+            const selectedReward = scanType === 'redeem' ? rewards?.find(r => r.id === rewardId) : null;
+            const pointsRequired = selectedReward?.pointsCost || 0;
+            const hasInsufficientPoints = scanType === 'redeem' && selectedCustomer && selectedCustomer.pointsBalance < pointsRequired;
+            
+            return (
+              <Button
+                onClick={handleScan}
+                disabled={
+                  !customerId || 
+                  !selectedCustomer || 
+                  scanMutation.isPending || 
+                  (scanType === 'earn' && !amount) || 
+                  (scanType === 'redeem' && (!rewardId || hasInsufficientPoints))
+                }
+                className="w-full"
+                size="lg"
+              >
+                {scanMutation.isPending ? 'Processing...' : 'Confirm Transaction'}
+              </Button>
+            );
+          })()}
 
           {scanMutation.isError && (
             <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
-              {(scanMutation.error as Error)?.message || 'Scan failed'}
+              {(scanMutation.error as Error)?.message || 'Transaction failed. Please try again.'}
+            </div>
+          )}
+          
+          {scanMutation.isSuccess && (
+            <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-sm">
+              Transaction completed successfully!
             </div>
           )}
         </CardContent>

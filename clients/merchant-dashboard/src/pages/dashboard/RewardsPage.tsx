@@ -71,7 +71,18 @@ export default function RewardsPage() {
 
   const handleDelete = (id: string) => {
     if (confirm('Are you sure you want to delete this reward?')) {
-      deleteReward.mutate(id);
+      deleteReward.mutate(id, {
+        onSuccess: () => {
+          // Success is handled by query invalidation in the hook
+        },
+        onError: (error: any) => {
+          const errorMessage = error?.response?.data?.error?.message 
+            || error?.response?.data?.message 
+            || error?.message 
+            || 'Failed to delete reward';
+          alert(`Failed to delete reward: ${errorMessage}`);
+        },
+      });
     }
   };
 

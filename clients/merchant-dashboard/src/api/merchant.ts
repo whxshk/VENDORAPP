@@ -8,10 +8,13 @@ import type {
   Reward,
   Staff,
   Merchant,
+  Branch,
   ListCustomersParams,
   ListTransactionsParams,
   CreateRewardParams,
   InviteStaffParams,
+  CreateStaffParams,
+  CreateLocationParams,
   SimulateScanParams,
   UpdateMerchantSettingsParams,
   ScanResult,
@@ -30,14 +33,14 @@ import {
 } from './mockData';
 
 // Dashboard API
-export async function getDashboardSummary(): Promise<DashboardSummary> {
+export async function getDashboardSummary(locationId?: string): Promise<DashboardSummary> {
   if (shouldUseMockData()) {
     // Simulate network delay
     await new Promise(resolve => setTimeout(resolve, 300));
     const summary = getMockDashboardSummary();
     // Ensure all required properties exist
     return {
-      activeCustomers: summary.activeCustomers || 0,
+      todaysCustomers: summary.todaysCustomers || 0,
       repeatCustomers: summary.repeatCustomers || 0,
       totalTransactions: summary.totalTransactions || 0,
       redemptionRate: summary.redemptionRate || 0,
@@ -46,11 +49,12 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
     };
   }
   
-  const response = await apiClient.get('/analytics/dashboard');
+  const params = locationId ? { locationId } : {};
+  const response = await apiClient.get('/analytics/dashboard', { params });
   const data = response.data;
   // Ensure all required properties exist
   return {
-    activeCustomers: data.activeCustomers || 0,
+    todaysCustomers: data.todaysCustomers || 0,
     repeatCustomers: data.repeatCustomers || 0,
     totalTransactions: data.totalTransactions || 0,
     redemptionRate: data.redemptionRate || 0,
@@ -282,6 +286,44 @@ export async function inviteStaff(params: InviteStaffParams): Promise<Staff> {
   return response.data;
 }
 
+export async function createStaff(params: CreateStaffParams): Promise<Staff> {
+  if (shouldUseMockData()) {
+    await new Promise(resolve => setTimeout(resolve, 400));
+    
+    // Map backend role to frontend role
+    const frontendRole = params.role === 'MERCHANT_ADMIN' ? 'owner' : 
+                        params.role === 'MANAGER' ? 'manager' : 'cashier';
+    
+    const newStaff: Staff = {
+      id: `staff-${mockStaff.length + 1}`,
+      name: params.name,
+      email: params.email,
+      role: frontendRole,
+      status: 'active',
+      createdAt: new Date(),
+      tenantId: 'tenant-1',
+    };
+    
+    mockStaff.push(newStaff);
+    return newStaff;
+  }
+  
+  const response = await apiClient.post('/users', params);
+  // Transform backend response to frontend format
+  const role = (response.data.roles as string[])[0] || 'STAFF';
+  const frontendRole = role === 'MERCHANT_ADMIN' ? 'owner' : 
+                      role === 'MANAGER' ? 'manager' : 'cashier';
+  return {
+    id: response.data.id,
+    name: params.name,
+    email: response.data.email,
+    role: frontendRole,
+    status: response.data.isActive ? 'active' : 'inactive',
+    createdAt: response.data.createdAt,
+    tenantId: response.data.tenantId,
+  };
+}
+
 // Merchant Settings API
 export async function getMerchantSettings(): Promise<Merchant> {
   if (shouldUseMockData()) {
@@ -303,6 +345,32 @@ export async function updateMerchantSettings(params: UpdateMerchantSettingsParam
   
   const response = await apiClient.patch('/merchant/settings', params);
   return response.data;
+}
+
+export async function createLocation(params: CreateLocationParams): Promise<Branch> {
+  if (shouldUseMockData()) {
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    const newBranch: Branch = {
+      id: `branch-${mockMerchant.branches.length + 1}`,
+      name: params.name,
+      address: params.address,
+      isActive: params.isActive !== undefined ? params.isActive : true,
+      merchantId: mockMerchant.id,
+    };
+    
+    mockMerchant.branches.push(newBranch);
+    return newBranch;
+  }
+  
+  const response = await apiClient.post('/locations', params);
+  return {
+    id: response.data.id,
+    name: response.data.name,
+    address: response.data.address,
+    isActive: response.data.isActive,
+    merchantId: response.data.tenantId, // Using tenantId as merchantId for compatibility
+  };
 }
 
 // Scan API

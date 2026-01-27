@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useStaff, useInviteStaff } from '../../hooks/useStaff';
+import { useStaff, useInviteStaff, useCreateStaff } from '../../hooks/useStaff';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -9,7 +9,7 @@ import { Input } from '../../components/ui/input';
 import { Select } from '../../components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '../../components/ui/dialog';
 import { Badge } from '../../components/ui/badge';
-import { UserCog, Plus, Mail } from 'lucide-react';
+import { UserCog, Plus, Mail, UserPlus } from 'lucide-react';
 import { formatDate } from '../../lib/utils';
 
 const inviteSchema = z.object({
@@ -17,13 +17,24 @@ const inviteSchema = z.object({
   role: z.enum(['owner', 'manager', 'cashier']),
 });
 
+const createStaffSchema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+  role: z.enum(['MERCHANT_ADMIN', 'MANAGER', 'CASHIER', 'STAFF']),
+  locationId: z.string().optional(),
+});
+
 type InviteFormData = z.infer<typeof inviteSchema>;
+type CreateStaffFormData = z.infer<typeof createStaffSchema>;
 
 export default function StaffPage() {
   const [isInviteOpen, setIsInviteOpen] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   const { data: staff, isLoading } = useStaff();
   const inviteStaff = useInviteStaff();
+  const createStaff = useCreateStaff();
 
   const {
     register,
@@ -37,11 +48,38 @@ export default function StaffPage() {
     },
   });
 
+  const {
+    register: registerCreate,
+    handleSubmit: handleSubmitCreate,
+    formState: { errors: createErrors },
+    reset: resetCreate,
+  } = useForm<CreateStaffFormData>({
+    resolver: zodResolver(createStaffSchema),
+    defaultValues: {
+      role: 'CASHIER',
+    },
+  });
+
   const onSubmit = (data: InviteFormData) => {
     inviteStaff.mutate(data, {
       onSuccess: () => {
         setIsInviteOpen(false);
         reset();
+      },
+      onError: (error: Error) => {
+        alert(`Failed to invite staff: ${error.message || 'Unknown error'}`);
+      },
+    });
+  };
+
+  const onSubmitCreate = (data: CreateStaffFormData) => {
+    createStaff.mutate(data, {
+      onSuccess: () => {
+        setIsCreateOpen(false);
+        resetCreate();
+      },
+      onError: (error: Error) => {
+        alert(`Failed to create staff: ${error.message || 'Unknown error'}`);
       },
     });
   };
@@ -76,10 +114,16 @@ export default function StaffPage() {
           <h1 className="text-3xl font-bold text-white mb-2">Staff</h1>
           <p className="text-slate-400">Manage your team members</p>
         </div>
-        <Button onClick={() => setIsInviteOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Invite Staff
-        </Button>
+        <div className="flex gap-3">
+          <Button variant="outline" onClick={() => setIsCreateOpen(true)}>
+            <UserPlus className="h-4 w-4 mr-2" />
+            Add Staff
+          </Button>
+          <Button onClick={() => setIsInviteOpen(true)}>
+            <Mail className="h-4 w-4 mr-2" />
+            Invite Staff
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -180,6 +224,85 @@ export default function StaffPage() {
               <Button type="submit" disabled={inviteStaff.isPending}>
                 <Mail className="h-4 w-4 mr-2" />
                 Send Invitation
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Staff Dialog */}
+      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Staff Member</DialogTitle>
+            <DialogClose onClose={() => {
+              setIsCreateOpen(false);
+              resetCreate();
+            }} />
+          </DialogHeader>
+          <form onSubmit={handleSubmitCreate(onSubmitCreate)} className="space-y-5 mt-6">
+            <div>
+              <label className="text-sm font-semibold text-white mb-2 block">
+                Name <span className="text-red-400">*</span>
+              </label>
+              <Input
+                {...registerCreate('name')}
+                placeholder="John Doe"
+              />
+              {createErrors.name && <p className="text-sm text-red-400 mt-1">{createErrors.name.message}</p>}
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-white mb-2 block">
+                Email <span className="text-red-400">*</span>
+              </label>
+              <Input
+                type="email"
+                {...registerCreate('email')}
+                placeholder="staff@example.com"
+              />
+              {createErrors.email && <p className="text-sm text-red-400 mt-1">{createErrors.email.message}</p>}
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-white mb-2 block">
+                Password <span className="text-red-400">*</span>
+              </label>
+              <Input
+                type="password"
+                {...registerCreate('password')}
+                placeholder="Minimum 8 characters"
+              />
+              {createErrors.password && <p className="text-sm text-red-400 mt-1">{createErrors.password.message}</p>}
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-white mb-2 block">
+                Role <span className="text-red-400">*</span>
+              </label>
+              <Select {...registerCreate('role')}>
+                <option value="MERCHANT_ADMIN">Merchant Admin</option>
+                <option value="MANAGER">Manager</option>
+                <option value="CASHIER">Cashier</option>
+                <option value="STAFF">Staff</option>
+              </Select>
+              {createErrors.role && <p className="text-sm text-red-400 mt-1">{createErrors.role.message}</p>}
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsCreateOpen(false);
+                  resetCreate();
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={createStaff.isPending}>
+                <UserPlus className="h-4 w-4 mr-2" />
+                Create Staff
               </Button>
             </div>
           </form>

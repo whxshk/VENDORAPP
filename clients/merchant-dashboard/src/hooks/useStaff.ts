@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { listStaff, inviteStaff } from '../api/merchant';
-import type { Staff } from '../api/types';
+import { listStaff, inviteStaff, createStaff } from '../api/merchant';
+import type { Staff, CreateStaffParams } from '../api/types';
 
 export function useStaff() {
   return useQuery<Staff[]>({
@@ -14,6 +14,17 @@ export function useInviteStaff() {
   
   return useMutation({
     mutationFn: inviteStaff,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['staff'] });
+    },
+  });
+}
+
+export function useCreateStaff() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: createStaff,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['staff'] });
     },

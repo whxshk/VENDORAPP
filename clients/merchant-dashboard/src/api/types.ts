@@ -71,9 +71,18 @@ export interface Branch {
   merchantId: string;
 }
 
+export interface CreateLocationParams {
+  name: string;
+  address?: string;
+  city?: string;
+  phone?: string;
+  email?: string;
+  isActive?: boolean;
+}
+
 // Dashboard & Analytics Types
 export interface DashboardSummary {
-  activeCustomers: number;
+  todaysCustomers: number;
   repeatCustomers: number;
   totalTransactions: number;
   redemptionRate: number;
@@ -162,6 +171,14 @@ export interface CreateRewardParams {
 export interface InviteStaffParams {
   email: string;
   role: 'owner' | 'manager' | 'cashier';
+}
+
+export interface CreateStaffParams {
+  name: string;
+  email: string;
+  password: string;
+  role: 'MERCHANT_ADMIN' | 'MANAGER' | 'CASHIER' | 'STAFF';
+  locationId?: string;
 }
 
 export interface SimulateScanParams {
