@@ -111,7 +111,7 @@ export default function DashboardHome() {
         />
         <KPICard
           title="Redemption Rate"
-          value={`${redemptionRate}%`}
+          value={`${Math.round(redemptionRate * 100)}%`}
           description="Points redeemed vs issued"
           icon={<TrendingUp className="h-6 w-6" />}
           index={3}
