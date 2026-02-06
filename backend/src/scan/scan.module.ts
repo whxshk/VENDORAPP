@@ -13,6 +13,7 @@ import { CustomerMerchantAccount, CustomerMerchantAccountSchema } from '../datab
 import { ScanEvent, ScanEventSchema } from '../database/schemas/ScanEvent.schema';
 import { Reward, RewardSchema } from '../database/schemas/Reward.schema';
 import { Transaction, TransactionSchema } from '../database/schemas/Transaction.schema';
+import { Location, LocationSchema } from '../database/schemas/Location.schema';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { Transaction, TransactionSchema } from '../database/schemas/Transaction.
       { name: ScanEvent.name, schema: ScanEventSchema },
       { name: Reward.name, schema: RewardSchema },
       { name: Transaction.name, schema: TransactionSchema },
+      { name: Location.name, schema: LocationSchema },
     ]),
     TransactionsModule,
     CustomersModule,

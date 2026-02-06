@@ -80,6 +80,15 @@ export interface CreateLocationParams {
   isActive?: boolean;
 }
 
+export interface UpdateLocationParams {
+  name?: string;
+  address?: string;
+  city?: string;
+  phone?: string;
+  email?: string;
+  isActive?: boolean;
+}
+
 // Dashboard & Analytics Types
 export interface DashboardSummary {
   todaysCustomers: number;
@@ -186,6 +195,7 @@ export interface SimulateScanParams {
   type: 'earn' | 'redeem';
   amount?: number; // For earn
   rewardId?: string; // For redeem
+  locationId?: string; // Branch where the transaction occurs
 }
 
 export interface UpdateMerchantSettingsParams {

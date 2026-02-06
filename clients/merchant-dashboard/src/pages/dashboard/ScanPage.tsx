@@ -1,14 +1,16 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { simulateScan, scanApply, type ScanApplyParams } from '../../api/merchant';
 import { useRewards } from '../../hooks/useRewards';
 import { useCustomers } from '../../hooks/useCustomers';
+import { useTransactions } from '../../hooks/useTransactions';
+import { useMerchantSettings } from '../../hooks/useMerchant';
 import { useErrorHandlerContext } from '../../hooks/useErrorHandler';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Select } from '../../components/ui/select';
-import { ScanLine, CheckCircle2, XCircle } from 'lucide-react';
+import { ScanLine, CheckCircle2, XCircle, MapPin } from 'lucide-react';
 import { formatDateTime, toNumber } from '../../lib/utils';
 import type { SimulateScanParams, ScanResult, Transaction } from '../../api/types';
 
@@ -17,7 +19,8 @@ export default function ScanPage() {
   const [scanType, setScanType] = useState<'earn' | 'redeem'>('earn');
   const [amount, setAmount] = useState('');
   const [rewardId, setRewardId] = useState('');
-  const [scanLogs, setScanLogs] = useState<Array<Transaction & { result: 'success' | 'error'; error?: string }>>([]);
+  const [locationId, setLocationId] = useState('');
+  const [sessionScanLogs, setSessionScanLogs] = useState<Array<Transaction & { result: 'success' | 'error'; error?: string }>>([]);
 
   const [qrPayload, setQrPayload] = useState('');
   const [scanTestPurpose, setScanTestPurpose] = useState<'CHECKIN' | 'PURCHASE' | 'REDEEM'>('CHECKIN');
@@ -28,7 +31,16 @@ export default function ScanPage() {
   const { addError } = useErrorHandlerContext();
   const { data: rewards } = useRewards();
   const { data: customersData, refetch: refetchCustomers } = useCustomers({ limit: 100 });
+  const { data: merchant } = useMerchantSettings();
+  const { data: recentTransactions, refetch: refetchTransactions } = useTransactions({ limit: 10 });
   const queryClient = useQueryClient();
+
+  // Set default location when branches load
+  useEffect(() => {
+    if (merchant?.branches?.length && !locationId) {
+      setLocationId(merchant.branches[0].id);
+    }
+  }, [merchant?.branches, locationId]);
 
   // Track last successful transaction result to show updated balance
   const [lastTransactionResult, setLastTransactionResult] = useState<ScanResult | null>(null);
@@ -74,7 +86,7 @@ export default function ScanPage() {
         // Use customer from result if available (most accurate), otherwise use selectedCustomer
         const transactionCustomer = result.customer || selectedCustomer;
         
-        setScanLogs(prev => [{
+        setSessionScanLogs(prev => [{
           ...result.transaction!,
           customerName: result.transaction!.customerName || transactionCustomer?.name || 'Unknown',
           result: 'success' as const,
@@ -85,8 +97,8 @@ export default function ScanPage() {
         queryClient.invalidateQueries({ queryKey: ['customers'], exact: false }); // Invalidate all customer queries
         queryClient.invalidateQueries({ queryKey: ['transactions'] });
         
-        // Refetch customers immediately to get updated balances
-        await refetchCustomers();
+        // Refetch customers and transactions immediately
+        await Promise.all([refetchCustomers(), refetchTransactions()]);
         
         // Clear form after successful scan
         setCustomerId('');
@@ -97,7 +109,7 @@ export default function ScanPage() {
       } else {
         // Use result.customer if available, otherwise use selectedCustomer
         const errorCustomer = result.customer || selectedCustomer;
-        setScanLogs(prev => [{
+        setSessionScanLogs(prev => [{
           id: `error-${Date.now()}`,
           customerId: errorCustomer?.id || customerId,
           customerName: errorCustomer?.name || 'Unknown',
@@ -149,8 +161,8 @@ export default function ScanPage() {
       
       addError(new Error(friendlyMessage), 'Scan Error');
       
-      // Also add to scan logs
-      setScanLogs(prev => [{
+      // Also add to session scan logs
+      setSessionScanLogs(prev => [{
         id: `error-${Date.now()}`,
         customerId: selectedCustomer?.id || customerId,
         customerName: selectedCustomer?.name || 'Unknown',
@@ -182,6 +194,7 @@ export default function ScanPage() {
       type: scanType,
       amount: scanType === 'earn' ? parseFloat(amount) : undefined,
       rewardId: scanType === 'redeem' ? rewardId : undefined,
+      locationId: locationId || undefined,
     });
   };
 
@@ -240,6 +253,27 @@ export default function ScanPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Location/Branch Selection */}
+          <div>
+            <label className="text-sm font-semibold text-white mb-2 block flex items-center gap-2">
+              <MapPin className="h-4 w-4 text-blue-400" />
+              Branch / Location
+            </label>
+            <Select
+              value={locationId}
+              onChange={(e) => setLocationId(e.target.value)}
+            >
+              {merchant?.branches?.length === 0 && (
+                <option value="">No branches available</option>
+              )}
+              {merchant?.branches?.map((branch) => (
+                <option key={branch.id} value={branch.id}>
+                  {branch.name} {branch.address ? `- ${branch.address}` : ''}
+                </option>
+              ))}
+            </Select>
+          </div>
+
           {/* Customer Input */}
           <div>
             <label className="text-sm font-semibold text-white mb-2 block">Customer QR or ID</label>
@@ -449,21 +483,22 @@ export default function ScanPage() {
         </CardContent>
       </Card>
 
-      {/* Scan Logs */}
+      {/* Recent Scans from API */}
       <Card>
         <CardHeader>
-          <CardTitle>Recent Scans</CardTitle>
+          <CardTitle>Recent Transactions</CardTitle>
         </CardHeader>
         <CardContent>
-          {scanLogs.length === 0 ? (
+          {(!recentTransactions?.data || recentTransactions.data.length === 0) && sessionScanLogs.length === 0 ? (
             <div className="text-center py-12 text-slate-400">
-              <p className="text-sm">No scans yet today</p>
+              <p className="text-sm">No transactions yet</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {scanLogs.map((log, index) => (
+              {/* Show session scan logs first (most recent from current session) */}
+              {sessionScanLogs.map((log, index) => (
                 <div
-                  key={log.id}
+                  key={`session-${log.id}`}
                   className="group flex items-center justify-between p-4 rounded-xl border border-white/5 bg-slate-800/30 hover:bg-gradient-to-r hover:from-slate-800/60 hover:via-blue-500/5 hover:to-slate-800/40 hover:border-blue-500/20 hover:shadow-lg hover:shadow-blue-500/10 transition-all duration-300 ease-out hover:scale-[1.01]"
                   style={{ animationDelay: `${index * 50}ms` }}
                 >
@@ -478,15 +513,21 @@ export default function ScanPage() {
                       <div className="text-sm text-slate-400">
                         {log.result === 'success' ? (
                           <>
-                            {log.type === 'earn' ? `Issued ${Math.abs(log.points)} points` : `Redeemed ${Math.abs(log.points)} points`}
-                            {log.type === 'earn' && log.amount && (
-                              <span className="text-slate-500 ml-2">({log.amount} QAR)</span>
+                            {log.type === 'earn' || log.type === 'ISSUE' ? `Issued ${Math.abs(toNumber(log.points))} points` : `Redeemed ${Math.abs(toNumber(log.points))} points`}
+                            {(log.type === 'earn' || log.type === 'ISSUE') && log.amount && (
+                              <span className="text-slate-500 ml-2">({toNumber(log.amount)} QAR)</span>
                             )}
                           </>
                         ) : (
                           log.error || 'Failed'
                         )}
                       </div>
+                      {log.branchName && (
+                        <div className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                          <MapPin className="h-3 w-3" />
+                          {log.branchName}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="text-sm text-slate-400">
@@ -494,6 +535,50 @@ export default function ScanPage() {
                   </div>
                 </div>
               ))}
+              
+              {/* Show recent transactions from API */}
+              {recentTransactions?.data?.map((tx, index) => {
+                // Skip if already shown in session logs
+                if (sessionScanLogs.some(log => log.id === tx.id)) return null;
+                
+                return (
+                  <div
+                    key={tx.id}
+                    className="group flex items-center justify-between p-4 rounded-xl border border-white/5 bg-slate-800/30 hover:bg-gradient-to-r hover:from-slate-800/60 hover:via-blue-500/5 hover:to-slate-800/40 hover:border-blue-500/20 hover:shadow-lg hover:shadow-blue-500/10 transition-all duration-300 ease-out hover:scale-[1.01]"
+                    style={{ animationDelay: `${(sessionScanLogs.length + index) * 50}ms` }}
+                  >
+                    <div className="flex items-center gap-4">
+                      {tx.status === 'completed' || tx.status === 'COMPLETED' ? (
+                        <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+                      ) : tx.status === 'failed' || tx.status === 'FAILED' ? (
+                        <XCircle className="h-5 w-5 text-red-400" />
+                      ) : (
+                        <CheckCircle2 className="h-5 w-5 text-slate-400" />
+                      )}
+                      <div>
+                        <div className="font-semibold text-white">{tx.customerName || 'Customer'}</div>
+                        <div className="text-sm text-slate-400">
+                          {tx.type === 'earn' || tx.type === 'ISSUE' 
+                            ? `Issued ${Math.abs(toNumber(tx.points))} points` 
+                            : `Redeemed ${Math.abs(toNumber(tx.points))} points`}
+                          {(tx.type === 'earn' || tx.type === 'ISSUE') && tx.amount && (
+                            <span className="text-slate-500 ml-2">({toNumber(tx.amount)} QAR)</span>
+                          )}
+                        </div>
+                        {tx.branchName && (
+                          <div className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            {tx.branchName}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-sm text-slate-400">
+                      {formatDateTime(tx.timestamp)}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </CardContent>

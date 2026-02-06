@@ -18,6 +18,7 @@ import { CustomerMerchantAccount, CustomerMerchantAccountDocument } from '../dat
 import { ScanEvent, ScanEventDocument } from '../database/schemas/ScanEvent.schema';
 import { Reward, RewardDocument } from '../database/schemas/Reward.schema';
 import { Transaction, TransactionDocument } from '../database/schemas/Transaction.schema';
+import { Location, LocationDocument } from '../database/schemas/Location.schema';
 import { verifyQrPayload, parseQrPayloadFields } from '../common/qr-payload';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -33,6 +34,7 @@ export class ScanService {
     @InjectModel(ScanEvent.name) private scanEventModel: Model<ScanEventDocument>,
     @InjectModel(Reward.name) private rewardModel: Model<RewardDocument>,
     @InjectModel(Transaction.name) private transactionModel: Model<TransactionDocument>,
+    @InjectModel(Location.name) private locationModel: Model<LocationDocument>,
     private transactionsService: TransactionsService,
     private customersService: CustomersService,
     private auditService: AuditService,
@@ -249,6 +251,7 @@ export class ScanService {
     amount?: number,
     rewardId?: string,
     idempotencyKey?: string,
+    locationId?: string,
   ) {
     try {
       // Validate input
@@ -326,6 +329,13 @@ export class ScanService {
         };
       }
 
+      // Look up location/branch name if locationId provided
+      let branchName: string | undefined;
+      if (locationId) {
+        const location = await this.locationModel.findOne({ _id: locationId, tenantId }).exec();
+        branchName = location?.name;
+      }
+
       if (type === 'earn') {
         // Convert QAR amount to number if it's a string
         const qarAmount = typeof amount === 'string' ? parseFloat(amount) : (amount || 0);
@@ -356,7 +366,7 @@ export class ScanService {
           actualIdempotencyKey,
         );
 
-        // Update transaction metadata to store QAR amount
+        // Update transaction metadata to store QAR amount and location
         await this.transactionModel.findByIdAndUpdate(result.id, {
           $set: {
             metadata: {
@@ -365,6 +375,8 @@ export class ScanService {
               customerName: customer.name,
               customerEmail: customer.email,
               customerPhone: customer.phone,
+              branchId: locationId,
+              branchName: branchName,
             },
           },
         }).exec();
@@ -388,6 +400,8 @@ export class ScanService {
             amount: txMetadata.purchaseAmount || qarAmount, // QAR amount for reference
             staffId: '',
             staffName: 'System',
+            branchId: locationId,
+            branchName: branchName,
             timestamp: (transaction as any)?.createdAt || new Date(),
             status: 'completed',
           },
@@ -426,7 +440,7 @@ export class ScanService {
           idempotencyKey: `${actualIdempotencyKey}-tx`,
         }).sort({ createdAt: -1 }).exec();
 
-        // Update transaction metadata with customer info
+        // Update transaction metadata with customer info and location
         if (transaction) {
           await this.transactionModel.findByIdAndUpdate(transaction._id, {
             $set: {
@@ -436,6 +450,8 @@ export class ScanService {
                 customerEmail: customer.email,
                 customerPhone: customer.phone,
                 rewardName: reward?.name,
+                branchId: locationId,
+                branchName: branchName,
               },
             },
           }).exec();
@@ -456,6 +472,8 @@ export class ScanService {
             rewardName: reward?.name,
             staffId: '',
             staffName: 'System',
+            branchId: locationId,
+            branchName: branchName,
             timestamp: (transaction as any)?.createdAt || new Date(),
             status: 'completed',
           },

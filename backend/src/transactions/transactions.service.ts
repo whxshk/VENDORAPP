@@ -370,14 +370,20 @@ export class TransactionsService {
       }
     });
 
-    // Get all locations for the tenant
-    const locationIds = [...new Set(devices.map((d: DeviceDocument) => d.locationId).filter(Boolean))];
+    // Collect all location IDs - from devices AND from transaction metadata (branchId)
+    const deviceLocationIds = devices.map((d: DeviceDocument) => d.locationId).filter(Boolean);
+    const metadataBranchIds = transactions
+      .map((tx: TransactionDocument) => (tx.metadata as any)?.branchId)
+      .filter(Boolean);
+    const allLocationIds = [...new Set([...deviceLocationIds, ...metadataBranchIds])];
+    
+    // Get all locations and their CURRENT names
     const locations = await this.locationModel
-      .find({ _id: { $in: locationIds } })
+      .find({ _id: { $in: allLocationIds } })
       .select('_id name')
       .exec();
     
-    // Create locationId -> name map
+    // Create locationId -> CURRENT name map (always use fresh data from DB)
     const locationNameMap = new Map<string, string>();
     locations.forEach((loc: LocationDocument) => {
       locationNameMap.set(loc._id, loc.name);
@@ -424,14 +430,17 @@ export class TransactionsService {
                          } : null) ||
                          { id: '', name: 'System' };
 
-        // Get branch/location name from device -> location lookup or metadata
-        let branchName = txMeta?.locationName || 'Unknown';
-        if (tx.deviceId) {
-          const locationId = deviceLocationMap.get(tx.deviceId);
-          if (locationId) {
-            branchName = locationNameMap.get(locationId) || branchName;
-          }
+        // Get branch/location - use branchId from metadata, but ALWAYS look up current name from DB
+        let branchId = txMeta?.branchId || '';
+        
+        // If no branchId in metadata, try to look up from device
+        if (!branchId && tx.deviceId) {
+          branchId = deviceLocationMap.get(tx.deviceId) || '';
         }
+        
+        // Always get the CURRENT branch name from DB (not stored in metadata)
+        // This ensures updates to branch names are reflected immediately
+        const branchName = branchId ? (locationNameMap.get(branchId) || '') : '';
 
         return {
           id: tx._id,
@@ -442,7 +451,7 @@ export class TransactionsService {
           amount: tx.type === TransactionType.ISSUE ? Number(tx.amount) : undefined,
           staffId: staffInfo.id,
           staffName: staffInfo.name,
-          branchId: tx.deviceId ? deviceLocationMap.get(tx.deviceId) || '' : '',
+          branchId,
           branchName,
           timestamp: (tx as any).createdAt || new Date(),
           status: tx.status.toLowerCase() as 'completed' | 'failed' | 'pending',

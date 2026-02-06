@@ -15,6 +15,7 @@ import type {
   InviteStaffParams,
   CreateStaffParams,
   CreateLocationParams,
+  UpdateLocationParams,
   SimulateScanParams,
   UpdateMerchantSettingsParams,
   ScanResult,
@@ -373,6 +374,33 @@ export async function createLocation(params: CreateLocationParams): Promise<Bran
   };
 }
 
+export async function updateLocation(id: string, params: UpdateLocationParams): Promise<Branch> {
+  if (shouldUseMockData()) {
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    const branchIndex = mockMerchant.branches.findIndex(b => b.id === id);
+    if (branchIndex === -1) {
+      throw new Error('Branch not found');
+    }
+    
+    mockMerchant.branches[branchIndex] = {
+      ...mockMerchant.branches[branchIndex],
+      ...params,
+    };
+    
+    return mockMerchant.branches[branchIndex];
+  }
+  
+  const response = await apiClient.patch(`/locations/${id}`, params);
+  return {
+    id: response.data.id,
+    name: response.data.name,
+    address: response.data.address,
+    isActive: response.data.isActive,
+    merchantId: response.data.tenantId,
+  };
+}
+
 // Scan API
 export async function simulateScan(params: SimulateScanParams): Promise<ScanResult> {
   if (shouldUseMockData()) {
@@ -387,7 +415,10 @@ export async function simulateScan(params: SimulateScanParams): Promise<ScanResu
     }
     
     const staff = mockStaff[0]; // Use first staff member
-    const branch = mockMerchant.branches[0];
+    // Use the provided locationId or default to first branch
+    const branch = params.locationId 
+      ? mockMerchant.branches.find(b => b.id === params.locationId) || mockMerchant.branches[0]
+      : mockMerchant.branches[0];
     
     let points = 0;
     let amount: number | undefined;

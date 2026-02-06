@@ -74,12 +74,15 @@ export default function TransactionsPage() {
     {
       accessorKey: 'branchName',
       header: 'Location',
-      cell: ({ row }) => (
-        <div className="flex items-center gap-2 text-slate-400">
-          <MapPin className="h-3.5 w-3.5 text-blue-400" />
-          {row.getValue('branchName') || 'Unknown'}
-        </div>
-      ),
+      cell: ({ row }) => {
+        const branchName = row.getValue('branchName') as string;
+        return (
+          <div className="flex items-center gap-2 text-slate-400">
+            <MapPin className={`h-3.5 w-3.5 ${branchName ? 'text-blue-400' : 'text-slate-600'}`} />
+            {branchName || '-'}
+          </div>
+        );
+      },
     },
   ];
 
@@ -102,7 +105,7 @@ export default function TransactionsPage() {
       tx.customerName,
       tx.type,
       toNumber(tx.points).toString(),
-      tx.branchName || 'Unknown',
+      tx.branchName || '-',
     ]);
 
     const csv = [headers, ...rows].map(row => row.join(',')).join('\n');

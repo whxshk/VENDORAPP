@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Location, LocationDocument } from '../database/schemas/Location.schema';
@@ -6,6 +6,15 @@ import { v4 as uuidv4 } from 'uuid';
 
 export interface CreateLocationDto {
   name: string;
+  address?: string;
+  city?: string;
+  phone?: string;
+  email?: string;
+  isActive?: boolean;
+}
+
+export interface UpdateLocationDto {
+  name?: string;
   address?: string;
   city?: string;
   phone?: string;
@@ -21,6 +30,14 @@ export class LocationsService {
     return this.locationModel.find({ tenantId }).exec();
   }
 
+  async findOne(tenantId: string, id: string) {
+    const location = await this.locationModel.findOne({ _id: id, tenantId }).exec();
+    if (!location) {
+      throw new NotFoundException(`Branch with ID "${id}" not found`);
+    }
+    return location;
+  }
+
   async create(tenantId: string, dto: CreateLocationDto) {
     const location = new this.locationModel({
       _id: uuidv4(),
@@ -31,5 +48,19 @@ export class LocationsService {
     });
 
     return location.save();
+  }
+
+  async update(tenantId: string, id: string, dto: UpdateLocationDto) {
+    const location = await this.locationModel.findOneAndUpdate(
+      { _id: id, tenantId },
+      { $set: dto },
+      { new: true }
+    ).exec();
+
+    if (!location) {
+      throw new NotFoundException(`Branch with ID "${id}" not found`);
+    }
+
+    return location;
   }
 }

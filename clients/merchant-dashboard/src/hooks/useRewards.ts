@@ -2,6 +2,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { listRewards, createReward, updateReward, deleteReward } from '../api/merchant';
 import type { Reward, CreateRewardParams } from '../api/types';
 
+// Helper to invalidate all reward-related queries
+function invalidateRewardRelatedQueries(queryClient: ReturnType<typeof useQueryClient>) {
+  queryClient.invalidateQueries({ queryKey: ['rewards'] });
+  queryClient.invalidateQueries({ queryKey: ['dashboard'] }); // Dashboard might show reward stats
+  queryClient.invalidateQueries({ queryKey: ['transactions'] }); // Transactions might show reward names
+}
+
 export function useRewards() {
   return useQuery<Reward[]>({
     queryKey: ['rewards'],
@@ -15,9 +22,8 @@ export function useCreateReward() {
   return useMutation({
     mutationFn: createReward,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['rewards'] });
+      invalidateRewardRelatedQueries(queryClient);
     },
-    // Error handling is done in the component's onError callback
   });
 }
 
@@ -27,10 +33,29 @@ export function useUpdateReward() {
   return useMutation({
     mutationFn: ({ id, ...params }: { id: string } & Partial<CreateRewardParams>) =>
       updateReward(id, params),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['rewards'] });
+    // Optimistic update for instant UI feedback
+    onMutate: async ({ id, ...params }) => {
+      await queryClient.cancelQueries({ queryKey: ['rewards'] });
+      const previousRewards = queryClient.getQueryData<Reward[]>(['rewards']);
+      
+      if (previousRewards) {
+        queryClient.setQueryData<Reward[]>(['rewards'], 
+          previousRewards.map(reward =>
+            reward.id === id ? { ...reward, ...params } : reward
+          )
+        );
+      }
+      
+      return { previousRewards };
     },
-    // Error handling is done in the component's onError callback
+    onError: (_err, _vars, context) => {
+      if (context?.previousRewards) {
+        queryClient.setQueryData(['rewards'], context.previousRewards);
+      }
+    },
+    onSettled: () => {
+      invalidateRewardRelatedQueries(queryClient);
+    },
   });
 }
 
@@ -40,7 +65,7 @@ export function useDeleteReward() {
   return useMutation({
     mutationFn: deleteReward,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['rewards'] });
+      invalidateRewardRelatedQueries(queryClient);
     },
   });
 }
