@@ -17,31 +17,31 @@ export enum TransactionStatus {
 @Schema({ timestamps: true, collection: 'transactions' })
 export class Transaction {
   @Prop({ required: true, type: String })
-  _id: string;
+  _id!: string;
 
-  @Prop({ required: true, index: true })
-  tenantId: string;
+  @Prop({ required: true, index: true, type: String })
+  tenantId!: string;
 
-  @Prop({ required: true, index: true })
-  customerId: string;
+  @Prop({ required: true, index: true, type: String })
+  customerId!: string;
 
-  @Prop({ required: true, enum: TransactionType, index: true })
-  type: TransactionType;
+  @Prop({ required: true, enum: TransactionType, index: true, type: String })
+  type!: TransactionType;
 
   @Prop({ required: true, type: MongooseSchema.Types.Decimal128 })
-  amount: number;
+  amount!: number;
 
-  @Prop({ default: TransactionStatus.PENDING, enum: TransactionStatus, index: true })
-  status: TransactionStatus;
+  @Prop({ default: TransactionStatus.PENDING, enum: TransactionStatus, index: true, type: String })
+  status!: TransactionStatus;
 
-  @Prop({ required: true, index: true })
-  idempotencyKey: string;
+  @Prop({ required: true, index: true, type: String })
+  idempotencyKey!: string;
 
-  @Prop({ index: true })
+  @Prop({ index: true, type: String })
   deviceId?: string;
 
   @Prop({ type: Object, default: {} })
-  metadata: Record<string, any>;
+  metadata!: Record<string, any>;
 }
 
 export const TransactionSchema = SchemaFactory.createForClass(Transaction);

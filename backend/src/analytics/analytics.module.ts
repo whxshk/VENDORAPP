@@ -7,6 +7,11 @@ import { Transaction, TransactionSchema } from '../database/schemas/Transaction.
 import { Device, DeviceSchema } from '../database/schemas/Device.schema';
 import { ScanEvent, ScanEventSchema } from '../database/schemas/ScanEvent.schema';
 import { User, UserSchema } from '../database/schemas/User.schema';
+import { PilotDailyMetric, PilotDailyMetricSchema } from '../database/schemas/PilotDailyMetric.schema';
+import { PilotRewardUsage, PilotRewardUsageSchema } from '../database/schemas/PilotRewardUsage.schema';
+import { PilotOnboardingFunnel, PilotOnboardingFunnelSchema } from '../database/schemas/PilotOnboardingFunnel.schema';
+import { Reward, RewardSchema } from '../database/schemas/Reward.schema';
+import { Redemption, RedemptionSchema } from '../database/schemas/Redemption.schema';
 
 @Module({
   imports: [
@@ -15,6 +20,11 @@ import { User, UserSchema } from '../database/schemas/User.schema';
       { name: Device.name, schema: DeviceSchema },
       { name: ScanEvent.name, schema: ScanEventSchema },
       { name: User.name, schema: UserSchema },
+      { name: PilotDailyMetric.name, schema: PilotDailyMetricSchema },
+      { name: PilotRewardUsage.name, schema: PilotRewardUsageSchema },
+      { name: PilotOnboardingFunnel.name, schema: PilotOnboardingFunnelSchema },
+      { name: Reward.name, schema: RewardSchema },
+      { name: Redemption.name, schema: RedemptionSchema },
     ]),
   ],
   controllers: [AnalyticsController],

@@ -9,6 +9,7 @@ import { Model, Connection, ClientSession } from 'mongoose';
 import { Transaction, TransactionDocument, TransactionType, TransactionStatus } from '../database/schemas/Transaction.schema';
 import { Customer, CustomerDocument } from '../database/schemas/Customer.schema';
 import { Device, DeviceDocument } from '../database/schemas/Device.schema';
+import { Location, LocationDocument } from '../database/schemas/Location.schema';
 import { Redemption, RedemptionDocument, RedemptionStatus } from '../database/schemas/Redemption.schema';
 import { Reward, RewardDocument } from '../database/schemas/Reward.schema';
 import { ScanEvent, ScanEventDocument } from '../database/schemas/ScanEvent.schema';
@@ -28,6 +29,7 @@ export class TransactionsService {
     @InjectModel(Transaction.name) private transactionModel: Model<TransactionDocument>,
     @InjectModel(Customer.name) private customerModel: Model<CustomerDocument>,
     @InjectModel(Device.name) private deviceModel: Model<DeviceDocument>,
+    @InjectModel(Location.name) private locationModel: Model<LocationDocument>,
     @InjectModel(Redemption.name) private redemptionModel: Model<RedemptionDocument>,
     @InjectModel(Reward.name) private rewardModel: Model<RewardDocument>,
     @InjectModel(ScanEvent.name) private scanEventModel: Model<ScanEventDocument>,
@@ -299,6 +301,7 @@ export class TransactionsService {
       type?: 'ISSUE' | 'REDEEM';
       customerId?: string;
       staffId?: string;
+      locationId?: string;
       startDate?: Date;
       endDate?: Date;
     },
@@ -327,6 +330,17 @@ export class TransactionsService {
       query.createdAt = { ...query.createdAt, $lte: endDate };
     }
 
+    // If filtering by location, get devices at that location first
+    let deviceIdsAtLocation: string[] | null = null;
+    if (params?.locationId) {
+      const devicesAtLocation = await this.deviceModel
+        .find({ tenantId, locationId: params.locationId })
+        .select('_id')
+        .exec();
+      deviceIdsAtLocation = devicesAtLocation.map(d => d._id);
+      query.deviceId = { $in: deviceIdsAtLocation };
+    }
+
     const [transactions, total] = await Promise.all([
       this.transactionModel
         .find(query)
@@ -337,8 +351,40 @@ export class TransactionsService {
       this.transactionModel.countDocuments(query).exec(),
     ]);
 
+    // Get all device IDs from transactions to look up locations
+    const deviceIds = transactions
+      .map((tx: TransactionDocument) => tx.deviceId)
+      .filter((id): id is string => !!id);
+    
+    // Get devices with their location IDs
+    const devices = await this.deviceModel
+      .find({ _id: { $in: deviceIds } })
+      .select('_id locationId')
+      .exec();
+    
+    // Create device -> locationId map
+    const deviceLocationMap = new Map<string, string>();
+    devices.forEach((d: DeviceDocument) => {
+      if (d.locationId) {
+        deviceLocationMap.set(d._id, d.locationId);
+      }
+    });
+
+    // Get all locations for the tenant
+    const locationIds = [...new Set(devices.map((d: DeviceDocument) => d.locationId).filter(Boolean))];
+    const locations = await this.locationModel
+      .find({ _id: { $in: locationIds } })
+      .select('_id name')
+      .exec();
+    
+    // Create locationId -> name map
+    const locationNameMap = new Map<string, string>();
+    locations.forEach((loc: LocationDocument) => {
+      locationNameMap.set(loc._id, loc.name);
+    });
+
     // Get staff info from ScanEvent for transactions
-    const idempotencyKeys = transactions.map(tx => tx.idempotencyKey);
+    const idempotencyKeys = transactions.map((tx: TransactionDocument) => tx.idempotencyKey);
     const scanEvents = await this.scanEventModel
       .find({
         tenantId,
@@ -349,7 +395,7 @@ export class TransactionsService {
 
     // Create a map of idempotencyKey -> staff info
     const staffMap = new Map<string, { id: string; name: string }>();
-    scanEvents.forEach(se => {
+    scanEvents.forEach((se: ScanEventDocument) => {
       const staffUser = (se as any).staffUserId;
       if (staffUser) {
         // After populate, staffUserId is a User object, extract the ID
@@ -364,7 +410,7 @@ export class TransactionsService {
     });
 
     return {
-      data: transactions.map((tx) => {
+      data: transactions.map((tx: TransactionDocument) => {
         const customerId = tx.customerId;
         // Get customer name from transaction metadata or fallback
         const txMeta = tx.metadata as any;
@@ -378,6 +424,15 @@ export class TransactionsService {
                          } : null) ||
                          { id: '', name: 'System' };
 
+        // Get branch/location name from device -> location lookup or metadata
+        let branchName = txMeta?.locationName || 'Unknown';
+        if (tx.deviceId) {
+          const locationId = deviceLocationMap.get(tx.deviceId);
+          if (locationId) {
+            branchName = locationNameMap.get(locationId) || branchName;
+          }
+        }
+
         return {
           id: tx._id,
           customerId,
@@ -387,7 +442,9 @@ export class TransactionsService {
           amount: tx.type === TransactionType.ISSUE ? Number(tx.amount) : undefined,
           staffId: staffInfo.id,
           staffName: staffInfo.name,
-          timestamp: tx.createdAt,
+          branchId: tx.deviceId ? deviceLocationMap.get(tx.deviceId) || '' : '',
+          branchName,
+          timestamp: (tx as any).createdAt || new Date(),
           status: tx.status.toLowerCase() as 'completed' | 'failed' | 'pending',
         };
       }),

@@ -2,7 +2,9 @@ import { Controller, Get, Param, Query, UseGuards, ForbiddenException } from '@n
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { CustomersService } from './customers.service';
 import { QrTokenResponseDto } from './dto/qr-token-response.dto';
-import { PrismaService } from '../prisma/prisma.service';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { User, UserDocument } from '../database/schemas/User.schema';
 import { ScopeGuard } from '../common/guards/scope.guard';
 import { TenantGuard } from '../common/guards/tenant.guard';
 import { RequireScope } from '../common/decorators/require-scope.decorator';
@@ -16,7 +18,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 export class CustomersController {
   constructor(
     private readonly customersService: CustomersService,
-    private readonly prisma: PrismaService,
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
   ) {}
 
   @Get()
@@ -45,10 +47,10 @@ export class CustomersController {
     @CurrentUser() user: { userId: string; tenantId: string },
     @TenantContext() tenantId: string,
   ): Promise<QrTokenResponseDto> {
-    const dbUser = await this.prisma.user.findFirst({
-      where: { id: user.userId, tenantId },
-      select: { customerId: true },
-    });
+    const dbUser = await this.userModel.findOne({
+      _id: user.userId,
+      tenantId,
+    }).select('customerId').exec();
     if (!dbUser?.customerId) {
       throw new ForbiddenException('Not linked to a customer. Use a customer-linked account.');
     }

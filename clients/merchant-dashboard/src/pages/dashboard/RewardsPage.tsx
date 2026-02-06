@@ -9,6 +9,8 @@ import { Input } from '../../components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '../../components/ui/dialog';
 import { Badge } from '../../components/ui/badge';
 import { Gift, Plus, Edit, Trash2, Sparkles } from 'lucide-react';
+import { toNumber } from '../../lib/utils';
+import { useErrorHandlerContext } from '../../hooks/useErrorHandler';
 import type { Reward } from '../../api/types';
 
 const rewardSchema = z.object({
@@ -22,6 +24,7 @@ type RewardFormData = z.infer<typeof rewardSchema>;
 export default function RewardsPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingReward, setEditingReward] = useState<Reward | null>(null);
+  const { addError } = useErrorHandlerContext();
 
   const { data: rewards, isLoading } = useRewards();
   const createReward = useCreateReward();
@@ -47,6 +50,18 @@ export default function RewardsPage() {
             setEditingReward(null);
             reset();
           },
+          onError: (error: any) => {
+            const errorMessage = error?.response?.data?.error?.message 
+              || error?.response?.data?.message 
+              || error?.message 
+              || 'Failed to update reward';
+            const friendlyMessage = errorMessage.includes('not found') 
+              ? 'This reward no longer exists. Please refresh the page.'
+              : errorMessage.includes('permission') || errorMessage.includes('403')
+              ? 'You do not have permission to update rewards. Please contact your administrator.'
+              : `Unable to update reward: ${errorMessage}`;
+            addError(new Error(friendlyMessage), 'Reward Update Error');
+          },
         }
       );
     } else {
@@ -54,6 +69,18 @@ export default function RewardsPage() {
         onSuccess: () => {
           setIsCreateOpen(false);
           reset();
+        },
+        onError: (error: any) => {
+          const errorMessage = error?.response?.data?.error?.message 
+            || error?.response?.data?.message 
+            || error?.message 
+            || 'Failed to create reward';
+          const friendlyMessage = errorMessage.includes('validation') || errorMessage.includes('required')
+            ? 'Please check all fields are filled correctly.'
+            : errorMessage.includes('permission') || errorMessage.includes('403')
+            ? 'You do not have permission to create rewards. Please contact your administrator.'
+            : `Unable to create reward: ${errorMessage}`;
+          addError(new Error(friendlyMessage), 'Reward Creation Error');
         },
       });
     }
@@ -64,7 +91,7 @@ export default function RewardsPage() {
     reset({
       name: reward.name,
       description: reward.description,
-      pointsCost: reward.pointsCost,
+      pointsCost: toNumber(reward.pointsCost),
     });
     setIsCreateOpen(true);
   };
@@ -80,7 +107,23 @@ export default function RewardsPage() {
             || error?.response?.data?.message 
             || error?.message 
             || 'Failed to delete reward';
-          alert(`Failed to delete reward: ${errorMessage}`);
+          
+          // Provide user-friendly error messages
+          let friendlyMessage: string;
+          if (errorMessage.includes('redeemed') || errorMessage.includes('redemption')) {
+            friendlyMessage = 'This reward cannot be deleted because customers have already redeemed it. Please deactivate it instead, or contact the affected customers to offer compensation.';
+          } else if (errorMessage.includes('not found') || errorMessage.includes('404')) {
+            friendlyMessage = 'This reward no longer exists. The page will refresh to show current rewards.';
+            setTimeout(() => window.location.reload(), 2000);
+          } else if (errorMessage.includes('permission') || errorMessage.includes('403')) {
+            friendlyMessage = 'You do not have permission to delete rewards. Please contact your administrator.';
+          } else if (errorMessage.includes('network') || errorMessage.includes('connection')) {
+            friendlyMessage = 'Unable to connect to the server. Please check your internet connection and try again.';
+          } else {
+            friendlyMessage = `Unable to delete reward: ${errorMessage}`;
+          }
+          
+          addError(new Error(friendlyMessage), 'Reward Deletion Error');
         },
       });
     }
@@ -173,7 +216,7 @@ export default function RewardsPage() {
                   <div className="flex items-baseline gap-2">
                     <Sparkles className="h-5 w-5 text-purple-400" />
                     <div>
-                      <div className="text-3xl font-bold text-purple-400">{reward.pointsCost}</div>
+                      <div className="text-3xl font-bold text-purple-400">{toNumber(reward.pointsCost)}</div>
                       <div className="text-xs text-slate-400 uppercase tracking-wider">points</div>
                     </div>
                   </div>

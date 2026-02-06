@@ -12,27 +12,27 @@ export enum RedemptionStatus {
 @Schema({ timestamps: true, collection: 'redemptions' })
 export class Redemption {
   @Prop({ required: true, type: String })
-  _id: string;
+  _id!: string;
 
-  @Prop({ required: true, index: true })
-  tenantId: string;
+  @Prop({ required: true, index: true, type: String })
+  tenantId!: string;
 
-  @Prop({ required: true, index: true })
-  customerId: string;
+  @Prop({ required: true, index: true, type: String })
+  customerId!: string;
 
-  @Prop({ required: true, index: true })
-  rewardId: string;
+  @Prop({ required: true, index: true, type: String })
+  rewardId!: string;
 
   @Prop({ required: true, type: MongooseSchema.Types.Decimal128 })
-  pointsDeducted: number;
+  pointsDeducted!: number;
 
-  @Prop({ default: RedemptionStatus.PENDING, enum: RedemptionStatus, index: true })
-  status: RedemptionStatus;
+  @Prop({ default: RedemptionStatus.PENDING, enum: RedemptionStatus, index: true, type: String })
+  status!: RedemptionStatus;
 
-  @Prop({ required: true, index: true })
-  idempotencyKey: string;
+  @Prop({ required: true, index: true, type: String })
+  idempotencyKey!: string;
 
-  @Prop()
+  @Prop({ type: Date })
   completedAt?: Date;
 }
 

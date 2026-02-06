@@ -159,7 +159,7 @@ export class AnalyticsService {
         amount: tx.type === TransactionType.ISSUE ? Number(tx.amount) : undefined,
         staffId: staffInfo.id,
         staffName: staffInfo.name,
-        timestamp: tx.createdAt,
+        timestamp: (tx as any).createdAt || new Date(),
         status: tx.status.toLowerCase() as 'completed' | 'failed' | 'pending',
       };
     });

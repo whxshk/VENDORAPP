@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getMerchantSettings, updateMerchantSettings, createLocation } from '../api/merchant';
-import type { Merchant, CreateLocationParams } from '../api/types';
+import type { Merchant } from '../api/types';
 
 export function useMerchantSettings() {
   return useQuery<Merchant>({

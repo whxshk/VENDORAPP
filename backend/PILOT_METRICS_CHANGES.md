@@ -12,10 +12,9 @@ This document summarizes the operational tooling and metrics reporting added for
 
 ## 2. Metrics Data Model ✅
 
-**Migration**: `migrations/002_pilot_metrics.sql`
-**Prisma Models**: Added to `schema.prisma`
+**Mongoose Schemas**: Added to `src/database/schemas/`
 
-### Tables Created:
+### Collections Created:
 - `pilot_daily_metrics` - Daily aggregated metrics per tenant/location
 - `pilot_onboarding_funnel` - Time-to-first-value tracking
 - `pilot_customer_activity` - Customer transaction tracking (for repeat customer calculation)
@@ -143,15 +142,7 @@ Navigate to `/pilot-report` in merchant dashboard
 
 ## Database Migration
 
-Run the migration to create metrics tables:
-```bash
-psql -U sharkband -d sharkband -f migrations/002_pilot_metrics.sql
-```
-
-Or use Prisma:
-```bash
-npx prisma migrate dev --name pilot_metrics
-```
+MongoDB doesn't require migrations - schemas are defined in Mongoose and collections are created automatically when the application starts.
 
 ## Notes
 

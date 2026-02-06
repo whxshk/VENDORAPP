@@ -6,19 +6,19 @@ export type PilotRewardUsageDocument = PilotRewardUsage & Document;
 @Schema({ timestamps: true, collection: 'pilot_reward_usage' })
 export class PilotRewardUsage {
   @Prop({ required: true, type: String })
-  _id: string;
+  _id!: string;
 
-  @Prop({ required: true, index: true })
-  tenantId: string;
+  @Prop({ required: true, index: true, type: String })
+  tenantId!: string;
 
-  @Prop({ required: true })
-  rewardId: string;
+  @Prop({ required: true, type: String })
+  rewardId!: string;
 
   @Prop({ required: true, type: Date, index: true })
-  metricDate: Date;
+  metricDate!: Date;
 
-  @Prop({ default: 0 })
-  redemptionCount: number;
+  @Prop({ default: 0, type: Number })
+  redemptionCount!: number;
 }
 
 export const PilotRewardUsageSchema = SchemaFactory.createForClass(PilotRewardUsage);

@@ -6,10 +6,10 @@ export type PilotOnboardingFunnelDocument = PilotOnboardingFunnel & Document;
 @Schema({ timestamps: true, collection: 'pilot_onboarding_funnel' })
 export class PilotOnboardingFunnel {
   @Prop({ required: true, type: String, unique: true })
-  _id: string;
+  _id!: string;
 
-  @Prop({ required: true, unique: true, index: true })
-  tenantId: string;
+  @Prop({ required: true, unique: true, index: true, type: String })
+  tenantId!: string;
 
   @Prop({ type: Date })
   merchantSignupAt?: Date;

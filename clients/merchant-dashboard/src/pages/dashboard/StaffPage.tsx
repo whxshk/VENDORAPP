@@ -10,6 +10,7 @@ import { Select } from '../../components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '../../components/ui/dialog';
 import { Badge } from '../../components/ui/badge';
 import { UserCog, Plus, Mail, UserPlus } from 'lucide-react';
+import { useErrorHandlerContext } from '../../hooks/useErrorHandler';
 import { formatDate } from '../../lib/utils';
 
 const inviteSchema = z.object({
@@ -31,6 +32,7 @@ type CreateStaffFormData = z.infer<typeof createStaffSchema>;
 export default function StaffPage() {
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const { addError } = useErrorHandlerContext();
 
   const { data: staff, isLoading } = useStaff();
   const inviteStaff = useInviteStaff();
@@ -66,8 +68,26 @@ export default function StaffPage() {
         setIsInviteOpen(false);
         reset();
       },
-      onError: (error: Error) => {
-        alert(`Failed to invite staff: ${error.message || 'Unknown error'}`);
+      onError: (error: any) => {
+        const errorMessage = error?.response?.data?.error?.message 
+          || error?.response?.data?.message 
+          || error?.message 
+          || 'Failed to invite staff';
+        
+        let friendlyMessage: string;
+        if (errorMessage.includes('already exists') || errorMessage.includes('duplicate')) {
+          friendlyMessage = `A staff member with email ${data.email} already exists. Please use a different email address.`;
+        } else if (errorMessage.includes('invalid email') || errorMessage.includes('validation')) {
+          friendlyMessage = 'Please enter a valid email address (e.g., staff@example.com).';
+        } else if (errorMessage.includes('permission') || errorMessage.includes('403')) {
+          friendlyMessage = 'You do not have permission to invite staff members. Please contact your administrator.';
+        } else if (errorMessage.includes('network') || errorMessage.includes('connection')) {
+          friendlyMessage = 'Unable to connect to the server. Please check your internet connection and try again.';
+        } else {
+          friendlyMessage = `Unable to send invitation: ${errorMessage}`;
+        }
+        
+        addError(new Error(friendlyMessage), 'Staff Invitation Error');
       },
     });
   };
@@ -78,8 +98,28 @@ export default function StaffPage() {
         setIsCreateOpen(false);
         resetCreate();
       },
-      onError: (error: Error) => {
-        alert(`Failed to create staff: ${error.message || 'Unknown error'}`);
+      onError: (error: any) => {
+        const errorMessage = error?.response?.data?.error?.message 
+          || error?.response?.data?.message 
+          || error?.message 
+          || 'Failed to create staff';
+        
+        let friendlyMessage: string;
+        if (errorMessage.includes('already exists') || errorMessage.includes('duplicate')) {
+          friendlyMessage = `A staff member with email ${data.email} already exists. Please use a different email address.`;
+        } else if (errorMessage.includes('invalid email') || errorMessage.includes('validation')) {
+          friendlyMessage = 'Please check all fields are filled correctly. Email must be valid and password must be at least 8 characters.';
+        } else if (errorMessage.includes('password') && errorMessage.includes('weak')) {
+          friendlyMessage = 'Password is too weak. Please use a stronger password with at least 8 characters.';
+        } else if (errorMessage.includes('permission') || errorMessage.includes('403')) {
+          friendlyMessage = 'You do not have permission to create staff members. Please contact your administrator.';
+        } else if (errorMessage.includes('network') || errorMessage.includes('connection')) {
+          friendlyMessage = 'Unable to connect to the server. Please check your internet connection and try again.';
+        } else {
+          friendlyMessage = `Unable to create staff member: ${errorMessage}`;
+        }
+        
+        addError(new Error(friendlyMessage), 'Staff Creation Error');
       },
     });
   };

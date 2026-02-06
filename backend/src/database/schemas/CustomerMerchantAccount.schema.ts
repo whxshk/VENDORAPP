@@ -6,16 +6,16 @@ export type CustomerMerchantAccountDocument = CustomerMerchantAccount & Document
 @Schema({ timestamps: true, collection: 'customer_merchant_accounts' })
 export class CustomerMerchantAccount {
   @Prop({ required: true, type: String })
-  _id: string;
+  _id!: string;
 
-  @Prop({ required: true, index: true })
-  customerId: string;
+  @Prop({ required: true, index: true, type: String })
+  customerId!: string;
 
-  @Prop({ required: true, index: true })
-  tenantId: string;
+  @Prop({ required: true, index: true, type: String })
+  tenantId!: string;
 
-  @Prop({ default: 'ACTIVE', index: true })
-  membershipStatus: string;
+  @Prop({ default: 'ACTIVE', index: true, type: String })
+  membershipStatus!: string;
 }
 
 export const CustomerMerchantAccountSchema = SchemaFactory.createForClass(CustomerMerchantAccount);

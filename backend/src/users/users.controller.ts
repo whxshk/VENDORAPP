@@ -5,6 +5,7 @@ import { ScopeGuard } from '../common/guards/scope.guard';
 import { TenantGuard } from '../common/guards/tenant.guard';
 import { RequireScope } from '../common/decorators/require-scope.decorator';
 import { TenantContext } from '../common/decorators/tenant-context.decorator';
+import { UserDocument } from '../database/schemas/User.schema';
 
 @ApiTags('users')
 @Controller('users')
@@ -41,7 +42,7 @@ export class StaffController {
   async findAll(@TenantContext() tenantId: string) {
     const users = await this.usersService.findAll(tenantId);
     // Transform users to staff format expected by frontend
-    return users.map((user) => {
+    return users.map((user: UserDocument) => {
       const role = (user.roles as string[])[0] || 'STAFF';
       // Map backend roles to frontend roles
       const frontendRole = role === 'MERCHANT_ADMIN' ? 'owner' : 
@@ -53,7 +54,7 @@ export class StaffController {
         email: user.email,
         role: frontendRole,
         status: user.isActive ? 'active' : 'inactive',
-        createdAt: user.createdAt,
+        createdAt: (user as any).createdAt || new Date(),
         tenantId: user.tenantId,
       };
     });

@@ -12,25 +12,25 @@ export enum OutboxEventStatus {
 @Schema({ timestamps: { createdAt: true, updatedAt: false }, collection: 'outbox_events' })
 export class OutboxEvent {
   @Prop({ required: true, type: String })
-  _id: string;
+  _id!: string;
 
-  @Prop({ required: true, index: true })
-  tenantId: string;
+  @Prop({ required: true, index: true, type: String })
+  tenantId!: string;
 
-  @Prop({ required: true })
-  eventType: string;
+  @Prop({ required: true, type: String })
+  eventType!: string;
 
   @Prop({ type: Object, required: true })
-  payload: Record<string, any>;
+  payload!: Record<string, any>;
 
-  @Prop({ default: OutboxEventStatus.PENDING, enum: OutboxEventStatus, index: true })
-  status: OutboxEventStatus;
+  @Prop({ default: OutboxEventStatus.PENDING, enum: OutboxEventStatus, index: true, type: String })
+  status!: OutboxEventStatus;
 
-  @Prop()
+  @Prop({ type: Date })
   publishedAt?: Date;
 
-  @Prop({ default: 0 })
-  retryCount: number;
+  @Prop({ default: 0, type: Number })
+  retryCount!: number;
 }
 
 export const OutboxEventSchema = SchemaFactory.createForClass(OutboxEvent);

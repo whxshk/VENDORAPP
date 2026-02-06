@@ -1,5 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { PilotDailyMetric, PilotDailyMetricDocument } from '../database/schemas/PilotDailyMetric.schema';
+import { Transaction, TransactionDocument, TransactionType, TransactionStatus } from '../database/schemas/Transaction.schema';
+import { PilotRewardUsage, PilotRewardUsageDocument } from '../database/schemas/PilotRewardUsage.schema';
+import { Reward, RewardDocument } from '../database/schemas/Reward.schema';
+import { Redemption, RedemptionDocument, RedemptionStatus } from '../database/schemas/Redemption.schema';
+import { PilotOnboardingFunnel, PilotOnboardingFunnelDocument } from '../database/schemas/PilotOnboardingFunnel.schema';
 
 type DailyMetricRow = {
   date: string;
@@ -24,7 +31,14 @@ type WeeklyAggregate = {
 
 @Injectable()
 export class PilotReportsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    @InjectModel(PilotDailyMetric.name) private pilotDailyMetricModel: Model<PilotDailyMetricDocument>,
+    @InjectModel(Transaction.name) private transactionModel: Model<TransactionDocument>,
+    @InjectModel(PilotRewardUsage.name) private pilotRewardUsageModel: Model<PilotRewardUsageDocument>,
+    @InjectModel(Reward.name) private rewardModel: Model<RewardDocument>,
+    @InjectModel(Redemption.name) private redemptionModel: Model<RedemptionDocument>,
+    @InjectModel(PilotOnboardingFunnel.name) private pilotOnboardingFunnelModel: Model<PilotOnboardingFunnelDocument>,
+  ) {}
 
   /**
    * Get weekly pilot report for a merchant.
@@ -36,18 +50,16 @@ export class PilotReportsService {
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekEnd.getDate() + 6);
 
-    const dailyMetrics = await this.prisma.pilotDailyMetric.findMany({
-      where: {
+    const dailyMetrics = await this.pilotDailyMetricModel
+      .find({
         tenantId,
         metricDate: {
-          gte: weekStart,
-          lte: weekEnd,
+          $gte: weekStart,
+          $lte: weekEnd,
         },
-      },
-      orderBy: {
-        metricDate: 'asc',
-      },
-    });
+      })
+      .sort({ metricDate: 1 })
+      .exec();
 
     let daily: DailyMetricRow[];
     let weekly: WeeklyAggregate;
@@ -57,7 +69,7 @@ export class PilotReportsService {
       // Use pilot metrics
       weekly = this.aggregateWeeklyFromDaily(dailyMetrics);
       topRewards = await this.getTopRewardsFromPilot(tenantId, weekStart, weekEnd);
-      daily = dailyMetrics.map((m) => ({
+      daily = dailyMetrics.map((m: PilotDailyMetricDocument) => ({
         date: m.metricDate.toISOString().split('T')[0],
         activeCustomers: m.activeCustomers,
         repeatCustomers: m.repeatCustomers,
@@ -158,21 +170,17 @@ export class PilotReportsService {
     const weekEndEOD = new Date(weekEnd);
     weekEndEOD.setHours(23, 59, 59, 999);
 
-    const txList = await this.prisma.transaction.findMany({
-      where: {
+    const txList = await this.transactionModel
+      .find({
         tenantId,
-        status: 'COMPLETED',
+        status: TransactionStatus.COMPLETED,
         createdAt: {
-          gte: weekStart,
-          lte: weekEndEOD,
+          $gte: weekStart,
+          $lte: weekEndEOD,
         },
-      },
-      select: {
-        type: true,
-        customerId: true,
-        createdAt: true,
-      },
-    });
+      })
+      .select('type customerId createdAt')
+      .exec();
 
     const byDate = new Map<
       string,
@@ -192,13 +200,13 @@ export class PilotReportsService {
     };
 
     for (const tx of txList) {
-      const dateStr = toDateStr(tx.createdAt);
+      const dateStr = toDateStr((tx as any).createdAt || new Date());
       if (!byDate.has(dateStr)) {
         byDate.set(dateStr, { issue: 0, redeem: 0, customerCounts: new Map() });
       }
       const row = byDate.get(dateStr)!;
-      if (tx.type === 'ISSUE') row.issue += 1;
-      else if (tx.type === 'REDEEM') row.redeem += 1;
+      if (tx.type === TransactionType.ISSUE) row.issue += 1;
+      else if (tx.type === TransactionType.REDEEM) row.redeem += 1;
       const c = (row.customerCounts.get(tx.customerId) ?? 0) + 1;
       row.customerCounts.set(tx.customerId, c);
       weekCustomerCounts.set(tx.customerId, (weekCustomerCounts.get(tx.customerId) ?? 0) + 1);
@@ -258,18 +266,27 @@ export class PilotReportsService {
     weekStart: Date,
     weekEnd: Date,
   ): Promise<Array<{ rewardId: string; rewardName: string; redemptionCount: number }>> {
-    const rows = await this.prisma.pilotRewardUsage.findMany({
-      where: {
+    const rows = await this.pilotRewardUsageModel
+      .find({
         tenantId,
-        metricDate: { gte: weekStart, lte: weekEnd },
-      },
-      include: { reward: true },
-      orderBy: { redemptionCount: 'desc' },
-      take: 5,
-    });
-    return rows.map((r) => ({
+        metricDate: { $gte: weekStart, $lte: weekEnd },
+      })
+      .sort({ redemptionCount: -1 })
+      .limit(5)
+      .exec();
+
+    // Fetch reward names separately
+    const rewardIds = rows.map((r) => r.rewardId);
+    const rewards = await this.rewardModel
+      .find({ _id: { $in: rewardIds } })
+      .select('_id name')
+      .exec();
+
+    const nameById = new Map(rewards.map((r: RewardDocument) => [r._id, r.name]));
+
+    return rows.map((r: PilotRewardUsageDocument) => ({
       rewardId: r.rewardId,
-      rewardName: r.reward.name,
+      rewardName: nameById.get(r.rewardId as any) ?? 'Unknown',
       redemptionCount: r.redemptionCount,
     }));
   }
@@ -285,20 +302,20 @@ export class PilotReportsService {
     const weekEndEOD = new Date(weekEnd);
     weekEndEOD.setHours(23, 59, 59, 999);
 
-    const redemptions = await this.prisma.redemption.findMany({
-      where: {
+    const redemptions = await this.redemptionModel
+      .find({
         tenantId,
-        status: 'COMPLETED',
-        OR: [
-          { completedAt: { gte: weekStart, lte: weekEndEOD } },
+        status: RedemptionStatus.COMPLETED,
+        $or: [
+          { completedAt: { $gte: weekStart, $lte: weekEndEOD } },
           {
             completedAt: null,
-            createdAt: { gte: weekStart, lte: weekEndEOD },
+            createdAt: { $gte: weekStart, $lte: weekEndEOD },
           },
         ],
-      },
-      select: { rewardId: true },
-    });
+      })
+      .select('rewardId')
+      .exec();
 
     const byReward = new Map<string, number>();
     for (const r of redemptions) {
@@ -312,15 +329,15 @@ export class PilotReportsService {
 
     if (rewardIds.length === 0) return [];
 
-    const rewards = await this.prisma.reward.findMany({
-      where: { id: { in: rewardIds } },
-      select: { id: true, name: true },
-    });
-    const nameById = new Map(rewards.map((r) => [r.id, r.name]));
+    const rewards = await this.rewardModel
+      .find({ _id: { $in: rewardIds } })
+      .select('_id name')
+      .exec();
+    const nameById = new Map(rewards.map((r: RewardDocument) => [r._id, r.name]));
 
     return rewardIds.map((rewardId) => ({
       rewardId,
-      rewardName: nameById.get(rewardId) ?? 'Unknown',
+      rewardName: nameById.get(rewardId as any) ?? 'Unknown',
       redemptionCount: byReward.get(rewardId) ?? 0,
     }));
   }
@@ -329,9 +346,7 @@ export class PilotReportsService {
    * Get onboarding funnel metrics
    */
   async getOnboardingFunnel(tenantId: string) {
-    const funnel = await this.prisma.pilotOnboardingFunnel.findUnique({
-      where: { tenantId },
-    });
+    const funnel = await this.pilotOnboardingFunnelModel.findOne({ tenantId }).exec();
 
     if (!funnel) {
       return null;

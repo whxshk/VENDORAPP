@@ -10,7 +10,10 @@ import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagg
 import { LedgerService } from './ledger.service';
 import { WalletBalanceResponseDto } from './dto/wallet-balance-response.dto';
 import { WalletHistoryResponseDto } from './dto/wallet-history-response.dto';
-import { PrismaService } from '../prisma/prisma.service';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { CustomerMerchantAccount, CustomerMerchantAccountDocument } from '../database/schemas/CustomerMerchantAccount.schema';
+import { User, UserDocument } from '../database/schemas/User.schema';
 import { ScopeGuard } from '../common/guards/scope.guard';
 import { TenantGuard } from '../common/guards/tenant.guard';
 import { RequireScope } from '../common/decorators/require-scope.decorator';
@@ -24,7 +27,8 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 export class LedgerController {
   constructor(
     private readonly ledgerService: LedgerService,
-    private readonly prisma: PrismaService,
+    @InjectModel(CustomerMerchantAccount.name) private accountModel: Model<CustomerMerchantAccountDocument>,
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
   ) {}
 
   @Get('balance')
@@ -66,16 +70,17 @@ export class LedgerController {
     if (!customerId || !customerId.trim()) {
       throw new BadRequestException('customerId is required');
     }
-    const account = await this.prisma.customerMerchantAccount.findFirst({
-      where: { tenantId, customerId: customerId.trim() },
-    });
+    const account = await this.accountModel.findOne({
+      tenantId,
+      customerId: customerId.trim(),
+    }).exec();
     if (!account) {
       throw new ForbiddenException('Customer not found or access denied');
     }
-    const dbUser = await this.prisma.user.findFirst({
-      where: { id: userId, tenantId },
-      select: { customerId: true },
-    });
+    const dbUser = await this.userModel.findOne({
+      _id: userId,
+      tenantId,
+    }).select('customerId').exec();
     if (dbUser?.customerId && dbUser.customerId !== customerId.trim()) {
       throw new ForbiddenException('Customers can only access their own ledger');
     }

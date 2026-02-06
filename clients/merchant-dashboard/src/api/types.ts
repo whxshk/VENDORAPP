@@ -155,7 +155,7 @@ export interface ListTransactionsParams {
   limit?: number;
   startDate?: Date | string;
   endDate?: Date | string;
-  staffId?: string;
+  locationId?: string;
   type?: 'earn' | 'redeem';
   customerId?: string;
 }

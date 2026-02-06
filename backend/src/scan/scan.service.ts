@@ -278,11 +278,11 @@ export class ScanService {
           .sort({ createdAt: 1 })
           .exec();
 
-        const allCustomerIds = allAccounts.map(acc => acc.customerId);
+        const allCustomerIds = allAccounts.map((acc: CustomerMerchantAccountDocument) => acc.customerId);
         const allCustomers = await this.customerModel
           .find({ _id: { $in: allCustomerIds } })
           .exec();
-        const customerMap = new Map(allCustomers.map(c => [c._id, c]));
+        const customerMap = new Map(allCustomers.map((c: CustomerDocument) => [c._id, c]));
 
         const index = parseInt(actualCustomerId, 10) - 1;
         if (index >= 0 && index < allAccounts.length) {
@@ -388,7 +388,7 @@ export class ScanService {
             amount: txMetadata.purchaseAmount || qarAmount, // QAR amount for reference
             staffId: '',
             staffName: 'System',
-            timestamp: transaction?.createdAt || new Date(),
+            timestamp: (transaction as any)?.createdAt || new Date(),
             status: 'completed',
           },
           customer: {
@@ -456,7 +456,7 @@ export class ScanService {
             rewardName: reward?.name,
             staffId: '',
             staffName: 'System',
-            timestamp: transaction?.createdAt || new Date(),
+            timestamp: (transaction as any)?.createdAt || new Date(),
             status: 'completed',
           },
           customer: {

@@ -7,6 +7,7 @@ import { Customer, CustomerSchema } from '../database/schemas/Customer.schema';
 import { CustomerMerchantAccount, CustomerMerchantAccountSchema } from '../database/schemas/CustomerMerchantAccount.schema';
 import { Transaction, TransactionSchema } from '../database/schemas/Transaction.schema';
 import { LoyaltyLedgerEntry, LoyaltyLedgerEntrySchema } from '../database/schemas/LoyaltyLedgerEntry.schema';
+import { User, UserSchema } from '../database/schemas/User.schema';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { LoyaltyLedgerEntry, LoyaltyLedgerEntrySchema } from '../database/schema
       { name: CustomerMerchantAccount.name, schema: CustomerMerchantAccountSchema },
       { name: Transaction.name, schema: TransactionSchema },
       { name: LoyaltyLedgerEntry.name, schema: LoyaltyLedgerEntrySchema },
+      { name: User.name, schema: UserSchema },
     ]),
     LedgerModule,
   ],

@@ -6,7 +6,7 @@ import { AlertsWidget } from '../../components/dashboard/AlertsWidget';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Select } from '../../components/ui/select';
 import { Users, Repeat, Receipt, TrendingUp, Building2 } from 'lucide-react';
-import { formatDateTime } from '../../lib/utils';
+import { formatDateTime, toNumber } from '../../lib/utils';
 import { Badge } from '../../components/ui/badge';
 
 export default function DashboardHome() {
@@ -93,24 +93,28 @@ export default function DashboardHome() {
           value={todaysCustomers}
           description="Unique customers with transactions today"
           icon={<Users className="h-6 w-6" />}
+          index={0}
         />
         <KPICard
           title="Repeat Customers"
           value={repeatCustomers}
           description={`${todaysCustomers > 0 ? Math.round((repeatCustomers / todaysCustomers) * 100) : 0}% of today's customers are repeat visitors`}
           icon={<Repeat className="h-6 w-6" />}
+          index={1}
         />
         <KPICard
           title="Total Transactions"
           value={totalTransactions}
           description="All time transactions"
           icon={<Receipt className="h-6 w-6" />}
+          index={2}
         />
         <KPICard
           title="Redemption Rate"
           value={`${redemptionRate}%`}
           description="Points redeemed vs issued"
           icon={<TrendingUp className="h-6 w-6" />}
+          index={3}
         />
       </div>
 
@@ -140,26 +144,30 @@ export default function DashboardHome() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
-                  {recentActivity.map((tx) => (
-                    <tr key={tx.id} className="hover:bg-white/5 transition-colors duration-150">
-                      <td className="py-4 px-6 text-sm font-medium text-white">{tx.customerName}</td>
-                      <td className="py-4 px-6">
+                  {recentActivity.map((tx, index) => (
+                    <tr 
+                      key={tx.id} 
+                      className="group hover:bg-gradient-to-r hover:from-blue-500/10 hover:via-purple-500/5 hover:to-transparent transition-all duration-300 ease-out hover:shadow-lg hover:shadow-blue-500/5"
+                      style={{ animationDelay: `${index * 30}ms` }}
+                    >
+                      <td className="py-4 px-6 text-sm font-medium text-white transition-transform duration-300 group-hover:translate-x-1">{tx.customerName}</td>
+                      <td className="py-4 px-6 transition-transform duration-300 group-hover:translate-x-1">
                         <Badge
                           variant={tx.type === 'earn' ? 'success' : 'destructive'}
                         >
                           {tx.type === 'earn' ? 'Earn' : 'Redeem'}
                         </Badge>
                       </td>
-                      <td className="py-4 px-6 text-sm text-right font-semibold">
-                        <span className={tx.points > 0 ? 'text-emerald-400' : 'text-red-400'}>
-                          {tx.points > 0 ? '+' : ''}
-                          {tx.points}
+                      <td className="py-4 px-6 text-sm text-right font-semibold transition-transform duration-300 group-hover:translate-x-1">
+                        <span className={toNumber(tx.points) > 0 ? 'text-emerald-400' : 'text-red-400'}>
+                          {toNumber(tx.points) > 0 ? '+' : ''}
+                          {toNumber(tx.points)}
                         </span>
                       </td>
-                      <td className="py-4 px-6 text-sm text-slate-400">
+                      <td className="py-4 px-6 text-sm text-slate-400 transition-transform duration-300 group-hover:translate-x-1">
                         {tx.staffName}
                       </td>
-                      <td className="py-4 px-6 text-sm text-slate-400">
+                      <td className="py-4 px-6 text-sm text-slate-400 transition-transform duration-300 group-hover:translate-x-1">
                         {formatDateTime(tx.timestamp)}
                       </td>
                     </tr>

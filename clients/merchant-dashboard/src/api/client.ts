@@ -81,11 +81,12 @@ class ApiClient {
           }
         }
 
-        // Capture and display API errors
-        if (errorHandler) {
-          const statusCode = error.response?.status || 0;
-          const errorMessage = error.response?.data?.error?.message 
-            || error.response?.data?.message 
+        // Capture and display API errors (but NOT 403 permission errors - those should show "Restricted" on page)
+        const statusCode = error.response?.status || 0;
+        if (errorHandler && statusCode !== 403) {
+          const responseData = error.response?.data as any;
+          const errorMessage = responseData?.error?.message 
+            || responseData?.message 
             || error.message 
             || 'An API error occurred';
           

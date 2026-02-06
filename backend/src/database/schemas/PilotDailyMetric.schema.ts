@@ -6,37 +6,37 @@ export type PilotDailyMetricDocument = PilotDailyMetric & Document;
 @Schema({ timestamps: true, collection: 'pilot_daily_metrics' })
 export class PilotDailyMetric {
   @Prop({ required: true, type: String })
-  _id: string;
+  _id!: string;
 
-  @Prop({ required: true, index: true })
-  tenantId: string;
+  @Prop({ required: true, index: true, type: String })
+  tenantId!: string;
 
-  @Prop({ index: true })
+  @Prop({ index: true, type: String })
   locationId?: string;
 
   @Prop({ required: true, type: Date, index: true })
-  metricDate: Date;
+  metricDate!: Date;
 
-  @Prop({ default: 0 })
-  activeCustomers: number;
+  @Prop({ default: 0, type: Number })
+  activeCustomers!: number;
 
-  @Prop({ default: 0 })
-  repeatCustomers: number;
+  @Prop({ default: 0, type: Number })
+  repeatCustomers!: number;
 
-  @Prop({ default: 0 })
-  transactionsIssue: number;
+  @Prop({ default: 0, type: Number })
+  transactionsIssue!: number;
 
-  @Prop({ default: 0 })
-  transactionsRedeem: number;
+  @Prop({ default: 0, type: Number })
+  transactionsRedeem!: number;
 
-  @Prop({ default: 0 })
-  transactionsAdjust: number;
+  @Prop({ default: 0, type: Number })
+  transactionsAdjust!: number;
 
-  @Prop({ default: 0 })
-  transactionsReverse: number;
+  @Prop({ default: 0, type: Number })
+  transactionsReverse!: number;
 
-  @Prop({ default: 0 })
-  transactionsTotal: number;
+  @Prop({ default: 0, type: Number })
+  transactionsTotal!: number;
 
   @Prop({ type: MongooseSchema.Types.Decimal128 })
   redemptionRate?: number;
@@ -44,17 +44,17 @@ export class PilotDailyMetric {
   @Prop({ type: MongooseSchema.Types.Decimal128 })
   avgTimeToRedeemHours?: number;
 
-  @Prop({ default: 0 })
-  scanErrorsExpiredQr: number;
+  @Prop({ default: 0, type: Number })
+  scanErrorsExpiredQr!: number;
 
-  @Prop({ default: 0 })
-  scanErrorsInsufficientBalance: number;
+  @Prop({ default: 0, type: Number })
+  scanErrorsInsufficientBalance!: number;
 
-  @Prop({ default: 0 })
-  scanErrorsUnauthorizedDevice: number;
+  @Prop({ default: 0, type: Number })
+  scanErrorsUnauthorizedDevice!: number;
 
-  @Prop({ default: 0 })
-  scanErrorsTotal: number;
+  @Prop({ default: 0, type: Number })
+  scanErrorsTotal!: number;
 }
 
 export const PilotDailyMetricSchema = SchemaFactory.createForClass(PilotDailyMetric);

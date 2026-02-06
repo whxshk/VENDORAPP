@@ -10,6 +10,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/ta
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '../../components/ui/dialog';
 import { Badge } from '../../components/ui/badge';
 import { isDemoMode } from '../../config/env';
+import { useErrorHandlerContext } from '../../hooks/useErrorHandler';
 import { Building2, Key, Info } from 'lucide-react';
 
 const locationSchema = z.object({
@@ -32,6 +33,7 @@ export default function SettingsPage() {
   const { data: merchant, isLoading } = useMerchantSettings();
   const updateMerchant = useUpdateMerchantSettings();
   const createLocation = useCreateLocation();
+  const { addError } = useErrorHandlerContext();
   const [activeTab, setActiveTab] = useState('profile');
   const [isBranchDialogOpen, setIsBranchDialogOpen] = useState(false);
 
@@ -67,8 +69,24 @@ export default function SettingsPage() {
       onSuccess: () => {
         // Show success message
       },
-      onError: (error: Error) => {
-        alert(`Failed to update settings: ${error.message || 'Unknown error'}`);
+      onError: (error: any) => {
+        const errorMessage = error?.response?.data?.error?.message 
+          || error?.response?.data?.message 
+          || error?.message 
+          || 'Failed to update settings';
+        
+        let friendlyMessage: string;
+        if (errorMessage.includes('validation') || errorMessage.includes('required')) {
+          friendlyMessage = 'Please check all fields are filled correctly.';
+        } else if (errorMessage.includes('permission') || errorMessage.includes('403')) {
+          friendlyMessage = 'You do not have permission to update settings. Please contact your administrator.';
+        } else if (errorMessage.includes('network') || errorMessage.includes('connection')) {
+          friendlyMessage = 'Unable to connect to the server. Please check your internet connection and try again.';
+        } else {
+          friendlyMessage = `Unable to save settings: ${errorMessage}`;
+        }
+        
+        addError(new Error(friendlyMessage), 'Settings Update Error');
       },
     });
   };
@@ -79,8 +97,26 @@ export default function SettingsPage() {
         setIsBranchDialogOpen(false);
         resetLocation();
       },
-      onError: (error: Error) => {
-        alert(`Failed to create branch: ${error.message || 'Unknown error'}`);
+      onError: (error: any) => {
+        const errorMessage = error?.response?.data?.error?.message 
+          || error?.response?.data?.message 
+          || error?.message 
+          || 'Failed to create branch';
+        
+        let friendlyMessage: string;
+        if (errorMessage.includes('validation') || errorMessage.includes('required')) {
+          friendlyMessage = 'Please fill in all required fields (Name and Address are required).';
+        } else if (errorMessage.includes('duplicate') || errorMessage.includes('already exists')) {
+          friendlyMessage = `A branch named "${data.name}" already exists. Please use a different name.`;
+        } else if (errorMessage.includes('permission') || errorMessage.includes('403')) {
+          friendlyMessage = 'You do not have permission to create branches. Please contact your administrator.';
+        } else if (errorMessage.includes('network') || errorMessage.includes('connection')) {
+          friendlyMessage = 'Unable to connect to the server. Please check your internet connection and try again.';
+        } else {
+          friendlyMessage = `Unable to create branch: ${errorMessage}`;
+        }
+        
+        addError(new Error(friendlyMessage), 'Branch Creation Error');
       },
     });
   };

@@ -163,8 +163,8 @@ export async function listTransactions(params?: ListTransactionsParams): Promise
       filtered = filtered.filter(t => new Date(t.timestamp) <= end);
     }
     
-    if (params?.staffId) {
-      filtered = filtered.filter(t => t.staffId === params.staffId);
+    if (params?.locationId) {
+      filtered = filtered.filter(t => t.branchId === params.locationId);
     }
     
     if (params?.type) {
@@ -444,7 +444,7 @@ export async function simulateScan(params: SimulateScanParams): Promise<ScanResu
     };
   }
   
-  const response = await apiClient.post('/scan/simulate', params);
+  const response = await apiClient.post('/scans/simulate', params);
   return response.data;
 }
 

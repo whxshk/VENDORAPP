@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { listStaff, inviteStaff, createStaff } from '../api/merchant';
-import type { Staff, CreateStaffParams } from '../api/types';
+import type { Staff } from '../api/types';
 
 export function useStaff() {
   return useQuery<Staff[]>({

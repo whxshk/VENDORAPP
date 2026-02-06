@@ -17,13 +17,17 @@ npm run pilot:acceptance
 
 1. Start dependencies:
    ```bash
-   docker-compose up -d postgres nats
+   docker-compose up -d nats
    ```
 
-2. Run migrations:
+2. Configure MongoDB:
+   - Set `DATABASE_URL` in `.env` file
+   - For local: `mongodb://localhost:27017/Waddy`
+   - For Atlas: `mongodb+srv://username:password@cluster.mongodb.net/database`
+
+3. Seed database (optional):
    ```bash
-   npm run prisma:migrate
-   npm run prisma:generate
+   npm run seed
    ```
 
 3. For simulator, start backend:

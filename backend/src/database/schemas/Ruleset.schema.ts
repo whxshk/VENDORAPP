@@ -6,21 +6,21 @@ export type RulesetDocument = Ruleset & Document;
 @Schema({ timestamps: true, collection: 'rulesets' })
 export class Ruleset {
   @Prop({ required: true, type: String })
-  _id: string;
+  _id!: string;
 
-  @Prop({ required: true, index: true })
-  tenantId: string;
+  @Prop({ required: true, index: true, type: String })
+  tenantId!: string;
 
-  @Prop({ required: true, index: true })
-  ruleType: string;
+  @Prop({ required: true, index: true, type: String })
+  ruleType!: string;
 
   @Prop({ type: Object, default: {} })
-  config: Record<string, any>;
+  config!: Record<string, any>;
 
-  @Prop({ default: Date.now, index: true })
-  effectiveFrom: Date;
+  @Prop({ default: Date.now, index: true, type: Date })
+  effectiveFrom!: Date;
 
-  @Prop({ index: true })
+  @Prop({ index: true, type: Date })
   effectiveTo?: Date;
 }
 

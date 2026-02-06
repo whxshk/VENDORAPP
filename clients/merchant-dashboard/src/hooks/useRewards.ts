@@ -17,6 +17,7 @@ export function useCreateReward() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rewards'] });
     },
+    // Error handling is done in the component's onError callback
   });
 }
 
@@ -29,6 +30,7 @@ export function useUpdateReward() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rewards'] });
     },
+    // Error handling is done in the component's onError callback
   });
 }
 

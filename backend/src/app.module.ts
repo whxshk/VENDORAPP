@@ -24,6 +24,7 @@ import { FraudSignalsModule } from './fraud-signals/fraud-signals.module';
 import { OperatorToolsModule } from './operator-tools/operator-tools.module';
 import { PilotMetricsModule } from './pilot-metrics/pilot-metrics.module';
 import { ScanModule } from './scan/scan.module';
+import { MerchantModule } from './merchant/merchant.module';
 
 @Module({
   imports: [
@@ -58,6 +59,7 @@ import { ScanModule } from './scan/scan.module';
     OperatorToolsModule,
     PilotMetricsModule,
     ScanModule,
+    MerchantModule,
   ],
   providers: [
     RateLimitMiddleware,

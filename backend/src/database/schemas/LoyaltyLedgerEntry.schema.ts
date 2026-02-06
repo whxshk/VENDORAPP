@@ -6,28 +6,28 @@ export type LoyaltyLedgerEntryDocument = LoyaltyLedgerEntry & Document;
 @Schema({ timestamps: { createdAt: true, updatedAt: false }, collection: 'loyalty_ledger_entries' })
 export class LoyaltyLedgerEntry {
   @Prop({ required: true, type: String })
-  _id: string;
+  _id!: string;
 
-  @Prop({ required: true, index: true })
-  tenantId: string;
+  @Prop({ required: true, index: true, type: String })
+  tenantId!: string;
 
-  @Prop({ required: true, index: true })
-  transactionId: string;
+  @Prop({ required: true, index: true, type: String })
+  transactionId!: string;
 
-  @Prop({ required: true, index: true })
-  customerId: string;
-
-  @Prop({ required: true, type: MongooseSchema.Types.Decimal128 })
-  amount: number;
+  @Prop({ required: true, index: true, type: String })
+  customerId!: string;
 
   @Prop({ required: true, type: MongooseSchema.Types.Decimal128 })
-  balanceAfter: number;
+  amount!: number;
 
-  @Prop({ required: true })
-  idempotencyKey: string;
+  @Prop({ required: true, type: MongooseSchema.Types.Decimal128 })
+  balanceAfter!: number;
 
-  @Prop({ required: true })
-  operationType: string;
+  @Prop({ required: true, type: String })
+  idempotencyKey!: string;
+
+  @Prop({ required: true, type: String })
+  operationType!: string;
 }
 
 export const LoyaltyLedgerEntrySchema = SchemaFactory.createForClass(LoyaltyLedgerEntry);

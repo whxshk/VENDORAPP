@@ -6,28 +6,28 @@ export type UserDocument = User & Document;
 @Schema({ timestamps: true, collection: 'users' })
 export class User {
   @Prop({ required: true, type: String })
-  _id: string;
+  _id!: string;
 
-  @Prop({ required: true, index: true })
-  tenantId: string;
+  @Prop({ required: true, index: true, type: String })
+  tenantId!: string;
 
-  @Prop({ index: true })
+  @Prop({ index: true, type: String })
   customerId?: string;
 
-  @Prop({ required: true })
-  email: string;
+  @Prop({ required: true, type: String })
+  email!: string;
 
-  @Prop({ required: true })
-  hashedPassword: string;
-
-  @Prop({ type: [String], default: [] })
-  roles: string[];
+  @Prop({ required: true, type: String })
+  hashedPassword!: string;
 
   @Prop({ type: [String], default: [] })
-  scopes: string[];
+  roles!: string[];
 
-  @Prop({ default: true, index: true })
-  isActive: boolean;
+  @Prop({ type: [String], default: [] })
+  scopes!: string[];
+
+  @Prop({ default: true, index: true, type: Boolean })
+  isActive!: boolean;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

@@ -54,9 +54,6 @@ function ErrorDisplayItem({ error, onDismiss, onRetry }: ErrorDisplayProps) {
               {error.context && (
                 <div className="text-xs opacity-75 mb-1">Context: {error.context}</div>
               )}
-              {error.statusCode && (
-                <div className="text-xs opacity-75">Status Code: {error.statusCode}</div>
-              )}
             </div>
             <div className="flex items-center gap-1">
               {error.stack && (

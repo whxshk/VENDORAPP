@@ -7,25 +7,25 @@ export type TransactionSummaryDocument = TransactionSummary & Document;
 @Schema({ timestamps: { createdAt: true, updatedAt: false }, collection: 'transaction_summaries' })
 export class TransactionSummary {
   @Prop({ required: true, type: String })
-  _id: string;
+  _id!: string;
 
-  @Prop({ required: true, index: true })
-  tenantId: string;
+  @Prop({ required: true, index: true, type: String })
+  tenantId!: string;
 
-  @Prop({ required: true, unique: true, index: true })
-  transactionId: string;
+  @Prop({ required: true, unique: true, index: true, type: String })
+  transactionId!: string;
 
-  @Prop({ required: true, index: true })
-  customerId: string;
+  @Prop({ required: true, index: true, type: String })
+  customerId!: string;
 
   @Prop({ required: true, type: Date, index: true })
-  transactionDate: Date;
+  transactionDate!: Date;
 
   @Prop({ required: true, type: MongooseSchema.Types.Decimal128 })
-  amount: number;
+  amount!: number;
 
-  @Prop({ required: true, enum: TransactionType, index: true })
-  type: TransactionType;
+  @Prop({ required: true, enum: TransactionType, index: true, type: String })
+  type!: TransactionType;
 }
 
 export const TransactionSummarySchema = SchemaFactory.createForClass(TransactionSummary);

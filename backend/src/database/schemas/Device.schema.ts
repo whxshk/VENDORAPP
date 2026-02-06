@@ -6,22 +6,22 @@ export type DeviceDocument = Device & Document;
 @Schema({ timestamps: { createdAt: 'registeredAt', updatedAt: 'updatedAt' }, collection: 'devices' })
 export class Device {
   @Prop({ required: true, type: String })
-  _id: string;
+  _id!: string;
 
-  @Prop({ required: true, index: true })
-  tenantId: string;
+  @Prop({ required: true, index: true, type: String })
+  tenantId!: string;
 
-  @Prop({ index: true })
+  @Prop({ index: true, type: String })
   locationId?: string;
 
-  @Prop({ required: true })
-  deviceIdentifier: string;
+  @Prop({ required: true, type: String })
+  deviceIdentifier!: string;
 
-  @Prop()
+  @Prop({ type: String })
   registeredByUserId?: string;
 
-  @Prop({ default: true, index: true })
-  isActive: boolean;
+  @Prop({ default: true, index: true, type: Boolean })
+  isActive!: boolean;
 
   registeredAt?: Date;
   updatedAt?: Date;

@@ -3,12 +3,13 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { simulateScan, scanApply, type ScanApplyParams } from '../../api/merchant';
 import { useRewards } from '../../hooks/useRewards';
 import { useCustomers } from '../../hooks/useCustomers';
+import { useErrorHandlerContext } from '../../hooks/useErrorHandler';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Select } from '../../components/ui/select';
 import { ScanLine, CheckCircle2, XCircle } from 'lucide-react';
-import { formatDateTime } from '../../lib/utils';
+import { formatDateTime, toNumber } from '../../lib/utils';
 import type { SimulateScanParams, ScanResult, Transaction } from '../../api/types';
 
 export default function ScanPage() {
@@ -24,6 +25,7 @@ export default function ScanPage() {
   const [scanTestRewardId, setScanTestRewardId] = useState('');
   const [scanTestResult, setScanTestResult] = useState<string | null>(null);
   
+  const { addError } = useErrorHandlerContext();
   const { data: rewards } = useRewards();
   const { data: customersData, refetch: refetchCustomers } = useCustomers({ limit: 100 });
   const queryClient = useQueryClient();
@@ -108,7 +110,59 @@ export default function ScanPage() {
           result: 'error' as const,
           error: result.error,
         }, ...prev.slice(0, 9)]);
+        
+        // Show user-friendly error message
+        const errorMessage = result.error || 'Transaction failed';
+        let friendlyMessage: string;
+        if (errorMessage.includes('insufficient') || errorMessage.includes('balance')) {
+          friendlyMessage = `Customer ${errorCustomer?.name || 'Unknown'} does not have enough points to redeem this reward. Current balance: ${errorCustomer?.pointsBalance || 0} points.`;
+        } else if (errorMessage.includes('not found') || errorMessage.includes('404')) {
+          friendlyMessage = 'Customer or reward not found. Please check the customer ID or reward selection.';
+        } else if (errorMessage.includes('invalid') || errorMessage.includes('validation')) {
+          friendlyMessage = 'Invalid transaction details. Please check all fields are correct.';
+        } else if (errorMessage.includes('permission') || errorMessage.includes('403')) {
+          friendlyMessage = 'You do not have permission to perform this transaction. Please contact your administrator.';
+        } else if (errorMessage.includes('network') || errorMessage.includes('connection')) {
+          friendlyMessage = 'Unable to connect to the server. Please check your internet connection and try again.';
+        } else {
+          friendlyMessage = `Transaction failed: ${errorMessage}`;
+        }
+        addError(new Error(friendlyMessage), 'Scan Transaction Error');
       }
+    },
+    onError: (error: any) => {
+      const errorMessage = error?.response?.data?.error?.message 
+        || error?.response?.data?.message 
+        || error?.message 
+        || 'Failed to process scan';
+      
+      let friendlyMessage: string;
+      if (errorMessage.includes('network') || errorMessage.includes('connection') || errorMessage.includes('ECONNREFUSED')) {
+        friendlyMessage = 'Unable to connect to the server. Please check your internet connection and ensure the backend is running.';
+      } else if (errorMessage.includes('timeout')) {
+        friendlyMessage = 'The request took too long. Please try again.';
+      } else if (errorMessage.includes('permission') || errorMessage.includes('403')) {
+        friendlyMessage = 'You do not have permission to perform this transaction. Please contact your administrator.';
+      } else {
+        friendlyMessage = `Unable to process scan: ${errorMessage}`;
+      }
+      
+      addError(new Error(friendlyMessage), 'Scan Error');
+      
+      // Also add to scan logs
+      setScanLogs(prev => [{
+        id: `error-${Date.now()}`,
+        customerId: selectedCustomer?.id || customerId,
+        customerName: selectedCustomer?.name || 'Unknown',
+        type: scanType,
+        points: 0,
+        staffId: 'staff-1',
+        staffName: 'Current User',
+        timestamp: new Date(),
+        status: 'failed',
+        result: 'error' as const,
+        error: friendlyMessage,
+      }, ...prev.slice(0, 9)]);
     },
   });
 
@@ -136,8 +190,25 @@ export default function ScanPage() {
     onSuccess: (d) => {
       setScanTestResult(`Success: ${d.purpose}${d.customerId ? ` customer=${d.customerId.slice(0, 8)}...` : ''}${d.balance != null ? ` balance=${d.balance}` : ''}`);
     },
-    onError: (e: Error) => {
-      setScanTestResult(`Error: ${e.message}`);
+    onError: (error: any) => {
+      const errorMessage = error?.response?.data?.error?.message 
+        || error?.response?.data?.message 
+        || error?.message 
+        || 'Failed to process scan test';
+      
+      let friendlyMessage: string;
+      if (errorMessage.includes('network') || errorMessage.includes('connection') || errorMessage.includes('ECONNREFUSED')) {
+        friendlyMessage = 'Unable to connect to the server. Please check your internet connection and ensure the backend is running.';
+      } else if (errorMessage.includes('invalid') || errorMessage.includes('validation')) {
+        friendlyMessage = 'Invalid QR code payload or transaction parameters. Please check the QR code and try again.';
+      } else if (errorMessage.includes('not found') || errorMessage.includes('404')) {
+        friendlyMessage = 'Customer or reward not found in the QR code. Please verify the QR code is valid.';
+      } else {
+        friendlyMessage = `Scan test failed: ${errorMessage}`;
+      }
+      
+      setScanTestResult(`Error: ${friendlyMessage}`);
+      addError(new Error(friendlyMessage), 'Scan Test Error');
     },
   });
 
@@ -180,7 +251,7 @@ export default function ScanPage() {
             />
             {selectedCustomer && (
               <div className="mt-2 text-sm text-slate-400">
-                Customer: <span className="text-white font-medium">{selectedCustomer.name}</span> ({selectedCustomer.pointsBalance} pts)
+                Customer: <span className="text-white font-medium">{selectedCustomer.name}</span> ({toNumber(selectedCustomer.pointsBalance)} pts)
               </div>
             )}
           </div>
@@ -238,21 +309,21 @@ export default function ScanPage() {
                 <option value="">Select a reward</option>
                 {rewards?.map((reward) => (
                   <option key={reward.id} value={reward.id}>
-                    {reward.name} ({reward.pointsCost} pts)
+                    {reward.name} ({toNumber(reward.pointsCost)} pts)
                   </option>
                 ))}
               </Select>
               {selectedCustomer && rewardId && (() => {
                 const selectedReward = rewards?.find(r => r.id === rewardId);
-                const pointsRequired = selectedReward?.pointsCost || 0;
-                const hasEnough = selectedCustomer.pointsBalance >= pointsRequired;
+                const pointsRequired = toNumber(selectedReward?.pointsCost);
+                const hasEnough = toNumber(selectedCustomer.pointsBalance) >= pointsRequired;
                 return (
                   <div className="mt-2 text-sm">
                     {hasEnough ? (
                       <span className="text-emerald-400 font-medium">✓ Sufficient points</span>
                     ) : (
                       <span className="text-red-400 font-medium">
-                        ✗ Insufficient points. Customer has {selectedCustomer.pointsBalance} points, but reward requires {pointsRequired} points.
+                        ✗ Insufficient points. Customer has {toNumber(selectedCustomer.pointsBalance)} points, but reward requires {pointsRequired} points.
                       </span>
                     )}
                   </div>
@@ -270,8 +341,8 @@ export default function ScanPage() {
           {/* Confirm Button */}
           {(() => {
             const selectedReward = scanType === 'redeem' ? rewards?.find(r => r.id === rewardId) : null;
-            const pointsRequired = selectedReward?.pointsCost || 0;
-            const hasInsufficientPoints = scanType === 'redeem' && selectedCustomer && selectedCustomer.pointsBalance < pointsRequired;
+            const pointsRequired = toNumber(selectedReward?.pointsCost);
+            const hasInsufficientPoints = scanType === 'redeem' && selectedCustomer ? toNumber(selectedCustomer.pointsBalance) < pointsRequired : false;
             
             return (
               <Button
@@ -359,7 +430,7 @@ export default function ScanPage() {
               >
                 <option value="">Select reward</option>
                 {rewards?.map((r) => (
-                  <option key={r.id} value={r.id}>{r.name} ({(r as any).pointsRequired ?? r.pointsCost} pts)</option>
+                  <option key={r.id} value={r.id}>{r.name} ({toNumber((r as any).pointsRequired ?? r.pointsCost)} pts)</option>
                 ))}
               </Select>
             </div>
@@ -390,10 +461,11 @@ export default function ScanPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {scanLogs.map((log) => (
+              {scanLogs.map((log, index) => (
                 <div
                   key={log.id}
-                  className="flex items-center justify-between p-4 rounded-xl border border-white/5 bg-slate-800/30 hover:bg-slate-800/50 transition-colors"
+                  className="group flex items-center justify-between p-4 rounded-xl border border-white/5 bg-slate-800/30 hover:bg-gradient-to-r hover:from-slate-800/60 hover:via-blue-500/5 hover:to-slate-800/40 hover:border-blue-500/20 hover:shadow-lg hover:shadow-blue-500/10 transition-all duration-300 ease-out hover:scale-[1.01]"
+                  style={{ animationDelay: `${index * 50}ms` }}
                 >
                   <div className="flex items-center gap-4">
                     {log.result === 'success' ? (

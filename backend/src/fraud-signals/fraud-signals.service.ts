@@ -1,44 +1,48 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { AuditLog, AuditLogDocument } from '../database/schemas/AuditLog.schema';
+import { AuditService } from '../audit/audit.service';
 
 @Injectable()
 export class FraudSignalsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    @InjectModel(AuditLog.name) private auditModel: Model<AuditLogDocument>,
+    private auditService: AuditService,
+  ) {}
 
   /**
    * Track scan activity (called after successful scan)
    */
   async trackScan(tenantId: string, deviceId: string | null, customerId: string) {
     // Store in audit log with metadata for tracking
-    await this.prisma.auditLog.create({
-      data: {
-        tenantId,
-        action: 'SCAN_EXECUTED',
-        resourceType: 'transaction',
-        resourceId: customerId,
-        metadata: {
-          deviceId,
-          timestamp: new Date().toISOString(),
-        },
+    await this.auditService.log(
+      tenantId,
+      '',
+      'SCAN_EXECUTED',
+      'transaction',
+      customerId,
+      {
+        deviceId,
+        timestamp: new Date().toISOString(),
       },
-    });
+    );
   }
 
   /**
    * Track redemption activity
    */
   async trackRedemption(tenantId: string, customerId: string, success: boolean) {
-    await this.prisma.auditLog.create({
-      data: {
-        tenantId,
-        action: success ? 'REDEMPTION_SUCCESS' : 'REDEMPTION_FAILED',
-        resourceType: 'redemption',
-        resourceId: customerId,
-        metadata: {
-          timestamp: new Date().toISOString(),
-        },
+    await this.auditService.log(
+      tenantId,
+      '',
+      success ? 'REDEMPTION_SUCCESS' : 'REDEMPTION_FAILED',
+      'redemption',
+      customerId,
+      {
+        timestamp: new Date().toISOString(),
       },
-    });
+    );
   }
 
   /**
@@ -49,33 +53,33 @@ export class FraudSignalsService {
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
     // Scans per device per hour
-    const scansLastHour = await this.prisma.auditLog.count({
-      where: {
-        tenantId,
-        action: 'SCAN_EXECUTED',
-        createdAt: { gte: oneHourAgo },
-      },
-    });
+    const scansLastHour = await this.auditModel.countDocuments({
+      tenantId,
+      action: 'SCAN_EXECUTED',
+      createdAt: { $gte: oneHourAgo },
+    }).exec();
 
     // Redemptions per customer per day
-    const redemptionsLastDay = await this.prisma.auditLog.count({
-      where: {
-        tenantId,
-        action: { in: ['REDEMPTION_SUCCESS', 'REDEMPTION_FAILED'] },
-        createdAt: { gte: oneDayAgo },
-        ...(customerId && { resourceId: customerId }),
-      },
-    });
+    const redemptionQuery: any = {
+      tenantId,
+      action: { $in: ['REDEMPTION_SUCCESS', 'REDEMPTION_FAILED'] },
+      createdAt: { $gte: oneDayAgo },
+    };
+    if (customerId) {
+      redemptionQuery.resourceId = customerId;
+    }
+    const redemptionsLastDay = await this.auditModel.countDocuments(redemptionQuery).exec();
 
     // Failed redemptions
-    const failedRedemptions = await this.prisma.auditLog.count({
-      where: {
-        tenantId,
-        action: 'REDEMPTION_FAILED',
-        createdAt: { gte: oneDayAgo },
-        ...(customerId && { resourceId: customerId }),
-      },
-    });
+    const failedQuery: any = {
+      tenantId,
+      action: 'REDEMPTION_FAILED',
+      createdAt: { $gte: oneDayAgo },
+    };
+    if (customerId) {
+      failedQuery.resourceId = customerId;
+    }
+    const failedRedemptions = await this.auditModel.countDocuments(failedQuery).exec();
 
     return {
       scansLastHour,

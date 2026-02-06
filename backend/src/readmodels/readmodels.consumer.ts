@@ -4,7 +4,9 @@ import { connect, NatsConnection, JSONCodec } from 'nats';
 import { ReadmodelsService } from './readmodels.service';
 import { LedgerService } from '../ledger/ledger.service';
 import { PilotMetricsService } from '../pilot-metrics/pilot-metrics.service';
-import { PrismaService } from '../prisma/prisma.service';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Device, DeviceDocument } from '../database/schemas/Device.schema';
 
 @Injectable()
 export class ReadmodelsConsumer implements OnModuleInit, OnModuleDestroy {
@@ -17,7 +19,7 @@ export class ReadmodelsConsumer implements OnModuleInit, OnModuleDestroy {
     private ledgerService: LedgerService,
     private configService: ConfigService,
     private pilotMetricsService: PilotMetricsService,
-    private prisma: PrismaService,
+    @InjectModel(Device.name) private deviceModel: Model<DeviceDocument>,
   ) {}
 
   async onModuleInit() {
@@ -81,10 +83,7 @@ export class ReadmodelsConsumer implements OnModuleInit, OnModuleDestroy {
           const deviceId = data.deviceId || null;
           let locationId: string | null = null;
           if (deviceId) {
-            const device = await this.prisma.device.findUnique({
-              where: { id: deviceId },
-              select: { locationId: true },
-            });
+            const device = await this.deviceModel.findOne({ _id: deviceId }).select('locationId').exec();
             locationId = device?.locationId || null;
           }
           await this.pilotMetricsService.trackCustomerActivity(tenantId, customerId, txDate);

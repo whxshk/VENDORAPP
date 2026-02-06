@@ -53,7 +53,7 @@ export class LedgerService {
       .exec();
 
     const currentBalance = previousEntries.reduce(
-      (sum: number, entry) => sum + Number(entry.amount),
+      (sum: number, entry: LoyaltyLedgerEntryDocument) => sum + Number(entry.amount),
       0,
     );
 
@@ -151,13 +151,13 @@ export class LedgerService {
     ]);
 
     return {
-      entries: entries.map((entry) => ({
+      entries: entries.map((entry: LoyaltyLedgerEntryDocument) => ({
         id: entry._id,
         transactionId: entry.transactionId,
         amount: Number(entry.amount),
         balanceAfter: Number(entry.balanceAfter),
         operationType: entry.operationType,
-        createdAt: entry.createdAt,
+        createdAt: (entry as any).createdAt || new Date(),
       })),
       pagination: {
         page,

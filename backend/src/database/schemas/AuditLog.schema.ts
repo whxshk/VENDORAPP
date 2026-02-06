@@ -6,25 +6,25 @@ export type AuditLogDocument = AuditLog & Document;
 @Schema({ timestamps: { createdAt: true, updatedAt: false }, collection: 'audit_logs' })
 export class AuditLog {
   @Prop({ required: true, type: String })
-  _id: string;
+  _id!: string;
 
-  @Prop({ index: true })
+  @Prop({ index: true, type: String })
   tenantId?: string;
 
-  @Prop({ index: true })
+  @Prop({ index: true, type: String })
   userId?: string;
 
-  @Prop({ required: true })
-  action: string;
+  @Prop({ required: true, type: String })
+  action!: string;
 
-  @Prop({ required: true, index: true })
-  resourceType: string;
+  @Prop({ required: true, index: true, type: String })
+  resourceType!: string;
 
-  @Prop({ index: true })
+  @Prop({ index: true, type: String })
   resourceId?: string;
 
   @Prop({ type: Object, default: {} })
-  metadata: Record<string, any>;
+  metadata!: Record<string, any>;
 }
 
 export const AuditLogSchema = SchemaFactory.createForClass(AuditLog);

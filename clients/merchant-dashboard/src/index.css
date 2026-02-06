@@ -30,7 +30,7 @@
   }
 }
 
-/* Custom Scrollbar */
+/* Custom Scrollbar with smooth behavior */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -43,8 +43,232 @@
 ::-webkit-scrollbar-thumb {
   background: rgba(59, 130, 246, 0.3);
   border-radius: 3px;
+  transition: background 0.3s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(59, 130, 246, 0.5);
+}
+
+/* Smooth scroll behavior */
+html {
+  scroll-behavior: smooth;
+}
+
+@layer components {
+  /* Smooth card transitions */
+  .card-smooth {
+    @apply transition-all duration-300 ease-smooth;
+  }
+  
+  .card-smooth:hover {
+    @apply transform -translate-y-1 shadow-glow;
+  }
+
+  /* Button smooth effects */
+  .btn-smooth {
+    @apply transition-all duration-200 ease-smooth active:scale-95;
+  }
+
+  /* Table row hover effects */
+  .row-hover {
+    @apply transition-all duration-200 ease-out;
+  }
+  
+  .row-hover:hover {
+    @apply bg-white/5 transform scale-[1.002];
+  }
+
+  /* Animated gradient background */
+  .gradient-animate {
+    background: linear-gradient(
+      -45deg,
+      rgba(59, 130, 246, 0.1),
+      rgba(147, 51, 234, 0.1),
+      rgba(59, 130, 246, 0.05),
+      rgba(147, 51, 234, 0.05)
+    );
+    background-size: 400% 400%;
+    animation: gradientShift 15s ease infinite;
+  }
+
+  /* Shimmer loading effect */
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.05) 50%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s linear infinite;
+  }
+
+  /* Staggered animation delays */
+  .stagger-1 { animation-delay: 0.1s; }
+  .stagger-2 { animation-delay: 0.2s; }
+  .stagger-3 { animation-delay: 0.3s; }
+  .stagger-4 { animation-delay: 0.4s; }
+  .stagger-5 { animation-delay: 0.5s; }
+
+  /* Page transition wrapper */
+  .page-enter {
+    @apply animate-fade-in-up;
+  }
+
+  /* Modal backdrop */
+  .backdrop-blur-smooth {
+    @apply backdrop-blur-md transition-all duration-300;
+  }
+
+  /* Glow effect on focus */
+  .focus-glow:focus {
+    @apply ring-2 ring-primary/50 shadow-glow-sm outline-none transition-shadow duration-300;
+  }
+
+  /* Pulse indicator */
+  .pulse-dot {
+    @apply relative;
+  }
+  
+  .pulse-dot::after {
+    content: '';
+    @apply absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full;
+    animation: pulseSoft 2s ease-in-out infinite;
+  }
+
+  /* Loading skeleton */
+  .skeleton {
+    @apply bg-slate-700/50 rounded animate-pulse;
+  }
+
+  /* Smooth input transitions */
+  .input-smooth {
+    @apply transition-all duration-200 ease-out;
+  }
+  
+  .input-smooth:focus {
+    @apply ring-2 ring-primary/40 border-primary/50 shadow-glow-sm;
+  }
+
+  /* Icon hover rotation */
+  .icon-spin-hover {
+    @apply transition-transform duration-300 ease-out;
+  }
+  
+  .icon-spin-hover:hover {
+    @apply rotate-180;
+  }
+
+  /* Badge pulse */
+  .badge-pulse {
+    @apply relative overflow-hidden;
+  }
+  
+  .badge-pulse::before {
+    content: '';
+    @apply absolute inset-0 bg-white/20;
+    animation: pulseSoft 2s ease-in-out infinite;
+  }
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Dialog/Modal animations */
+[data-state="open"] {
+  animation: scaleIn 0.2s ease-out;
+}
+
+[data-state="closed"] {
+  animation: fadeOut 0.15s ease-in;
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes scaleIn {
+  from { 
+    opacity: 0; 
+    transform: scale(0.95); 
+  }
+  to { 
+    opacity: 1; 
+    transform: scale(1); 
+  }
+}
+
+/* Sidebar link hover effect */
+.sidebar-link {
+  @apply relative overflow-hidden transition-all duration-200;
+}
+
+.sidebar-link::before {
+  content: '';
+  @apply absolute inset-y-0 left-0 w-1 bg-primary transform -translate-x-full transition-transform duration-200;
+}
+
+.sidebar-link:hover::before,
+.sidebar-link.active::before {
+  @apply translate-x-0;
+}
+
+/* Number counter animation */
+.counter-animate {
+  @apply transition-all duration-500 ease-out;
+}
+
+/* Floating action button */
+.fab {
+  @apply transition-all duration-300;
+  transition-timing-function: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.fab:hover {
+  @apply transform scale-110 shadow-glow;
+}
+
+.fab:active {
+  @apply scale-95;
+}
+
+/* Toast notification slide-in */
+.toast-enter {
+  animation: slideInRight 0.3s ease-out;
+}
+
+.toast-exit {
+  animation: slideOutRight 0.2s ease-in;
+}
+
+@keyframes slideOutRight {
+  from { 
+    opacity: 1; 
+    transform: translateX(0); 
+  }
+  to { 
+    opacity: 0; 
+    transform: translateX(100%); 
+  }
+}
+
+/* Ripple effect for buttons */
+.ripple {
+  @apply relative overflow-hidden;
+}
+
+.ripple::after {
+  content: '';
+  @apply absolute inset-0 bg-white/20 rounded-full transform scale-0 opacity-0;
+  transition: transform 0.5s ease-out, opacity 0.3s ease-out;
+}
+
+.ripple:active::after {
+  @apply scale-150 opacity-100;
+  transition: transform 0s, opacity 0s;
 }

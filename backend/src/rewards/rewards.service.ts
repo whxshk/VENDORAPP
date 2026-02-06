@@ -41,7 +41,7 @@ export class RewardsService {
       .exec();
     
     // Map pointsRequired to pointsCost for frontend compatibility
-    return rewards.map(reward => ({
+    return rewards.map((reward: RewardDocument) => ({
       ...reward.toObject(),
       id: reward._id,
       pointsCost: Number(reward.pointsRequired),
