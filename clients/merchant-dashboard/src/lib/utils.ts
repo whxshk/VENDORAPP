@@ -31,3 +31,17 @@ export function formatCurrency(amount: number, currency: string = 'QAR'): string
     currency,
   }).format(amount);
 }
+
+/**
+ * Converts MongoDB Decimal128 values to regular numbers.
+ * MongoDB Decimal128 values are returned as objects like { $numberDecimal: "123.45" }
+ */
+export function toNumber(value: any): number {
+  if (value === null || value === undefined) {
+    return 0;
+  }
+  if (typeof value === 'object' && '$numberDecimal' in value) {
+    return Number(value.$numberDecimal);
+  }
+  return Number(value);
+}

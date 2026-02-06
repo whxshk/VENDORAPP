@@ -6,7 +6,7 @@ Production-ready Node.js backend for SharkBand universal loyalty platform.
 
 - **Runtime**: Node.js 20+
 - **Framework**: NestJS 10+ (Fastify adapter)
-- **Database**: PostgreSQL 16+ with Prisma ORM
+- **Database**: MongoDB Atlas with Mongoose ODM
 - **Messaging**: NATS 2.10+ (event streaming)
 - **Authentication**: JWT with refresh token rotation
 - **Validation**: Zod (runtime validation + TypeScript inference)
@@ -24,7 +24,7 @@ Production-ready Node.js backend for SharkBand universal loyalty platform.
 
 - Node.js 20+
 - Docker & Docker Compose
-- PostgreSQL 16+ (or use Docker)
+- MongoDB Atlas account (or local MongoDB instance)
 - NATS 2.10+ (or use Docker)
 
 ## Setup
@@ -41,23 +41,19 @@ Production-ready Node.js backend for SharkBand universal loyalty platform.
    # Edit .env with your configuration
    ```
 
-3. **Start infrastructure with Docker Compose**:
+3. **Start infrastructure with Docker Compose** (optional, only NATS needed):
    ```bash
-   docker-compose up -d postgres nats
+   docker-compose up -d nats
    ```
 
-4. **Run database migrations**:
-   ```bash
-   # Option 1: Using Prisma (recommended)
-   npx prisma migrate dev
+4. **Configure MongoDB connection**:
+   - Set `DATABASE_URL` in `.env` file (or use default local MongoDB)
+   - For MongoDB Atlas: `mongodb+srv://username:password@cluster.mongodb.net/database?retryWrites=true&w=majority`
+   - For local MongoDB: `mongodb://localhost:27017/Waddy`
 
-   # Option 2: Direct SQL (if migrations folder exists)
-   psql -U sharkband -d sharkband -f migrations/001_initial_schema.sql
-   ```
-
-5. **Generate Prisma Client**:
+5. **Seed database** (optional):
    ```bash
-   npx prisma generate
+   npm run seed
    ```
 
 6. **Start development server**:
@@ -73,9 +69,13 @@ The API will be available at `http://localhost:3000`.
 
 ```
 backend/
-├── prisma/
-│   └── schema.prisma          # Prisma schema
-├── migrations/                 # SQL migrations (optional, Prisma manages these)
+├── src/
+│   ├── database/
+│   │   ├── schemas/           # Mongoose schemas
+│   │   ├── mongodb.module.ts  # MongoDB connection module
+│   │   └── mongodb.service.ts # MongoDB service
+│   ├── scripts/
+│   │   └── seed.ts            # Database seeding script
 ├── src/
 │   ├── auth/                  # Authentication module
 │   ├── tenancy/               # Multi-tenancy middleware/guards
@@ -99,20 +99,16 @@ backend/
 
 ### Database Management
 
-**Prisma Studio** (visual database browser):
+**MongoDB Compass** (visual database browser):
+- Download from: https://www.mongodb.com/products/compass
+- Connect using your `DATABASE_URL` from `.env`
+
+**Seed database**:
 ```bash
-npm run prisma:studio
+npm run seed
 ```
 
-**Create migration**:
-```bash
-npm run prisma:migrate
-```
-
-**Apply migrations in production**:
-```bash
-npm run prisma:migrate:deploy
-```
+**Note**: MongoDB doesn't require migrations. Schema changes are handled through Mongoose schema updates and application code.
 
 ### Running Tests
 
@@ -137,7 +133,7 @@ Once the server is running, Swagger UI is available at:
 
 See `.env.example` for all configuration options. Key variables:
 
-- `DATABASE_URL`: PostgreSQL connection string
+- `DATABASE_URL`: MongoDB connection string (MongoDB Atlas or local)
 - `JWT_SECRET`: Secret for access token signing
 - `JWT_REFRESH_TOKEN_SECRET`: Secret for refresh token signing
 - `NATS_URL`: NATS broker connection URL
@@ -145,7 +141,7 @@ See `.env.example` for all configuration options. Key variables:
 
 ## Docker Compose Services
 
-- **postgres**: PostgreSQL 16 database
+- **Note**: MongoDB is not included in docker-compose. Use MongoDB Atlas or local MongoDB instance.
 - **nats**: NATS message broker
 - **pgadmin**: Optional database admin UI (port 5050)
 - **backend**: Backend API service (development mode with hot reload)
@@ -166,7 +162,7 @@ docker-compose up -d
 
 3. Run migrations:
    ```bash
-   npm run prisma:migrate:deploy
+   # MongoDB doesn't require migrations - just restart the application
    ```
 
 4. Start the server:

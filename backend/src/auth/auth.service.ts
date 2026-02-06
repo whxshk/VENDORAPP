@@ -1,8 +1,11 @@
 import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
-import { PrismaService } from '../prisma/prisma.service';
+import { User, UserDocument } from '../database/schemas/User.schema';
+import { Tenant, TenantDocument } from '../database/schemas/Tenant.schema';
 import { JwtPayload } from './strategies/jwt.strategy';
 
 export interface LoginDto {
@@ -21,7 +24,8 @@ export interface AuthResponse {
 @Injectable()
 export class AuthService {
   constructor(
-    private prisma: PrismaService,
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(Tenant.name) private tenantModel: Model<TenantDocument>,
     private jwtService: JwtService,
     private configService: ConfigService,
   ) {}
@@ -30,17 +34,12 @@ export class AuthService {
     const { email, password, tenantId } = loginDto;
 
     // Find user by email (with tenant filter if provided)
-    const where: any = { email, isActive: true };
+    const query: any = { email, isActive: true };
     if (tenantId) {
-      where.tenantId = tenantId;
+      query.tenantId = tenantId;
     }
 
-    const user = await this.prisma.user.findFirst({
-      where,
-      include: {
-        tenant: true,
-      },
-    });
+    const user = await this.userModel.findOne(query).exec();
 
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
@@ -52,11 +51,17 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const scopes = (user.scopes as string[]) || [];
-    const roles = (user.roles as string[]) || [];
+    // Verify tenant is active
+    const tenant = await this.tenantModel.findById(user.tenantId).exec();
+    if (!tenant || !tenant.isActive) {
+      throw new UnauthorizedException('Tenant is not active');
+    }
+
+    const scopes = user.scopes || [];
+    const roles = user.roles || [];
 
     const payload: JwtPayload = {
-      sub: user.id,
+      sub: user._id,
       tenantId: user.tenantId,
       email: user.email,
       scopes,
@@ -68,7 +73,7 @@ export class AuthService {
     });
 
     const refreshToken = this.jwtService.sign(
-      { sub: user.id, tenantId: user.tenantId },
+      { sub: user._id, tenantId: user.tenantId },
       {
         secret: this.configService.get<string>('app.jwt.refreshTokenSecret'),
         expiresIn: this.configService.get<string>('app.jwt.refreshTokenExpiry') || '7d',
@@ -89,19 +94,17 @@ export class AuthService {
         secret: this.configService.get<string>('app.jwt.refreshTokenSecret'),
       }) as { sub: string; tenantId: string };
 
-      const user = await this.prisma.user.findUnique({
-        where: { id: payload.sub },
-      });
+      const user = await this.userModel.findById(payload.sub).exec();
 
       if (!user || !user.isActive || user.tenantId !== payload.tenantId) {
         throw new UnauthorizedException('Invalid refresh token');
       }
 
-      const scopes = (user.scopes as string[]) || [];
-      const roles = (user.roles as string[]) || [];
+      const scopes = user.scopes || [];
+      const roles = user.roles || [];
 
       const newPayload: JwtPayload = {
-        sub: user.id,
+        sub: user._id,
         tenantId: user.tenantId,
         email: user.email,
         scopes,
@@ -114,7 +117,7 @@ export class AuthService {
 
       // Optional: Rotate refresh token (issue new one)
       const newRefreshToken = this.jwtService.sign(
-        { sub: user.id, tenantId: user.tenantId },
+        { sub: user._id, tenantId: user.tenantId },
         {
           secret: this.configService.get<string>('app.jwt.refreshTokenSecret'),
           expiresIn: this.configService.get<string>('app.jwt.refreshTokenExpiry') || '7d',
@@ -133,24 +136,22 @@ export class AuthService {
   }
 
   async validateUser(userId: string, tenantId: string) {
-    const user = await this.prisma.user.findFirst({
-      where: {
-        id: userId,
-        tenantId,
-        isActive: true,
-      },
-    });
+    const user = await this.userModel.findOne({
+      _id: userId,
+      tenantId,
+      isActive: true,
+    }).exec();
 
     if (!user) {
       return null;
     }
 
     return {
-      userId: user.id,
+      userId: user._id,
       tenantId: user.tenantId,
       email: user.email,
-      scopes: (user.scopes as string[]) || [],
-      roles: (user.roles as string[]) || [],
+      scopes: user.scopes || [],
+      roles: user.roles || [],
     };
   }
 }

@@ -1,11 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { CustomerBalance, CustomerBalanceDocument } from '../database/schemas/CustomerBalance.schema';
+import { TransactionSummary, TransactionSummaryDocument } from '../database/schemas/TransactionSummary.schema';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class ReadmodelsService {
   private readonly logger = new Logger(ReadmodelsService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    @InjectModel(CustomerBalance.name) private balanceModel: Model<CustomerBalanceDocument>,
+    @InjectModel(TransactionSummary.name) private summaryModel: Model<TransactionSummaryDocument>,
+  ) {}
 
   /**
    * Update customer balance read model (idempotent)
@@ -17,24 +24,17 @@ export class ReadmodelsService {
     eventId?: string,
   ): Promise<void> {
     try {
-      await this.prisma.customerBalance.upsert({
-        where: {
-          tenantId_customerId: {
-            tenantId,
-            customerId,
-          },
-        },
-        create: {
+      await this.balanceModel.findOneAndUpdate(
+        { tenantId, customerId },
+        {
+          _id: uuidv4(),
           tenantId,
           customerId,
           balance,
           lastUpdatedAt: new Date(),
         },
-        update: {
-          balance,
-          lastUpdatedAt: new Date(),
-        },
-      });
+        { upsert: true, new: true }
+      ).exec();
     } catch (error) {
       this.logger.error(`Failed to update customer balance for ${customerId}`, error);
       throw error;
@@ -53,9 +53,10 @@ export class ReadmodelsService {
     transactionDate: Date,
   ): Promise<void> {
     try {
-      await this.prisma.transactionSummary.upsert({
-        where: { transactionId },
-        create: {
+      await this.summaryModel.findOneAndUpdate(
+        { transactionId },
+        {
+          _id: uuidv4(),
           tenantId,
           transactionId,
           customerId,
@@ -63,11 +64,8 @@ export class ReadmodelsService {
           type,
           transactionDate,
         },
-        update: {
-          // Update if needed (shouldn't happen for immutable transactions)
-          amount,
-        },
-      });
+        { upsert: true, new: true }
+      ).exec();
     } catch (error) {
       this.logger.error(`Failed to create transaction summary for ${transactionId}`, error);
       throw error;

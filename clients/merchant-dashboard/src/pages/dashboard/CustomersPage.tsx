@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -15,7 +15,7 @@ import { Button } from '../../components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '../../components/ui/dialog';
 import { Badge } from '../../components/ui/badge';
 import { Search, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
-import { formatDate } from '../../lib/utils';
+import { formatDate, toNumber } from '../../lib/utils';
 import type { Customer } from '../../api/types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -116,7 +116,7 @@ export default function CustomersPage() {
         );
       },
       cell: ({ row }) => (
-        <div className="font-bold text-blue-400">{row.getValue('pointsBalance')}</div>
+        <div className="font-bold text-blue-400">{toNumber(row.getValue('pointsBalance'))}</div>
       ),
     },
     {
@@ -141,7 +141,7 @@ export default function CustomersPage() {
       },
       cell: ({ row }) => {
         const date = row.getValue('lastVisit');
-        return <div className="text-slate-400">{date ? formatDate(date) : 'Never'}</div>;
+        return <div className="text-slate-400">{date && (typeof date === 'string' || date instanceof Date) ? formatDate(date as string | Date) : 'Never'}</div>;
       },
       sortingFn: (rowA, rowB) => {
         const a = rowA.getValue('lastVisit') as Date | string | null;
@@ -173,15 +173,6 @@ export default function CustomersPage() {
       },
       cell: ({ row }) => <div className="text-white">{row.getValue('totalVisits')}</div>,
     },
-    {
-      accessorKey: 'status',
-      header: 'Status',
-      cell: ({ row }) => (
-        <Badge variant={row.getValue('status') === 'active' ? 'success' : 'secondary'}>
-          {row.getValue('status')}
-        </Badge>
-      ),
-    },
   ];
 
   const table = useReactTable({
@@ -205,17 +196,8 @@ export default function CustomersPage() {
     setIsDetailOpen(true);
   };
 
-  if (isLoading) {
-    return (
-      <div className="space-y-8">
-        <div>
-          <h1 className="text-3xl font-bold text-white mb-2">Customers</h1>
-          <p className="text-slate-400">Manage your customer base</p>
-        </div>
-        <div className="text-center py-12 text-slate-400">Loading customers...</div>
-      </div>
-    );
-  }
+  // Only show full loading state on initial load (no data yet)
+  const showInitialLoading = isLoading && !data;
 
   return (
     <div className="space-y-8">
@@ -227,26 +209,27 @@ export default function CustomersPage() {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>All Customers</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              All Customers
+              {isLoading && data && (
+                <span className="inline-block w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+              )}
+            </CardTitle>
             <div className="relative w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <Input
                 placeholder="Search by name or customer ID (e.g., 0001)..."
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    setSearch(searchInput);
-                    setPage(1);
-                  }
-                }}
                 className="pl-9"
               />
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          {data?.data.length === 0 ? (
+          {showInitialLoading ? (
+            <div className="text-center py-12 text-slate-400">Loading customers...</div>
+          ) : data?.data.length === 0 ? (
             <div className="text-center py-12 text-slate-400">
               <p className="text-sm">No customers found</p>
             </div>
@@ -269,14 +252,15 @@ export default function CustomersPage() {
                     ))}
                   </thead>
                   <tbody className="divide-y divide-white/5">
-                    {table.getRowModel().rows.map((row) => (
+                    {table.getRowModel().rows.map((row, index) => (
                       <tr
                         key={row.id}
                         onClick={() => handleRowClick(row.original.id)}
-                        className="hover:bg-white/5 cursor-pointer transition-colors duration-150"
+                        className="group hover:bg-gradient-to-r hover:from-blue-500/10 hover:via-purple-500/5 hover:to-transparent cursor-pointer transition-all duration-300 ease-out hover:shadow-lg hover:shadow-blue-500/5"
+                        style={{ animationDelay: `${index * 30}ms` }}
                       >
                         {row.getVisibleCells().map((cell) => (
-                          <td key={cell.id} className="py-4 px-6 text-sm">
+                          <td key={cell.id} className="py-4 px-6 text-sm transition-transform duration-300 group-hover:translate-x-1">
                             {flexRender(cell.column.columnDef.cell, cell.getContext())}
                           </td>
                         ))}
@@ -325,22 +309,14 @@ export default function CustomersPage() {
           </DialogHeader>
           {customerDetail && (
             <div className="space-y-6 mt-4">
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="p-4 rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-600/20 border border-blue-500/30">
                   <div className="text-sm text-slate-300 mb-1">Points Balance</div>
-                  <div className="text-3xl font-bold text-blue-400">{customerDetail.pointsBalance}</div>
+                  <div className="text-3xl font-bold text-blue-400">{toNumber(customerDetail.pointsBalance)}</div>
                 </div>
                 <div className="p-4 rounded-xl bg-gradient-to-br from-purple-500/20 to-purple-600/20 border border-purple-500/30">
                   <div className="text-sm text-slate-300 mb-1">Total Visits</div>
                   <div className="text-3xl font-bold text-purple-400">{customerDetail.totalVisits}</div>
-                </div>
-                <div className="p-4 rounded-xl bg-gradient-to-br from-emerald-500/20 to-emerald-600/20 border border-emerald-500/30">
-                  <div className="text-sm text-slate-300 mb-1">Status</div>
-                  <div className="mt-2">
-                    <Badge variant={customerDetail.status === 'active' ? 'success' : 'secondary'}>
-                      {customerDetail.status === 'active' ? 'Active' : 'Inactive'}
-                    </Badge>
-                  </div>
                 </div>
               </div>
               
@@ -413,7 +389,6 @@ export default function CustomersPage() {
                         <th className="text-left py-3 px-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Date</th>
                         <th className="text-left py-3 px-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Type</th>
                         <th className="text-right py-3 px-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Points</th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Staff</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
@@ -426,12 +401,11 @@ export default function CustomersPage() {
                             </Badge>
                           </td>
                           <td className="py-3 px-4 text-sm text-right font-semibold">
-                            <span className={tx.points > 0 ? 'text-emerald-400' : 'text-red-400'}>
-                              {tx.points > 0 ? '+' : ''}
-                              {tx.points}
+                            <span className={toNumber(tx.points) > 0 ? 'text-emerald-400' : 'text-red-400'}>
+                              {toNumber(tx.points) > 0 ? '+' : ''}
+                              {toNumber(tx.points)}
                             </span>
                           </td>
-                          <td className="py-3 px-4 text-sm text-slate-400">{tx.staffName}</td>
                         </tr>
                       ))}
                     </tbody>

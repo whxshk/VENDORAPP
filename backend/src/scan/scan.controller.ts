@@ -40,11 +40,11 @@ export class ScanController {
   @Post('simulate')
   @RequireScope('merchant:*', 'scan:*')
   async simulate(
-    @Body() body: { customerId: string; type: 'earn' | 'redeem'; amount?: number; rewardId?: string },
+    @Body() body: { customerId: string; type: 'earn' | 'redeem'; amount?: number; rewardId?: string; locationId?: string },
     @TenantContext() tenantId: string,
     @Req() request: FastifyRequest,
   ) {
     const idempotencyKey = (request.headers['idempotency-key'] as string) || uuidv4();
-    return this.scanService.simulate(tenantId, body.customerId, body.type, body.amount, body.rewardId, idempotencyKey);
+    return this.scanService.simulate(tenantId, body.customerId, body.type, body.amount, body.rewardId, idempotencyKey, body.locationId);
   }
 }

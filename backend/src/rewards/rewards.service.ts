@@ -1,48 +1,55 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Reward, RewardDocument } from '../database/schemas/Reward.schema';
+import { Redemption, RedemptionDocument, RedemptionStatus } from '../database/schemas/Redemption.schema';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class RewardsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    @InjectModel(Reward.name) private rewardModel: Model<RewardDocument>,
+    @InjectModel(Redemption.name) private redemptionModel: Model<RedemptionDocument>,
+  ) {}
 
   async create(tenantId: string, data: any) {
-    // Map pointsCost to pointsRequired if needed
-    const rewardData: any = {
+    const pointsRequired = data.pointsCost || data.pointsRequired;
+    
+    const reward = new this.rewardModel({
+      _id: uuidv4(),
       tenantId,
       name: data.name,
       description: data.description,
-      pointsRequired: data.pointsCost || data.pointsRequired,
+      pointsRequired: pointsRequired,
       isActive: data.isActive !== undefined ? data.isActive : true,
-    };
-    
-    const reward = await this.prisma.reward.create({
-      data: rewardData,
     });
 
+    const saved = await reward.save();
+    
     // Map pointsRequired to pointsCost for frontend compatibility
     return {
-      ...reward,
-      pointsCost: Number(reward.pointsRequired),
+      ...saved.toObject(),
+      id: saved._id,
+      pointsCost: Number(saved.pointsRequired),
     };
   }
 
   async findAll(tenantId: string) {
-    const rewards = await this.prisma.reward.findMany({
-      where: { tenantId },
-      orderBy: { createdAt: 'desc' },
-    });
+    const rewards = await this.rewardModel
+      .find({ tenantId })
+      .sort({ createdAt: -1 })
+      .exec();
     
     // Map pointsRequired to pointsCost for frontend compatibility
-    return rewards.map(reward => ({
-      ...reward,
+    return rewards.map((reward: RewardDocument) => ({
+      ...reward.toObject(),
+      id: reward._id,
       pointsCost: Number(reward.pointsRequired),
     }));
   }
 
   async findOne(tenantId: string, id: string) {
-    const reward = await this.prisma.reward.findFirst({
-      where: { id, tenantId },
-    });
+    const reward = await this.rewardModel.findOne({ _id: id, tenantId }).exec();
 
     if (!reward) {
       throw new NotFoundException(`Reward ${id} not found`);
@@ -50,7 +57,8 @@ export class RewardsService {
 
     // Map pointsRequired to pointsCost for frontend compatibility
     return {
-      ...reward,
+      ...reward.toObject(),
+      id: reward._id,
       pointsCost: Number(reward.pointsRequired),
     };
   }
@@ -66,25 +74,40 @@ export class RewardsService {
     }
     if (data.isActive !== undefined) updateData.isActive = data.isActive;
 
-    const updated = await this.prisma.reward.update({
-      where: { id },
-      data: updateData,
-    });
+    const updated = await this.rewardModel
+      .findOneAndUpdate({ _id: id, tenantId }, updateData, { new: true })
+      .exec();
+
+    if (!updated) {
+      throw new NotFoundException(`Reward ${id} not found`);
+    }
 
     // Map pointsRequired to pointsCost for frontend compatibility
     return {
-      ...updated,
+      ...updated.toObject(),
+      id: updated._id,
       pointsCost: Number(updated.pointsRequired),
     };
   }
 
   async delete(tenantId: string, id: string) {
-    const reward = await this.findOne(tenantId, id);
+    await this.findOne(tenantId, id);
     
-    // Soft delete by setting isActive to false, or hard delete
-    // For now, doing hard delete as requested
-    return this.prisma.reward.delete({
-      where: { id },
-    });
+    // Check if reward has active redemptions
+    const activeRedemptions = await this.redemptionModel.countDocuments({
+      tenantId,
+      rewardId: id,
+      status: RedemptionStatus.COMPLETED,
+    }).exec();
+
+    if (activeRedemptions > 0) {
+      throw new BadRequestException(
+        `Cannot delete reward: It has ${activeRedemptions} completed redemption(s). Please deactivate it instead.`
+      );
+    }
+    
+    // Hard delete if no active redemptions
+    await this.rewardModel.deleteOne({ _id: id, tenantId }).exec();
+    return { id };
   }
 }

@@ -13,8 +13,8 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           'backdrop-blur-sm text-white placeholder:text-slate-400',
           'ring-offset-2 ring-offset-slate-900',
           'file:border-0 file:bg-transparent file:text-sm file:font-medium',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:border-blue-500/50',
-          'hover:border-white/20 transition-all duration-200',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:border-blue-500/50 focus-visible:shadow-lg focus-visible:shadow-blue-500/20',
+          'hover:border-white/20 hover:shadow-md hover:shadow-blue-500/10 transition-all duration-300 ease-out',
           'disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-slate-800/30',
           className
         )}

@@ -8,20 +8,20 @@ import {
   flexRender,
 } from '@tanstack/react-table';
 import { useTransactions } from '../../hooks/useTransactions';
-import { useStaff } from '../../hooks/useStaff';
+import { useMerchantSettings } from '../../hooks/useMerchant';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Select } from '../../components/ui/select';
 import { Badge } from '../../components/ui/badge';
-import { Download, X } from 'lucide-react';
-import { formatDateTime } from '../../lib/utils';
+import { Download, X, MapPin } from 'lucide-react';
+import { formatDateTime, toNumber } from '../../lib/utils';
 import type { Transaction } from '../../api/types';
 
 export default function TransactionsPage() {
   const [page, setPage] = useState(1);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [staffId, setStaffId] = useState('');
+  const [locationId, setLocationId] = useState('');
   const [type, setType] = useState<'earn' | 'redeem' | ''>('');
 
   const { data: transactionsData, isLoading } = useTransactions({
@@ -29,11 +29,12 @@ export default function TransactionsPage() {
     limit: 20,
     startDate: startDate || undefined,
     endDate: endDate || undefined,
-    staffId: staffId || undefined,
+    locationId: locationId || undefined,
     type: type || undefined,
   });
 
-  const { data: staff } = useStaff();
+  const { data: merchant } = useMerchantSettings();
+  const locations = merchant?.branches || [];
 
   const columns: ColumnDef<Transaction>[] = [
     {
@@ -59,7 +60,7 @@ export default function TransactionsPage() {
       accessorKey: 'points',
       header: 'Points',
       cell: ({ row }) => {
-        const points = row.getValue('points') as number;
+        const points = toNumber(row.getValue('points'));
         return (
           <div className="text-right font-bold">
             <span className={points > 0 ? 'text-emerald-400' : 'text-red-400'}>
@@ -71,14 +72,17 @@ export default function TransactionsPage() {
       },
     },
     {
-      accessorKey: 'staffName',
-      header: 'Staff',
-      cell: ({ row }) => <div className="text-slate-400">{row.getValue('staffName')}</div>,
-    },
-    {
       accessorKey: 'branchName',
-      header: 'Branch',
-      cell: ({ row }) => <div className="text-slate-400">{row.getValue('branchName') || '-'}</div>,
+      header: 'Location',
+      cell: ({ row }) => {
+        const branchName = row.getValue('branchName') as string;
+        return (
+          <div className="flex items-center gap-2 text-slate-400">
+            <MapPin className={`h-3.5 w-3.5 ${branchName ? 'text-blue-400' : 'text-slate-600'}`} />
+            {branchName || '-'}
+          </div>
+        );
+      },
     },
   ];
 
@@ -95,14 +99,13 @@ export default function TransactionsPage() {
   const handleExportCSV = () => {
     if (!transactionsData?.data) return;
 
-    const headers = ['Date', 'Customer', 'Type', 'Points', 'Staff', 'Branch'];
+    const headers = ['Date', 'Customer', 'Type', 'Points', 'Location'];
     const rows = (transactionsData.data as Transaction[]).map((tx) => [
       formatDateTime(tx.timestamp),
       tx.customerName,
       tx.type,
-      tx.points.toString(),
-      tx.staffName,
-      tx.branchName || '',
+      toNumber(tx.points).toString(),
+      tx.branchName || '-',
     ]);
 
     const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
@@ -172,18 +175,18 @@ export default function TransactionsPage() {
                 />
               </div>
               <div>
-                <label className="text-sm font-semibold text-white mb-2 block">Staff</label>
+                <label className="text-sm font-semibold text-white mb-2 block">Location</label>
                 <Select
-                  value={staffId}
+                  value={locationId}
                   onChange={(e) => {
-                    setStaffId(e.target.value);
+                    setLocationId(e.target.value);
                     setPage(1);
                   }}
                 >
-                  <option value="">All Staff</option>
-                  {staff?.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
+                  <option value="">All Locations</option>
+                  {locations.map((loc) => (
+                    <option key={loc.id} value={loc.id}>
+                      {loc.name}
                     </option>
                   ))}
                 </Select>
@@ -203,7 +206,7 @@ export default function TransactionsPage() {
                 </Select>
               </div>
             </div>
-            {(startDate || endDate || staffId || type) && (
+            {(startDate || endDate || locationId || type) && (
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
@@ -211,7 +214,7 @@ export default function TransactionsPage() {
                   onClick={() => {
                     setStartDate('');
                     setEndDate('');
-                    setStaffId('');
+                    setLocationId('');
                     setType('');
                     setPage(1);
                   }}
@@ -221,7 +224,7 @@ export default function TransactionsPage() {
                   Clear Filters
                 </Button>
                 <span className="text-xs text-slate-400">
-                  {[startDate && 'Start Date', endDate && 'End Date', staffId && 'Staff', type && 'Type'].filter(Boolean).join(', ')} active
+                  {[startDate && 'Start Date', endDate && 'End Date', locationId && 'Location', type && 'Type'].filter(Boolean).join(', ')} active
                 </span>
               </div>
             )}
@@ -250,13 +253,14 @@ export default function TransactionsPage() {
                     ))}
                   </thead>
                   <tbody className="divide-y divide-white/5">
-                    {table.getRowModel().rows.map((row) => (
+                    {table.getRowModel().rows.map((row, index) => (
                       <tr
                         key={row.id}
-                        className="hover:bg-white/5 transition-colors duration-150"
+                        className="group hover:bg-gradient-to-r hover:from-blue-500/10 hover:via-purple-500/5 hover:to-transparent transition-all duration-300 ease-out hover:shadow-lg hover:shadow-blue-500/5"
+                        style={{ animationDelay: `${index * 30}ms` }}
                       >
                         {row.getVisibleCells().map((cell) => (
-                          <td key={cell.id} className="py-4 px-6 text-sm">
+                          <td key={cell.id} className="py-4 px-6 text-sm transition-transform duration-300 group-hover:translate-x-1">
                             {flexRender(cell.column.columnDef.cell, cell.getContext())}
                           </td>
                         ))}

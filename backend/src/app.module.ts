@@ -4,7 +4,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RateLimitMiddleware } from './common/middleware/rate-limit.middleware';
 import { ConfigService, default as appConfig } from './config/config.service';
-import { PrismaModule } from './prisma/prisma.module';
+import { MongoDBModule } from './database/mongodb.module';
 import { AuthModule } from './auth/auth.module';
 import { TenancyModule } from './tenancy/tenancy.module';
 import { LedgerModule } from './ledger/ledger.module';
@@ -24,6 +24,7 @@ import { FraudSignalsModule } from './fraud-signals/fraud-signals.module';
 import { OperatorToolsModule } from './operator-tools/operator-tools.module';
 import { PilotMetricsModule } from './pilot-metrics/pilot-metrics.module';
 import { ScanModule } from './scan/scan.module';
+import { MerchantModule } from './merchant/merchant.module';
 
 @Module({
   imports: [
@@ -34,7 +35,7 @@ import { ScanModule } from './scan/scan.module';
     }),
 
     // Database
-    PrismaModule,
+    MongoDBModule,
 
     // Core modules
     AuthModule,
@@ -58,6 +59,7 @@ import { ScanModule } from './scan/scan.module';
     OperatorToolsModule,
     PilotMetricsModule,
     ScanModule,
+    MerchantModule,
   ],
   providers: [
     RateLimitMiddleware,

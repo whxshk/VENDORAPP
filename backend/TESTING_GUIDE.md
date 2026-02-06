@@ -4,20 +4,19 @@ This guide covers running E2E tests and pilot simulations for the SharkBand plat
 
 ## Prerequisites
 
-1. **Database**: PostgreSQL running (via Docker or local)
-   ```bash
-   docker-compose up -d postgres
-   ```
+1. **Database**: MongoDB running (MongoDB Atlas or local)
+   - Set `DATABASE_URL` in `.env` file
+   - For local: `mongodb://localhost:27017/Waddy`
+   - For Atlas: `mongodb+srv://username:password@cluster.mongodb.net/database`
 
 2. **NATS**: NATS server running (via Docker or local)
    ```bash
    docker-compose up -d nats
    ```
 
-3. **Migrations**: Run database migrations
+3. **Seed database** (optional):
    ```bash
-   npm run prisma:migrate
-   npm run prisma:generate
+   npm run seed
    ```
 
 4. **Dependencies**: Install backend dependencies
@@ -138,11 +137,11 @@ Before marking pilot as ready:
 
 ### Tests Fail: Database Connection
 ```bash
-# Ensure PostgreSQL is running
-docker-compose up -d postgres
-
+# Ensure MongoDB is running (local or Atlas)
 # Check connection string in .env
-DATABASE_URL=postgresql://sharkband:sharkband@localhost:5432/sharkband
+DATABASE_URL=mongodb://localhost:27017/Waddy
+# Or for MongoDB Atlas:
+# DATABASE_URL=mongodb+srv://username:password@cluster.mongodb.net/database
 ```
 
 ### Tests Fail: NATS Connection
@@ -229,7 +228,7 @@ This ensures:
 Required for E2E:
 ```bash
 NODE_ENV=test
-DATABASE_URL=postgresql://sharkband:sharkband@localhost:5432/sharkband
+DATABASE_URL=mongodb://localhost:27017/Waddy
 NATS_URL=nats://localhost:4222
 JWT_SECRET=test-secret
 JWT_REFRESH_TOKEN_SECRET=test-refresh-secret
@@ -239,7 +238,7 @@ Required for Simulator:
 ```bash
 NODE_ENV=development
 PILOT_MODE=true
-DATABASE_URL=postgresql://sharkband:sharkband@localhost:5432/sharkband
+DATABASE_URL=mongodb://localhost:27017/Waddy
 NATS_URL=nats://localhost:4222
 API_BASE_URL=http://localhost:3000/api/v1  # Optional, defaults to localhost:3000
 ```

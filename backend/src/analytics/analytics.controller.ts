@@ -19,8 +19,11 @@ export class AnalyticsController {
 
   @Get('dashboard')
   @RequireScope('merchant:*')
-  async getDashboard(@TenantContext() tenantId: string) {
-    return this.analyticsService.getDashboard(tenantId);
+  async getDashboard(
+    @TenantContext() tenantId: string,
+    @Query('locationId') locationId?: string,
+  ) {
+    return this.analyticsService.getDashboard(tenantId, locationId);
   }
 
   @Get('pilot-weekly-report')

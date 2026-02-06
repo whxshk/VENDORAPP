@@ -26,6 +26,7 @@ export class TransactionsController {
     @Query('type') type?: string,
     @Query('customerId') customerId?: string,
     @Query('staffId') staffId?: string,
+    @Query('locationId') locationId?: string,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
@@ -40,6 +41,7 @@ export class TransactionsController {
       type: backendType,
       customerId,
       staffId,
+      locationId,
       startDate: startDate ? new Date(startDate) : undefined,
       endDate: endDate ? new Date(endDate) : undefined,
     });

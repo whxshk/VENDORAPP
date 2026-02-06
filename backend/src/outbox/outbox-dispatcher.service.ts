@@ -1,6 +1,8 @@
 import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../prisma/prisma.service';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { OutboxEvent, OutboxEventDocument, OutboxEventStatus } from '../database/schemas/OutboxEvent.schema';
 import { connect, NatsConnection, JSONCodec } from 'nats';
 
 @Injectable()
@@ -11,7 +13,7 @@ export class OutboxDispatcherService implements OnModuleInit, OnModuleDestroy {
   private readonly jsonCodec = JSONCodec();
 
   constructor(
-    private prisma: PrismaService,
+    @InjectModel(OutboxEvent.name) private outboxModel: Model<OutboxEventDocument>,
     private configService: ConfigService,
   ) {}
 
@@ -54,15 +56,13 @@ export class OutboxDispatcherService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
-    const pendingEvents = await this.prisma.outboxEvent.findMany({
-      where: {
-        status: 'PENDING',
-      },
-      take: batchSize,
-      orderBy: {
-        createdAt: 'asc',
-      },
-    });
+    const pendingEvents = await this.outboxModel
+      .find({
+        status: OutboxEventStatus.PENDING,
+      })
+      .sort({ createdAt: 1 })
+      .limit(batchSize)
+      .exec();
 
     if (pendingEvents.length === 0) {
       return;
@@ -79,39 +79,37 @@ export class OutboxDispatcherService implements OnModuleInit, OnModuleDestroy {
         await this.nc.flush();
 
         // Mark as published
-        await this.prisma.outboxEvent.update({
-          where: { id: event.id },
-          data: {
-            status: 'PUBLISHED',
+        await this.outboxModel.updateOne(
+          { _id: event._id },
+          {
+            status: OutboxEventStatus.PUBLISHED,
             publishedAt: new Date(),
-          },
-        });
+          }
+        ).exec();
 
-        this.logger.debug(`Published event ${event.id} to ${topic}`);
+        this.logger.debug(`Published event ${event._id} to ${topic}`);
       } catch (error) {
-        this.logger.error(`Failed to publish event ${event.id}`, error);
+        this.logger.error(`Failed to publish event ${event._id}`, error);
 
         // Increment retry count
         const retryCount = event.retryCount + 1;
         const maxRetries = this.configService.get<number>('app.outbox.maxRetries') || 3;
 
         if (retryCount >= maxRetries) {
-          await this.prisma.outboxEvent.update({
-            where: { id: event.id },
-            data: {
-              status: 'FAILED',
+          await this.outboxModel.updateOne(
+            { _id: event._id },
+            {
+              status: OutboxEventStatus.FAILED,
               retryCount,
-            },
-          });
+            }
+          ).exec();
 
-          this.logger.warn(`Event ${event.id} marked as FAILED after ${retryCount} retries`);
+          this.logger.warn(`Event ${event._id} marked as FAILED after ${retryCount} retries`);
         } else {
-          await this.prisma.outboxEvent.update({
-            where: { id: event.id },
-            data: {
-              retryCount,
-            },
-          });
+          await this.outboxModel.updateOne(
+            { _id: event._id },
+            { retryCount }
+          ).exec();
         }
       }
     }

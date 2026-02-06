@@ -200,7 +200,16 @@ mockTransactions.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.tim
 
 // Mock Dashboard Summary
 export function getMockDashboardSummary(): DashboardSummary {
-  const activeCustomers = mockCustomers.filter(c => c.status === 'active').length;
+  // Calculate today's customers (distinct customers with transactions today)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todaysTransactions = mockTransactions.filter(t => {
+    const txDate = new Date(t.timestamp);
+    return txDate >= today;
+  });
+  const todaysCustomerIds = new Set(todaysTransactions.map(t => t.customerId));
+  const todaysCustomers = todaysCustomerIds.size;
+
   const repeatCustomers = mockCustomers.filter(c => c.totalVisits > 1).length;
   const totalTransactions = mockTransactions.length;
   const earnTransactions = mockTransactions.filter(t => t.type === 'earn' && t.status === 'completed');
@@ -210,11 +219,11 @@ export function getMockDashboardSummary(): DashboardSummary {
   const redemptionRate = totalEarned > 0 ? Math.round((totalRedeemed / totalEarned) * 100) : 0;
   
   const alerts: Alert[] = [];
-  if (activeCustomers === 0) {
+  if (todaysCustomers === 0) {
     alerts.push({
       id: 'alert-1',
       type: 'warning',
-      message: 'No active customers yet. Start scanning to see activity.',
+      message: 'No customers today yet. Start scanning to see activity.',
       timestamp: new Date(),
     });
   }
@@ -228,7 +237,7 @@ export function getMockDashboardSummary(): DashboardSummary {
   }
   
   return {
-    activeCustomers,
+    todaysCustomers,
     repeatCustomers,
     totalTransactions,
     redemptionRate,
