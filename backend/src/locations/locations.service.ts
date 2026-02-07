@@ -51,16 +51,24 @@ export class LocationsService {
   }
 
   async update(tenantId: string, id: string, dto: UpdateLocationDto) {
-    const location = await this.locationModel.findOneAndUpdate(
-      { _id: id, tenantId },
-      { $set: dto },
-      { new: true }
-    ).exec();
+    const location = await this.locationModel
+      .findOneAndUpdate({ _id: id, tenantId }, { $set: dto }, { new: true })
+      .exec();
 
     if (!location) {
       throw new NotFoundException(`Branch with ID "${id}" not found`);
     }
 
     return location;
+  }
+
+  async delete(tenantId: string, id: string) {
+    const location = await this.locationModel.findOneAndDelete({ _id: id, tenantId }).exec();
+
+    if (!location) {
+      throw new NotFoundException(`Branch with ID "${id}" not found`);
+    }
+
+    return { success: true };
   }
 }

@@ -130,7 +130,7 @@ const customerNames = [
   'Hala Ibrahim', 'Rashid Al-Kuwari', 'Nadia Al-Thani', 'Faisal Mohammed', 'Lina Ali',
 ];
 
-export let mockCustomers: Customer[] = customerNames.map((name, index) => {
+export const mockCustomers: Customer[] = customerNames.map((name, index) => {
   const visits = Math.floor(Math.random() * 20) + 1;
   const points = Math.floor(Math.random() * 1000) + 50;
   const daysAgo = Math.floor(Math.random() * 30);
@@ -152,7 +152,7 @@ export let mockCustomers: Customer[] = customerNames.map((name, index) => {
 
 // Mock Transactions Data
 const transactionTypes: Array<'earn' | 'redeem'> = ['earn', 'redeem'];
-export let mockTransactions: Transaction[] = [];
+export const mockTransactions: Transaction[] = [];
 
 // Generate transactions for the last 30 days
 for (let i = 0; i < 60; i++) {

@@ -46,10 +46,13 @@ export class AnalyticsController {
   }
 
   private getCurrentWeek(): string {
+    // Use ISO week format to match pilot report week calculations
     const now = new Date();
-    const startOfYear = new Date(now.getFullYear(), 0, 1);
-    const pastDaysOfYear = (now.getTime() - startOfYear.getTime()) / 86400000;
-    const weekNum = Math.ceil((pastDaysOfYear + startOfYear.getDay() + 1) / 7);
-    return `${now.getFullYear()}-${weekNum}`;
+    const utcDate = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+    const dayNum = utcDate.getUTCDay() || 7;
+    utcDate.setUTCDate(utcDate.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(utcDate.getUTCFullYear(), 0, 1));
+    const weekNum = Math.ceil((((utcDate.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+    return `${utcDate.getUTCFullYear()}-${weekNum}`;
   }
 }

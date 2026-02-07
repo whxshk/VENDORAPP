@@ -2,9 +2,19 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Customer, CustomerDocument } from '../database/schemas/Customer.schema';
-import { CustomerMerchantAccount, CustomerMerchantAccountDocument } from '../database/schemas/CustomerMerchantAccount.schema';
-import { Transaction, TransactionDocument, TransactionType } from '../database/schemas/Transaction.schema';
-import { LoyaltyLedgerEntry, LoyaltyLedgerEntryDocument } from '../database/schemas/LoyaltyLedgerEntry.schema';
+import {
+  CustomerMerchantAccount,
+  CustomerMerchantAccountDocument,
+} from '../database/schemas/CustomerMerchantAccount.schema';
+import {
+  Transaction,
+  TransactionDocument,
+  TransactionType,
+} from '../database/schemas/Transaction.schema';
+import {
+  LoyaltyLedgerEntry,
+  LoyaltyLedgerEntryDocument,
+} from '../database/schemas/LoyaltyLedgerEntry.schema';
 import { LedgerService } from '../ledger/ledger.service';
 import { buildQrPayload } from '../common/qr-payload';
 import { getCustomerInfoById, getCustomerInfo } from '../common/customer-data';
@@ -13,7 +23,8 @@ import { getCustomerInfoById, getCustomerInfo } from '../common/customer-data';
 export class CustomersService {
   constructor(
     @InjectModel(Customer.name) private customerModel: Model<CustomerDocument>,
-    @InjectModel(CustomerMerchantAccount.name) private accountModel: Model<CustomerMerchantAccountDocument>,
+    @InjectModel(CustomerMerchantAccount.name)
+    private accountModel: Model<CustomerMerchantAccountDocument>,
     @InjectModel(Transaction.name) private transactionModel: Model<TransactionDocument>,
     @InjectModel(LoyaltyLedgerEntry.name) private ledgerModel: Model<LoyaltyLedgerEntryDocument>,
     private ledgerService: LedgerService,
@@ -39,26 +50,33 @@ export class CustomersService {
     };
   }
 
-  async findAll(tenantId: string, params?: { page?: number; limit?: number; search?: string; status?: string }) {
+  async findAll(
+    tenantId: string,
+    params?: { page?: number; limit?: number; search?: string; status?: string },
+  ) {
     const page = params?.page || 1;
     const limit = params?.limit || 20;
     const skip = (page - 1) * limit;
 
     // SINGLE aggregation for all unique customers in tenant (used for shortId assignment)
     // Uses stable sort: createdAt ASC, then _id ASC as tiebreaker for identical timestamps
-    const allUniqueAccounts = await this.accountModel.aggregate([
-      { $match: { tenantId } },
-      { $sort: { createdAt: 1, _id: 1 } }, // Stable sort with _id as tiebreaker
-      { $group: {
-        _id: '$customerId',
-        accountId: { $first: '$_id' },
-        customerId: { $first: '$customerId' },
-        tenantId: { $first: '$tenantId' },
-        membershipStatus: { $first: '$membershipStatus' },
-        createdAt: { $first: '$createdAt' },
-      }},
-      { $sort: { createdAt: 1, _id: 1 } }, // Stable sort after grouping
-    ]).exec();
+    const allUniqueAccounts = await this.accountModel
+      .aggregate([
+        { $match: { tenantId } },
+        { $sort: { createdAt: 1, _id: 1 } }, // Stable sort with _id as tiebreaker
+        {
+          $group: {
+            _id: '$customerId',
+            accountId: { $first: '$_id' },
+            customerId: { $first: '$customerId' },
+            tenantId: { $first: '$tenantId' },
+            membershipStatus: { $first: '$membershipStatus' },
+            createdAt: { $first: '$createdAt' },
+          },
+        },
+        { $sort: { createdAt: 1, _id: 1 } }, // Stable sort after grouping
+      ])
+      .exec();
 
     // Build shortId map from ALL unique customers (sequential 0001, 0002, etc.)
     const shortIdMap = new Map<string, string>();
@@ -69,14 +87,14 @@ export class CustomersService {
 
     // Get all customer IDs for fetching names from transactions
     const customerIdsForSearch = allUniqueAccounts.map((acc: any) => acc.customerId);
-    
+
     // Fetch customer names from transaction metadata (the actual displayed names)
     const allTransactions = await this.transactionModel
       .find({ tenantId, customerId: { $in: customerIdsForSearch } })
       .sort({ createdAt: 1 })
       .select('customerId metadata')
       .exec();
-    
+
     // Build name map from transaction metadata (first transaction's name for each customer)
     const customerNameMap = new Map<string, string>();
     allTransactions.forEach((tx) => {
@@ -100,27 +118,29 @@ export class CustomersService {
 
     // Apply filters (status and search)
     let filteredAccounts = allUniqueAccounts;
-    
+
     // Apply status filter
     if (params?.status) {
       const statusUpper = params.status.toUpperCase();
-      filteredAccounts = filteredAccounts.filter((acc: any) => acc.membershipStatus === statusUpper);
+      filteredAccounts = filteredAccounts.filter(
+        (acc: any) => acc.membershipStatus === statusUpper,
+      );
     }
-    
+
     // Apply search filter - search by name or shortId
     if (params?.search) {
       const searchLower = params.search.toLowerCase().trim();
       filteredAccounts = filteredAccounts.filter((acc: any) => {
         const info = customerInfoForSearch.get(acc.customerId);
         if (!info) return false;
-        
+
         // Match by name (partial match)
         const nameMatch = info.name.toLowerCase().includes(searchLower);
-        
+
         // Match by shortId (exact or partial match, e.g., "0001" or "1")
-        const shortIdMatch = info.shortId.includes(searchLower) || 
-          info.shortId === searchLower.padStart(4, '0');
-        
+        const shortIdMatch =
+          info.shortId.includes(searchLower) || info.shortId === searchLower.padStart(4, '0');
+
         return nameMatch || shortIdMatch;
       });
     }
@@ -137,22 +157,24 @@ export class CustomersService {
       membershipStatus: acc.membershipStatus,
       createdAt: acc.createdAt,
     }));
-    
+
     let total = initialTotal;
 
     // Get balances for all customers - calculate from ledger entries (source of truth)
     const customerIds = accounts.map((acc) => acc.customerId);
-    
+
     // Get transaction counts
-    const transactionCounts = await this.transactionModel.aggregate([
-      { $match: { tenantId, customerId: { $in: customerIds } } },
-      {
-        $group: {
-          _id: '$customerId',
-          count: { $sum: 1 },
+    const transactionCounts = await this.transactionModel
+      .aggregate([
+        { $match: { tenantId, customerId: { $in: customerIds } } },
+        {
+          $group: {
+            _id: '$customerId',
+            count: { $sum: 1 },
+          },
         },
-      },
-    ]).exec();
+      ])
+      .exec();
 
     // Get last transactions
     const lastTransactions = await this.transactionModel
@@ -176,11 +198,9 @@ export class CustomersService {
       customerIds.map(async (customerId) => {
         const balance = await this.ledgerService.getBalance(tenantId, customerId);
         balanceMap.set(customerId, balance);
-      })
+      }),
     );
-    const visitCountMap = new Map(
-      transactionCounts.map((t) => [t._id, t.count]),
-    );
+    const visitCountMap = new Map(transactionCounts.map((t) => [t._id, t.count]));
 
     // Get customer metadata from transactions (stored in first transaction)
     const customerTransactions = await this.transactionModel
@@ -206,10 +226,8 @@ export class CustomersService {
 
     // Get customers for ALL accounts (for customer info lookup)
     const allCustomerIds = allUniqueAccounts.map((acc: any) => acc.customerId);
-    const allCustomers = await this.customerModel
-      .find({ _id: { $in: allCustomerIds } })
-      .exec();
-    const customerMap = new Map(allCustomers.map(c => [c._id, c]));
+    const allCustomers = await this.customerModel.find({ _id: { $in: allCustomerIds } }).exec();
+    const customerMap = new Map(allCustomers.map((c) => [c._id, c]));
 
     // Create mapping by global index for customer names (based on shortId order)
     const customerInfoByOrder = new Map<string, { name: string; email?: string; phone?: string }>();
@@ -223,11 +241,11 @@ export class CustomersService {
     });
 
     // Get customers for current accounts
-    const currentCustomerIds = accounts.map(acc => acc.customerId);
+    const currentCustomerIds = accounts.map((acc) => acc.customerId);
     const currentCustomers = await this.customerModel
       .find({ _id: { $in: currentCustomerIds } })
       .exec();
-    const currentCustomerMap = new Map(currentCustomers.map(c => [c._id, c]));
+    const currentCustomerMap = new Map(currentCustomers.map((c) => [c._id, c]));
 
     // Transform to frontend format with shortId
     let customers = accounts.map((account) => {
@@ -259,19 +277,17 @@ export class CustomersService {
     if (params?.search) {
       const searchLower = params.search.toLowerCase();
       const searchNum = params.search.trim();
-      customers = customers.filter(
-        (c) => {
-          return (
-            c.name.toLowerCase().includes(searchLower) ||
-            c.email?.toLowerCase().includes(searchLower) ||
-            c.phone?.toLowerCase().includes(searchLower) ||
-            c.qrCode.toLowerCase().includes(searchLower) ||
-            c.id.toLowerCase().includes(searchLower) ||
-            c.shortId.includes(searchNum) ||
-            searchNum === c.shortId
-          );
-        }
-      );
+      customers = customers.filter((c) => {
+        return (
+          c.name.toLowerCase().includes(searchLower) ||
+          c.email?.toLowerCase().includes(searchLower) ||
+          c.phone?.toLowerCase().includes(searchLower) ||
+          c.qrCode.toLowerCase().includes(searchLower) ||
+          c.id.toLowerCase().includes(searchLower) ||
+          c.shortId.includes(searchNum) ||
+          searchNum === c.shortId
+        );
+      });
       // Update total to reflect filtered results
       total = customers.length;
     }
@@ -284,17 +300,21 @@ export class CustomersService {
 
   async findOne(tenantId: string, customerId: string) {
     // Use aggregation with stable sort for consistent shortId resolution
-    const allUniqueAccounts = await this.accountModel.aggregate([
-      { $match: { tenantId } },
-      { $sort: { createdAt: 1, _id: 1 } },
-      { $group: {
-        _id: '$customerId',
-        accountId: { $first: '$_id' },
-        customerId: { $first: '$customerId' },
-        createdAt: { $first: '$createdAt' },
-      }},
-      { $sort: { createdAt: 1, _id: 1 } },
-    ]).exec();
+    const allUniqueAccounts = await this.accountModel
+      .aggregate([
+        { $match: { tenantId } },
+        { $sort: { createdAt: 1, _id: 1 } },
+        {
+          $group: {
+            _id: '$customerId',
+            accountId: { $first: '$_id' },
+            customerId: { $first: '$customerId' },
+            createdAt: { $first: '$createdAt' },
+          },
+        },
+        { $sort: { createdAt: 1, _id: 1 } },
+      ])
+      .exec();
 
     // Check if customerId is a short ID (4 digits)
     let actualCustomerId = customerId;
@@ -358,17 +378,13 @@ export class CustomersService {
       const nextDate = new Date(date);
       nextDate.setDate(nextDate.getDate() + 1);
 
-      const dayEntries = ledgerEntries.filter(
-        (entry) => {
-          const createdAt = (entry as any).createdAt;
-          return createdAt && createdAt >= date && createdAt < nextDate;
-        },
-      );
+      const dayEntries = ledgerEntries.filter((entry) => {
+        const createdAt = (entry as any).createdAt;
+        return createdAt && createdAt >= date && createdAt < nextDate;
+      });
 
       const dayBalance =
-        dayEntries.length > 0
-          ? Number(dayEntries[dayEntries.length - 1].balanceAfter)
-          : balance;
+        dayEntries.length > 0 ? Number(dayEntries[dayEntries.length - 1].balanceAfter) : balance;
 
       pointsHistory.push({
         date: date.toISOString(),
@@ -394,7 +410,9 @@ export class CustomersService {
     }
 
     // Get short ID from the already-fetched aggregation
-    const shortIdIndex = allUniqueAccounts.findIndex((acc: any) => acc.customerId === actualCustomerId);
+    const shortIdIndex = allUniqueAccounts.findIndex(
+      (acc: any) => acc.customerId === actualCustomerId,
+    );
     const shortId = shortIdIndex >= 0 ? String(shortIdIndex + 1).padStart(4, '0') : '0000';
 
     return {
@@ -406,20 +424,34 @@ export class CustomersService {
       qrCode: customer._id,
       pointsBalance: balance,
       totalVisits: transactions.length,
-      lastVisit: (transactions[0] as any)?.createdAt || (customer as any).updatedAt || (customer as any).createdAt || new Date(),
+      lastVisit:
+        (transactions[0] as any)?.createdAt ||
+        (customer as any).updatedAt ||
+        (customer as any).createdAt ||
+        new Date(),
       status: account.membershipStatus === 'ACTIVE' ? 'active' : 'inactive',
       createdAt: (customer as any).createdAt || new Date(),
       tenantId: account.tenantId,
       pointsHistory,
       transactions: transactions.map((tx) => {
         const txMeta = tx.metadata as any;
+        const numericPoints = Math.abs(Number(tx.amount));
+        const parsedPurchaseAmount =
+          txMeta?.purchaseAmount === undefined || txMeta?.purchaseAmount === null
+            ? undefined
+            : Number(txMeta.purchaseAmount);
+        const issueAmount =
+          parsedPurchaseAmount !== undefined && Number.isFinite(parsedPurchaseAmount)
+            ? parsedPurchaseAmount
+            : numericPoints;
+
         return {
           id: tx._id,
           customerId: tx.customerId,
           customerName: txMeta?.customerName || customerInfo.name,
           type: tx.type === TransactionType.ISSUE ? 'earn' : 'redeem',
-          points: tx.type === TransactionType.ISSUE ? Number(tx.amount) : -Number(tx.amount),
-          amount: tx.type === TransactionType.ISSUE ? Number(tx.amount) : undefined,
+          points: tx.type === TransactionType.ISSUE ? numericPoints : -numericPoints,
+          amount: tx.type === TransactionType.ISSUE ? issueAmount : undefined,
           staffId: '',
           staffName: 'System',
           timestamp: (tx as any).createdAt || new Date(),

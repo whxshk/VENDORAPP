@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '../../components/ui/dialog';
+import { ConfirmDialog } from '../../components/ui/confirm-dialog';
 import { Badge } from '../../components/ui/badge';
 import { Gift, Plus, Edit, Trash2, Sparkles } from 'lucide-react';
 import { toNumber } from '../../lib/utils';
@@ -24,6 +25,7 @@ type RewardFormData = z.infer<typeof rewardSchema>;
 export default function RewardsPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingReward, setEditingReward] = useState<Reward | null>(null);
+  const [rewardToDelete, setRewardToDelete] = useState<Reward | null>(null);
   const { addError } = useErrorHandlerContext();
 
   const { data: rewards, isLoading } = useRewards();
@@ -97,36 +99,39 @@ export default function RewardsPage() {
   };
 
   const handleDelete = (id: string) => {
-    if (confirm('Are you sure you want to delete this reward?')) {
-      deleteReward.mutate(id, {
-        onSuccess: () => {
-          // Success is handled by query invalidation in the hook
-        },
-        onError: (error: any) => {
-          const errorMessage = error?.response?.data?.error?.message 
-            || error?.response?.data?.message 
-            || error?.message 
-            || 'Failed to delete reward';
-          
-          // Provide user-friendly error messages
-          let friendlyMessage: string;
-          if (errorMessage.includes('redeemed') || errorMessage.includes('redemption')) {
-            friendlyMessage = 'This reward cannot be deleted because customers have already redeemed it. Please deactivate it instead, or contact the affected customers to offer compensation.';
-          } else if (errorMessage.includes('not found') || errorMessage.includes('404')) {
-            friendlyMessage = 'This reward no longer exists. The page will refresh to show current rewards.';
-            setTimeout(() => window.location.reload(), 2000);
-          } else if (errorMessage.includes('permission') || errorMessage.includes('403')) {
-            friendlyMessage = 'You do not have permission to delete rewards. Please contact your administrator.';
-          } else if (errorMessage.includes('network') || errorMessage.includes('connection')) {
-            friendlyMessage = 'Unable to connect to the server. Please check your internet connection and try again.';
-          } else {
-            friendlyMessage = `Unable to delete reward: ${errorMessage}`;
-          }
-          
-          addError(new Error(friendlyMessage), 'Reward Deletion Error');
-        },
-      });
-    }
+    const reward = rewards?.find((r) => r.id === id) || null;
+    setRewardToDelete(reward);
+  };
+
+  const confirmDeleteReward = () => {
+    if (!rewardToDelete) return;
+
+    deleteReward.mutate(rewardToDelete.id, {
+      onSuccess: () => {
+        setRewardToDelete(null);
+      },
+      onError: (error: any) => {
+        const errorMessage = error?.response?.data?.error?.message
+          || error?.response?.data?.message
+          || error?.message
+          || 'Failed to delete reward';
+
+        let friendlyMessage: string;
+        if (errorMessage.includes('redeemed') || errorMessage.includes('redemption')) {
+          friendlyMessage = 'This reward cannot be deleted because customers have already redeemed it. Please deactivate it instead.';
+        } else if (errorMessage.includes('not found') || errorMessage.includes('404')) {
+          friendlyMessage = 'This reward no longer exists. Please refresh the page.';
+        } else if (errorMessage.includes('permission') || errorMessage.includes('403')) {
+          friendlyMessage = 'You do not have permission to delete rewards. Please contact your administrator.';
+        } else if (errorMessage.includes('network') || errorMessage.includes('connection')) {
+          friendlyMessage = 'Unable to connect to the server. Please check your internet connection and try again.';
+        } else {
+          friendlyMessage = `Unable to delete reward: ${errorMessage}`;
+        }
+
+        addError(new Error(friendlyMessage), 'Reward Deletion Error');
+      },
+    });
   };
 
   if (isLoading) {
@@ -337,6 +342,22 @@ export default function RewardsPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!rewardToDelete}
+        title="Delete Reward"
+        description={
+          rewardToDelete
+            ? `Delete "${rewardToDelete.name}"? This action cannot be undone and may affect future redemptions.`
+            : ''
+        }
+        confirmLabel="Delete Reward"
+        cancelLabel="Keep Reward"
+        tone="danger"
+        isLoading={deleteReward.isPending}
+        onCancel={() => setRewardToDelete(null)}
+        onConfirm={confirmDeleteReward}
+      />
     </div>
   );
 }

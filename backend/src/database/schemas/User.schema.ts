@@ -17,6 +17,9 @@ export class User {
   @Prop({ required: true, type: String })
   email!: string;
 
+  @Prop({ type: String })
+  name?: string;
+
   @Prop({ required: true, type: String })
   hashedPassword!: string;
 

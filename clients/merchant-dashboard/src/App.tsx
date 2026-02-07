@@ -12,6 +12,8 @@ import RewardsPage from './pages/dashboard/RewardsPage';
 import StaffPage from './pages/dashboard/StaffPage';
 import SettingsPage from './pages/dashboard/SettingsPage';
 import PilotReportPage from './pages/PilotReport';
+import AcceptInvitePage from './pages/AcceptInvite';
+import InviteWelcomePage from './pages/InviteWelcome';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, accessToken } = useAuthStore();
@@ -49,6 +51,8 @@ function App() {
             </PublicRoute>
           }
         />
+        <Route path="/invite/:inviteToken" element={<AcceptInvitePage />} />
+        <Route path="/invite/welcome" element={<InviteWelcomePage />} />
         <Route
           path="/dashboard"
           element={

@@ -35,6 +35,7 @@ export default function TransactionsPage() {
 
   const { data: merchant } = useMerchantSettings();
   const locations = merchant?.branches || [];
+  const totalTransactions = toNumber(transactionsData?.total);
 
   const columns: ColumnDef<Transaction>[] = [
     {
@@ -93,7 +94,7 @@ export default function TransactionsPage() {
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     manualPagination: true,
-    pageCount: transactionsData ? Math.ceil(transactionsData.total / 20) : 0,
+    pageCount: transactionsData ? Math.ceil(totalTransactions / 20) : 0,
   });
 
   const handleExportCSV = () => {
@@ -271,7 +272,7 @@ export default function TransactionsPage() {
               </div>
               <div className="flex items-center justify-between mt-6 pt-4 border-t border-white/10">
                 <div className="text-sm text-slate-400">
-                  Showing {((page - 1) * 20) + 1} to {Math.min(page * 20, transactionsData?.total || 0)} of {transactionsData?.total || 0} transactions
+                  Showing {((page - 1) * 20) + 1} to {Math.min(page * 20, totalTransactions)} of {totalTransactions} transactions
                 </div>
                 <div className="flex gap-2">
                   <Button
@@ -286,7 +287,7 @@ export default function TransactionsPage() {
                     variant="outline"
                     size="sm"
                     onClick={() => setPage(p => p + 1)}
-                    disabled={!transactionsData || page * 20 >= transactionsData.total}
+                    disabled={!transactionsData || page * 20 >= totalTransactions}
                   >
                     Next
                   </Button>

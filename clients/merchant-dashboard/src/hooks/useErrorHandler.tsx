@@ -61,7 +61,7 @@ function determineErrorType(error: Error | AppError, statusCode?: number): AppEr
   }
   
   if (statusCode) {
-    if (statusCode >= 500) return 'Network';
+    if (statusCode >= 500) return 'API';
     if (statusCode >= 400) return 'API';
   }
   
@@ -118,6 +118,15 @@ export function ErrorHandlerProvider({ children }: { children: ReactNode }) {
     };
 
     setErrors((prev) => {
+      const duplicate = prev.find(
+        (existing) =>
+          existing.userMessage === appError.userMessage &&
+          (existing.context || '') === (appError.context || '') &&
+          Date.now() - existing.timestamp.getTime() < 5000,
+      );
+      if (duplicate) {
+        return prev;
+      }
       const updated = [appError, ...prev].slice(0, MAX_ERRORS);
       // Store in localStorage
       try {

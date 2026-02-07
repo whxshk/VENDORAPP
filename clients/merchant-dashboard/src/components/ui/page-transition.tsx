@@ -21,10 +21,10 @@ export function PageTransition({ children, className }: PageTransitionProps) {
   return (
     <div
       className={cn(
-        'transition-all duration-300 ease-out',
+        'transition-all duration-[400ms] ease-out',
         isVisible 
-          ? 'opacity-100 translate-y-0' 
-          : 'opacity-0 translate-y-2',
+          ? 'opacity-100 translate-y-0 blur-0' 
+          : 'opacity-0 translate-y-2 blur-[1px]',
         className
       )}
     >

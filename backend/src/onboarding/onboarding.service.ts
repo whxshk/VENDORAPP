@@ -1,8 +1,9 @@
-import { Injectable, ConflictException } from '@nestjs/common';
+import { Injectable, BadRequestException, ConflictException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
+import * as nodemailer from 'nodemailer';
 import { Tenant, TenantDocument } from '../database/schemas/Tenant.schema';
 import { Location, LocationDocument } from '../database/schemas/Location.schema';
 import { User, UserDocument } from '../database/schemas/User.schema';
@@ -20,7 +21,8 @@ export interface MerchantSignupDto {
 
 export interface StaffInviteDto {
   email: string;
-  scopes: string[];
+  role?: 'owner' | 'manager' | 'cashier' | 'staff' | 'janitor';
+  scopes?: string[];
 }
 
 @Injectable()
@@ -33,6 +35,98 @@ export class OnboardingService {
     private auditService: AuditService,
     private pilotMetricsService: PilotMetricsService,
   ) {}
+
+  private async findInviteByToken(inviteToken: string) {
+    const tenants = await this.tenantModel.find({}).exec();
+
+    for (const tenant of tenants) {
+      const invites = ((tenant.config as any)?.pendingInvites || []) as any[];
+      const invite = invites.find((inv: any) => inv.token === inviteToken);
+      if (!invite) {
+        continue;
+      }
+
+      if (new Date(invite.expiresAt) <= new Date()) {
+        return { tenant, invite: null };
+      }
+
+      return { tenant, invite };
+    }
+
+    return { tenant: null, invite: null };
+  }
+
+  private mapInviteRole(role?: 'owner' | 'manager' | 'cashier' | 'staff' | 'janitor') {
+    const normalizedRole = role || 'staff';
+    if (normalizedRole === 'owner') {
+      return { role: 'MERCHANT_ADMIN', scopes: ['merchant:*'] };
+    }
+    if (normalizedRole === 'manager') {
+      return { role: 'MANAGER', scopes: ['merchant:read', 'scan:*'] };
+    }
+    if (normalizedRole === 'cashier') {
+      return { role: 'CASHIER', scopes: ['scan:*'] };
+    }
+    if (normalizedRole === 'janitor') {
+      return { role: 'JANITOR', scopes: ['scan:*'] };
+    }
+    return { role: 'STAFF', scopes: ['scan:*'] };
+  }
+
+  private async sendStaffInviteEmail(
+    recipientEmail: string,
+    inviteLink: string,
+    role: string,
+    tenantName: string,
+  ): Promise<void> {
+    const smtpHost = process.env.SMTP_HOST;
+    const smtpPort = Number(process.env.SMTP_PORT || '587');
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPass = process.env.SMTP_PASS;
+    const smtpFrom = process.env.SMTP_FROM || smtpUser;
+
+    if (!smtpHost || !smtpUser || !smtpPass || !smtpFrom) {
+      throw new BadRequestException(
+        'Email delivery is not configured. Please set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS and SMTP_FROM.',
+      );
+    }
+
+    const transporter = nodemailer.createTransport({
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpPort === 465,
+      auth: {
+        user: smtpUser,
+        pass: smtpPass,
+      },
+    });
+
+    await transporter.sendMail({
+      from: smtpFrom,
+      to: recipientEmail,
+      subject: `You are invited to join ${tenantName} on SharkBand`,
+      html: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111;">
+          <h2>You're invited to SharkBand</h2>
+          <p>You were invited as <strong>${role}</strong> for <strong>${tenantName}</strong>.</p>
+          <p>Click below to accept your invite and finish onboarding:</p>
+          <p>
+            <a href="${inviteLink}" style="display:inline-block;padding:10px 16px;background:#2563eb;color:#fff;text-decoration:none;border-radius:6px;">
+              Accept Invite
+            </a>
+          </p>
+          <p>If the button does not work, use this link:</p>
+          <p><a href="${inviteLink}">${inviteLink}</a></p>
+          <p>This invite expires in 7 days.</p>
+        </div>
+      `,
+      text: [
+        `You were invited as ${role} for ${tenantName}.`,
+        `Accept your invite: ${inviteLink}`,
+        'This invite expires in 7 days.',
+      ].join('\n'),
+    });
+  }
 
   async createMerchant(signupDto: MerchantSignupDto, userId?: string) {
     // Check if email already exists
@@ -66,6 +160,7 @@ export class OnboardingService {
     const adminUser = new this.userModel({
       _id: uuidv4(),
       tenantId: tenant._id,
+      name: `${signupDto.merchantName} Admin`,
       email: signupDto.adminEmail,
       hashedPassword,
       roles: ['MERCHANT_ADMIN'],
@@ -116,25 +211,30 @@ export class OnboardingService {
       throw new ConflictException('Tenant not found');
     }
 
+    const roleConfig = this.mapInviteRole(inviteDto.role);
+    const scopes = inviteDto.scopes?.length ? inviteDto.scopes : roleConfig.scopes;
     const invites = ((tenant.config as any)?.pendingInvites || []) as any[];
+    const inviteLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/invite/${inviteToken}`;
     invites.push({
       email: inviteDto.email,
-      scopes: inviteDto.scopes || ['scan:*'],
+      role: roleConfig.role,
+      scopes,
       token: inviteToken,
       invitedBy: inviterUserId,
       createdAt: new Date().toISOString(),
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
     });
 
-    await this.tenantModel.updateOne(
-      { _id: tenantId },
-      {
-        config: {
-          ...(tenant.config as any || {}),
-          pendingInvites: invites,
+    await this.tenantModel
+      .updateOne(
+        { _id: tenantId },
+        {
+          $set: {
+            'config.pendingInvites': invites,
+          },
         },
-      }
-    ).exec();
+      )
+      .exec();
 
     // Audit log
     await this.auditService.log(
@@ -143,7 +243,7 @@ export class OnboardingService {
       'STAFF_INVITED',
       'user',
       inviteDto.email,
-      { email: inviteDto.email, scopes: inviteDto.scopes },
+      { email: inviteDto.email, role: roleConfig.role, scopes },
     );
 
     // Track onboarding milestone (first staff invite only)
@@ -152,32 +252,43 @@ export class OnboardingService {
       await this.pilotMetricsService.trackOnboardingMilestone(tenantId, 'first_staff');
     }
 
+    await this.sendStaffInviteEmail(inviteDto.email, inviteLink, roleConfig.role, tenant.name);
+
     return {
       inviteToken,
       email: inviteDto.email,
-      inviteLink: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/invite/${inviteToken}`,
+      role: roleConfig.role,
+      inviteLink,
+      emailSent: true,
     };
   }
 
-  async acceptInvite(inviteToken: string, password: string) {
-    // Find tenant with this invite
-    const tenants = await this.tenantModel.find({}).exec();
-    
-    let invite: any = null;
-    let tenantId: string | null = null;
-
-    for (const tenant of tenants) {
-      const invites = ((tenant.config as any)?.pendingInvites || []) as any[];
-      invite = invites.find((inv: any) => inv.token === inviteToken && new Date(inv.expiresAt) > new Date());
-      if (invite) {
-        tenantId = tenant._id;
-        break;
-      }
-    }
-
-    if (!invite || !tenantId) {
+  async getInviteDetails(inviteToken: string) {
+    const { tenant, invite } = await this.findInviteByToken(inviteToken);
+    if (!tenant || !invite) {
       throw new ConflictException('Invalid or expired invite token');
     }
+
+    return {
+      email: invite.email,
+      role: invite.role || 'STAFF',
+      tenantName: tenant.name,
+      expiresAt: invite.expiresAt,
+    };
+  }
+
+  async acceptInvite(inviteToken: string, name: string, password?: string) {
+    const cleanName = (name || '').trim();
+    if (!cleanName) {
+      throw new BadRequestException('Name is required');
+    }
+
+    const { tenant, invite } = await this.findInviteByToken(inviteToken);
+    if (!tenant || !invite) {
+      throw new ConflictException('Invalid or expired invite token');
+    }
+
+    const tenantId = tenant._id;
 
     // Check if user already exists
     const existingUser = await this.userModel.findOne({
@@ -190,39 +301,43 @@ export class OnboardingService {
     }
 
     // Create user
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const finalPassword = password?.trim() || uuidv4();
+    const hashedPassword = await bcrypt.hash(finalPassword, 10);
     const user = new this.userModel({
       _id: uuidv4(),
       tenantId,
+      name: cleanName,
       email: invite.email,
       hashedPassword,
-      roles: ['STAFF'],
+      roles: [invite.role || 'STAFF'],
       scopes: invite.scopes || ['scan:*'],
       isActive: true,
     });
     await user.save();
 
     // Remove invite from tenant config
-    const tenant = await this.tenantModel.findOne({ _id: tenantId }).exec();
     if (tenant) {
       const invites = ((tenant.config as any)?.pendingInvites || []) as any[];
       const updatedInvites = invites.filter((inv: any) => inv.token !== inviteToken);
 
-      await this.tenantModel.updateOne(
-        { _id: tenantId },
-        {
-          config: {
-            ...(tenant.config as any || {}),
-            pendingInvites: updatedInvites,
+      await this.tenantModel
+        .updateOne(
+          { _id: tenantId },
+          {
+            $set: {
+              'config.pendingInvites': updatedInvites,
+            },
           },
-        }
-      ).exec();
+        )
+        .exec();
     }
 
     return {
       userId: user._id,
+      name: user.name,
       email: user.email,
       tenantId: user.tenantId,
+      role: invite.role || 'STAFF',
     };
   }
 }

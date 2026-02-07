@@ -99,21 +99,23 @@ export class PilotMetricsService {
       await this.dailyMetricModel.findOneAndUpdate(
         { tenantId, ...(locationIdValue !== undefined ? { locationId: locationIdValue } : { locationId: { $exists: false } }), metricDate: dateOnly },
         {
-          _id: uuidv4(),
-          tenantId,
-          locationId: locationIdValue,
-          metricDate: dateOnly,
-          activeCustomers: updates.activeCustomers || 0,
-          repeatCustomers: updates.repeatCustomers || 0,
-          transactionsIssue: updates.transactionsIssue || 0,
-          transactionsRedeem: updates.transactionsRedeem || 0,
-          transactionsAdjust: updates.transactionsAdjust || 0,
-          transactionsReverse: updates.transactionsReverse || 0,
-          transactionsTotal,
-          scanErrorsExpiredQr: updates.scanErrorsExpiredQr || 0,
-          scanErrorsInsufficientBalance: updates.scanErrorsInsufficientBalance || 0,
-          scanErrorsUnauthorizedDevice: updates.scanErrorsUnauthorizedDevice || 0,
-          scanErrorsTotal,
+          $setOnInsert: {
+            _id: uuidv4(),
+            tenantId,
+            locationId: locationIdValue,
+            metricDate: dateOnly,
+            activeCustomers: updates.activeCustomers || 0,
+            repeatCustomers: updates.repeatCustomers || 0,
+            transactionsIssue: updates.transactionsIssue || 0,
+            transactionsRedeem: updates.transactionsRedeem || 0,
+            transactionsAdjust: updates.transactionsAdjust || 0,
+            transactionsReverse: updates.transactionsReverse || 0,
+            transactionsTotal,
+            scanErrorsExpiredQr: updates.scanErrorsExpiredQr || 0,
+            scanErrorsInsufficientBalance: updates.scanErrorsInsufficientBalance || 0,
+            scanErrorsUnauthorizedDevice: updates.scanErrorsUnauthorizedDevice || 0,
+            scanErrorsTotal,
+          },
         },
         { upsert: true, new: true }
       ).exec();
@@ -142,12 +144,14 @@ export class PilotMetricsService {
       await this.customerActivityModel.findOneAndUpdate(
         { tenantId, customerId },
         {
-          _id: uuidv4(),
-          tenantId,
-          customerId,
-          firstTransactionAt: transactionDate,
-          lastTransactionAt: transactionDate,
-          transactionCount: 1,
+          $setOnInsert: {
+            _id: uuidv4(),
+            tenantId,
+            customerId,
+            firstTransactionAt: transactionDate,
+            lastTransactionAt: transactionDate,
+            transactionCount: 1,
+          },
         },
         { upsert: true, new: true }
       ).exec();
@@ -175,11 +179,13 @@ export class PilotMetricsService {
       await this.rewardUsageModel.findOneAndUpdate(
         { tenantId, rewardId, metricDate: dateOnly },
         {
-          _id: uuidv4(),
-          tenantId,
-          rewardId,
-          metricDate: dateOnly,
-          redemptionCount: 1,
+          $setOnInsert: {
+            _id: uuidv4(),
+            tenantId,
+            rewardId,
+            metricDate: dateOnly,
+            redemptionCount: 1,
+          },
         },
         { upsert: true, new: true }
       ).exec();
@@ -217,9 +223,11 @@ export class PilotMetricsService {
     const funnel = await this.onboardingFunnelModel.findOneAndUpdate(
       { tenantId },
       {
-        _id: uuidv4(),
-        tenantId,
-        ...updateData,
+        $setOnInsert: {
+          _id: uuidv4(),
+          tenantId,
+        },
+        $set: updateData,
       },
       { upsert: true, new: true }
     ).exec();

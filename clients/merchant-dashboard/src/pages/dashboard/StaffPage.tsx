@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useStaff, useInviteStaff, useCreateStaff } from '../../hooks/useStaff';
+import { useStaff, useInviteStaff, useCreateStaff, useUpdateStaff } from '../../hooks/useStaff';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -9,34 +9,42 @@ import { Input } from '../../components/ui/input';
 import { Select } from '../../components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '../../components/ui/dialog';
 import { Badge } from '../../components/ui/badge';
-import { UserCog, Plus, Mail, UserPlus } from 'lucide-react';
+import { UserCog, Plus, Mail, UserPlus, Pencil } from 'lucide-react';
 import { useErrorHandlerContext } from '../../hooks/useErrorHandler';
-import { formatDate } from '../../lib/utils';
 
 const inviteSchema = z.object({
   email: z.string().email('Invalid email address'),
-  role: z.enum(['owner', 'manager', 'cashier']),
+  role: z.enum(['owner', 'manager', 'cashier', 'staff', 'janitor']),
 });
 
 const createStaffSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   email: z.string().email('Invalid email address'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
-  role: z.enum(['MERCHANT_ADMIN', 'MANAGER', 'CASHIER', 'STAFF']),
+  role: z.enum(['MERCHANT_ADMIN', 'MANAGER', 'CASHIER', 'STAFF', 'JANITOR']),
   locationId: z.string().optional(),
 });
 
 type InviteFormData = z.infer<typeof inviteSchema>;
 type CreateStaffFormData = z.infer<typeof createStaffSchema>;
+type EditStaffFormData = {
+  name: string;
+  email: string;
+  role: 'owner' | 'manager' | 'cashier' | 'staff' | 'janitor';
+  password?: string;
+};
 
 export default function StaffPage() {
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingStaffId, setEditingStaffId] = useState<string | null>(null);
   const { addError } = useErrorHandlerContext();
 
   const { data: staff, isLoading } = useStaff();
   const inviteStaff = useInviteStaff();
   const createStaff = useCreateStaff();
+  const updateStaff = useUpdateStaff();
 
   const {
     register,
@@ -46,7 +54,7 @@ export default function StaffPage() {
   } = useForm<InviteFormData>({
     resolver: zodResolver(inviteSchema),
     defaultValues: {
-      role: 'cashier',
+      role: 'staff',
     },
   });
 
@@ -62,6 +70,18 @@ export default function StaffPage() {
     },
   });
 
+  const {
+    register: registerEdit,
+    handleSubmit: handleSubmitEdit,
+    formState: { errors: editErrors },
+    reset: resetEdit,
+  } = useForm<EditStaffFormData>({
+    defaultValues: {
+      role: 'staff',
+      password: '',
+    },
+  });
+
   const onSubmit = (data: InviteFormData) => {
     inviteStaff.mutate(data, {
       onSuccess: () => {
@@ -69,7 +89,8 @@ export default function StaffPage() {
         reset();
       },
       onError: (error: any) => {
-        const errorMessage = error?.response?.data?.error?.message 
+        const errorMessage = error?.response?.data?.error?.originalMessage
+          || error?.response?.data?.error?.message 
           || error?.response?.data?.message 
           || error?.message 
           || 'Failed to invite staff';
@@ -77,6 +98,8 @@ export default function StaffPage() {
         let friendlyMessage: string;
         if (errorMessage.includes('already exists') || errorMessage.includes('duplicate')) {
           friendlyMessage = `A staff member with email ${data.email} already exists. Please use a different email address.`;
+        } else if (errorMessage.includes('Email delivery is not configured')) {
+          friendlyMessage = 'Invitation was blocked because email delivery is not configured on backend. Add SMTP settings in backend .env first.';
         } else if (errorMessage.includes('invalid email') || errorMessage.includes('validation')) {
           friendlyMessage = 'Please enter a valid email address (e.g., staff@example.com).';
         } else if (errorMessage.includes('permission') || errorMessage.includes('403')) {
@@ -99,7 +122,8 @@ export default function StaffPage() {
         resetCreate();
       },
       onError: (error: any) => {
-        const errorMessage = error?.response?.data?.error?.message 
+        const errorMessage = error?.response?.data?.error?.originalMessage
+          || error?.response?.data?.error?.message 
           || error?.response?.data?.message 
           || error?.message 
           || 'Failed to create staff';
@@ -124,14 +148,48 @@ export default function StaffPage() {
     });
   };
 
+  const onSubmitEdit = (data: EditStaffFormData) => {
+    if (!editingStaffId) return;
+
+    updateStaff.mutate(
+      {
+        id: editingStaffId,
+        name: data.name,
+        email: data.email,
+        role: data.role,
+        password: data.password?.trim() ? data.password : undefined,
+      },
+      {
+        onSuccess: () => {
+          setIsEditOpen(false);
+          setEditingStaffId(null);
+          resetEdit();
+        },
+        onError: (error: any) => {
+          const errorMessage = error?.response?.data?.error?.originalMessage
+            || error?.response?.data?.error?.message
+            || error?.response?.data?.message
+            || error?.message
+            || 'Failed to update staff member';
+
+          addError(new Error(`Unable to update staff member: ${errorMessage}`), 'Staff Update Error');
+        },
+      },
+    );
+  };
+
   const getRoleBadgeVariant = (role: string) => {
     switch (role) {
       case 'owner':
         return 'default';
       case 'manager':
         return 'secondary';
-      default:
+      case 'cashier':
         return 'outline';
+      case 'janitor':
+        return 'outline';
+      default:
+        return 'warning';
     }
   };
 
@@ -185,11 +243,12 @@ export default function StaffPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-white/10">
-                    <th className="text-left py-4 px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider">Name</th>
+                    <th className="text-left py-4 px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider">Username</th>
                     <th className="text-left py-4 px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider">Email</th>
+                    <th className="text-left py-4 px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider">Password</th>
                     <th className="text-left py-4 px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider">Role</th>
                     <th className="text-left py-4 px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</th>
-                    <th className="text-left py-4 px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider">Last Active</th>
+                    <th className="text-left py-4 px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
@@ -197,6 +256,7 @@ export default function StaffPage() {
                     <tr key={member.id} className="hover:bg-white/5 transition-colors duration-150">
                       <td className="py-4 px-6 text-sm font-semibold text-white">{member.name}</td>
                       <td className="py-4 px-6 text-sm text-slate-400">{member.email}</td>
+                      <td className="py-4 px-6 text-sm text-slate-500">Not viewable (secure)</td>
                       <td className="py-4 px-6">
                         <Badge variant={getRoleBadgeVariant(member.role)}>
                           {member.role.charAt(0).toUpperCase() + member.role.slice(1)}
@@ -207,8 +267,24 @@ export default function StaffPage() {
                           {member.status.charAt(0).toUpperCase() + member.status.slice(1)}
                         </Badge>
                       </td>
-                      <td className="py-4 px-6 text-sm text-slate-400">
-                        {member.lastActive ? formatDate(member.lastActive) : 'Never'}
+                      <td className="py-4 px-6">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setEditingStaffId(member.id);
+                            setIsEditOpen(true);
+                            resetEdit({
+                              name: member.name,
+                              email: member.email,
+                              role: member.role,
+                              password: '',
+                            });
+                          }}
+                        >
+                          <Pencil className="h-4 w-4 mr-2" />
+                          Edit
+                        </Button>
                       </td>
                     </tr>
                   ))}
@@ -244,8 +320,10 @@ export default function StaffPage() {
               <label className="text-sm font-semibold text-white mb-2 block">Role</label>
               <Select {...register('role')}>
                 <option value="cashier">Cashier</option>
+                <option value="janitor">Janitor</option>
                 <option value="manager">Manager</option>
                 <option value="owner">Owner</option>
+                <option value="staff">Staff</option>
               </Select>
               {errors.role && <p className="text-sm text-red-400 mt-1">{errors.role.message}</p>}
             </div>
@@ -324,6 +402,7 @@ export default function StaffPage() {
                 <option value="MERCHANT_ADMIN">Merchant Admin</option>
                 <option value="MANAGER">Manager</option>
                 <option value="CASHIER">Cashier</option>
+                <option value="JANITOR">Janitor</option>
                 <option value="STAFF">Staff</option>
               </Select>
               {createErrors.role && <p className="text-sm text-red-400 mt-1">{createErrors.role.message}</p>}
@@ -343,6 +422,82 @@ export default function StaffPage() {
               <Button type="submit" disabled={createStaff.isPending}>
                 <UserPlus className="h-4 w-4 mr-2" />
                 Create Staff
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Staff Dialog */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Staff Member</DialogTitle>
+            <DialogClose onClose={() => {
+              setIsEditOpen(false);
+              setEditingStaffId(null);
+              resetEdit();
+            }} />
+          </DialogHeader>
+          <form onSubmit={handleSubmitEdit(onSubmitEdit)} className="space-y-5 mt-6">
+            <div>
+              <label className="text-sm font-semibold text-white mb-2 block">
+                Username <span className="text-red-400">*</span>
+              </label>
+              <Input {...registerEdit('name', { required: 'Name is required' })} placeholder="Staff name" />
+              {editErrors.name && <p className="text-sm text-red-400 mt-1">{editErrors.name.message}</p>}
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-white mb-2 block">
+                Email <span className="text-red-400">*</span>
+              </label>
+              <Input type="email" {...registerEdit('email', { required: 'Email is required' })} placeholder="staff@example.com" />
+              {editErrors.email && <p className="text-sm text-red-400 mt-1">{editErrors.email.message}</p>}
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-white mb-2 block">
+                Role <span className="text-red-400">*</span>
+              </label>
+              <Select {...registerEdit('role', { required: 'Role is required' })}>
+                <option value="owner">Owner</option>
+                <option value="manager">Manager</option>
+                <option value="cashier">Cashier</option>
+                <option value="janitor">Janitor</option>
+                <option value="staff">Staff</option>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-white mb-2 block">
+                New Password
+              </label>
+              <Input
+                type="password"
+                {...registerEdit('password', {
+                  validate: (value) => !value || value.length >= 8 || 'Password must be at least 8 characters',
+                })}
+                placeholder="Leave blank to keep current password"
+              />
+              {editErrors.password && <p className="text-sm text-red-400 mt-1">{editErrors.password.message}</p>}
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsEditOpen(false);
+                  setEditingStaffId(null);
+                  resetEdit();
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={updateStaff.isPending}>
+                <Pencil className="h-4 w-4 mr-2" />
+                Save Changes
               </Button>
             </div>
           </form>

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getMerchantSettings, updateMerchantSettings, createLocation, updateLocation } from '../api/merchant';
+import { getMerchantSettings, updateMerchantSettings, createLocation, updateLocation, deleteLocation } from '../api/merchant';
 import type { Merchant, UpdateLocationParams } from '../api/types';
 
 // Helper to invalidate all location-related queries
@@ -94,6 +94,17 @@ export function useUpdateLocation() {
     },
     onSettled: () => {
       // Always invalidate to ensure we have fresh data from the server
+      invalidateLocationRelatedQueries(queryClient);
+    },
+  });
+}
+
+export function useDeleteLocation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => deleteLocation(id),
+    onSuccess: () => {
       invalidateLocationRelatedQueries(queryClient);
     },
   });

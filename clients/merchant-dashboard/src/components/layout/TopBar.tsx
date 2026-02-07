@@ -24,11 +24,11 @@ export function TopBar() {
             {merchantLoading ? 'Loading...' : (merchant?.name || 'Merchant Dashboard')}
           </h2>
           {demoMode && (
-            <Badge variant="warning" className="text-xs font-semibold">
+            <Badge variant="warning" className="floating-chip text-xs font-semibold">
               DEMO MODE
             </Badge>
           )}
-          <Badge variant={envBadgeVariant} className="text-xs font-semibold">
+          <Badge variant={envBadgeVariant} className="floating-chip text-xs font-semibold">
             {environment}
           </Badge>
         </div>
@@ -55,7 +55,7 @@ export function TopBar() {
                 className="fixed inset-0 z-40"
                 onClick={() => setShowUserMenu(false)}
               />
-              <div className="absolute right-0 mt-2 w-56 bg-slate-800/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl shadow-black/50 z-50 overflow-hidden">
+              <div className="animate-reveal-up absolute right-0 mt-2 w-56 bg-slate-800/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl shadow-black/50 z-50 overflow-hidden">
                 <div className="p-2">
                   <div className="px-4 py-3 text-sm text-slate-300 border-b border-white/10 mb-1">
                     {user?.email}

@@ -140,6 +140,7 @@ Create a `.env` file in `clients/merchant-dashboard/`:
 ```env
 VITE_DEMO_MODE=true
 VITE_API_BASE_URL=/api/v1
+VITE_BACKEND_ORIGIN=http://localhost:3001
 VITE_ENVIRONMENT=DEMO
 ```
 
@@ -154,7 +155,7 @@ The app will start at `http://localhost:5173` and use mock data.
 ### Running with Real API
 
 1. Set `VITE_DEMO_MODE=false` in `.env`
-2. Ensure backend is running at `http://localhost:3000`
+2. Ensure backend is running at `http://localhost:3001`
 3. Restart dev server: `npm run dev`
 
 ## Login Credentials (Demo Mode)
@@ -163,6 +164,13 @@ When using demo mode, you can use any credentials (the mock API accepts any logi
 
 - **Email**: `admin@demo.com`
 - **Password**: `demo123456`
+
+## Login Credentials (Real API after seed)
+
+- **MERCHANT_ADMIN**: `admin@example.com` / `password123`
+- **MANAGER**: `manager@example.com` / `password123`
+- **CASHIER**: `cashier@example.com` / `password123`
+- **STAFF**: `staff@example.com` / `password123`
 
 ## API Contracts
 
