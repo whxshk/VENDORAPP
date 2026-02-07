@@ -15,9 +15,6 @@ class ApiClient {
   constructor() {
     this.client = axios.create({
       baseURL: API_BASE_URL,
-      headers: {
-        'Content-Type': 'application/json',
-      },
     });
 
     // Request interceptor: inject JWT token
@@ -26,6 +23,11 @@ class ApiClient {
         const token = localStorage.getItem('access_token');
         if (token && config.headers) {
           config.headers.Authorization = `Bearer ${token}`;
+        }
+        // Avoid forcing JSON content-type on body-less requests (e.g. DELETE),
+        // which can trigger backend 400 errors in Fastify.
+        if (config.headers && config.data != null) {
+          config.headers['Content-Type'] = 'application/json';
         }
         return config;
       },
@@ -46,9 +48,19 @@ class ApiClient {
       (response) => response,
       async (error: AxiosError) => {
         const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+        const requestUrl = originalRequest?.url || '';
+        const isAuthRoute =
+          requestUrl.includes('/auth/login') || requestUrl.includes('/auth/refresh');
+        const isInviteRoute = requestUrl.includes('/staff/invite');
+        const hasRefreshToken = Boolean(localStorage.getItem('refresh_token'));
 
         // Handle 401 - token refresh
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        if (
+          error.response?.status === 401 &&
+          !originalRequest._retry &&
+          !isAuthRoute &&
+          hasRefreshToken
+        ) {
           originalRequest._retry = true;
 
           try {
@@ -81,12 +93,13 @@ class ApiClient {
           }
         }
 
-        // Capture and display API errors (but NOT 403 permission errors - those should show "Restricted" on page)
+        // Capture and display API errors (but NOT 403 permission errors, auth endpoints, or invite flow handled locally)
         const statusCode = error.response?.status || 0;
-        if (errorHandler && statusCode !== 403) {
+        if (errorHandler && statusCode !== 403 && !isAuthRoute && !isInviteRoute) {
           const responseData = error.response?.data as any;
-          const errorMessage = responseData?.error?.message 
-            || responseData?.message 
+          const errorMessage = responseData?.error?.originalMessage
+            || responseData?.error?.message
+            || responseData?.message
             || error.message 
             || 'An API error occurred';
           

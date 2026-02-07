@@ -38,6 +38,7 @@ export default function CustomersPage() {
   }, [searchInput]);
 
   const { data, isLoading } = useCustomers({ page, limit: 20, search });
+  const totalCustomers = toNumber(data?.total);
 
   const { data: customerDetail } = useCustomer(selectedCustomerId || '');
 
@@ -171,7 +172,7 @@ export default function CustomersPage() {
           </Button>
         );
       },
-      cell: ({ row }) => <div className="text-white">{row.getValue('totalVisits')}</div>,
+      cell: ({ row }) => <div className="text-white">{toNumber(row.getValue('totalVisits'))}</div>,
     },
   ];
 
@@ -183,7 +184,7 @@ export default function CustomersPage() {
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     manualPagination: true,
-    pageCount: data ? Math.ceil(data.total / 20) : 0,
+    pageCount: data ? Math.ceil(totalCustomers / 20) : 0,
     state: {
       globalFilter: search,
       sorting,
@@ -271,7 +272,7 @@ export default function CustomersPage() {
               </div>
               <div className="flex items-center justify-between mt-6 pt-4 border-t border-white/10">
                 <div className="text-sm text-slate-400">
-                  Showing {((page - 1) * 20) + 1} to {Math.min(page * 20, data?.total || 0)} of {data?.total || 0} customers
+                  Showing {((page - 1) * 20) + 1} to {Math.min(page * 20, totalCustomers)} of {totalCustomers} customers
                 </div>
                 <div className="flex gap-2">
                   <Button
@@ -286,7 +287,7 @@ export default function CustomersPage() {
                     variant="outline"
                     size="sm"
                     onClick={() => setPage(p => p + 1)}
-                    disabled={!data || page * 20 >= data.total}
+                    disabled={!data || page * 20 >= totalCustomers}
                   >
                     <ChevronRight className="h-4 w-4" />
                   </Button>

@@ -50,10 +50,10 @@ export default function DashboardHome() {
   // Ensure data has required properties with defaults
   const alerts = data.alerts || [];
   const recentActivity = data.recentActivity || [];
-  const todaysCustomers = data.todaysCustomers || 0;
-  const repeatCustomers = data.repeatCustomers || 0;
-  const totalTransactions = data.totalTransactions || 0;
-  const redemptionRate = data.redemptionRate || 0;
+  const todaysCustomers = toNumber(data.todaysCustomers);
+  const repeatCustomers = toNumber(data.repeatCustomers);
+  const totalTransactions = toNumber(data.totalTransactions);
+  const redemptionRate = toNumber(data.redemptionRate);
 
   const branches = merchant?.branches || [];
 

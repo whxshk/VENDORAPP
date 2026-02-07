@@ -13,7 +13,10 @@ import type {
   ListTransactionsParams,
   CreateRewardParams,
   InviteStaffParams,
+  InviteDetails,
+  AcceptInviteParams,
   CreateStaffParams,
+  UpdateStaffParams,
   CreateLocationParams,
   UpdateLocationParams,
   SimulateScanParams,
@@ -293,7 +296,9 @@ export async function createStaff(params: CreateStaffParams): Promise<Staff> {
     
     // Map backend role to frontend role
     const frontendRole = params.role === 'MERCHANT_ADMIN' ? 'owner' : 
-                        params.role === 'MANAGER' ? 'manager' : 'cashier';
+                        params.role === 'MANAGER' ? 'manager' :
+                        params.role === 'CASHIER' ? 'cashier' :
+                        params.role === 'JANITOR' ? 'janitor' : 'staff';
     
     const newStaff: Staff = {
       id: `staff-${mockStaff.length + 1}`,
@@ -313,7 +318,9 @@ export async function createStaff(params: CreateStaffParams): Promise<Staff> {
   // Transform backend response to frontend format
   const role = (response.data.roles as string[])[0] || 'STAFF';
   const frontendRole = role === 'MERCHANT_ADMIN' ? 'owner' : 
-                      role === 'MANAGER' ? 'manager' : 'cashier';
+                      role === 'MANAGER' ? 'manager' :
+                      role === 'CASHIER' ? 'cashier' :
+                      role === 'JANITOR' ? 'janitor' : 'staff';
   return {
     id: response.data.id,
     name: params.name,
@@ -323,6 +330,22 @@ export async function createStaff(params: CreateStaffParams): Promise<Staff> {
     createdAt: response.data.createdAt,
     tenantId: response.data.tenantId,
   };
+}
+
+export async function updateStaff(params: UpdateStaffParams): Promise<Staff> {
+  const { id, ...payload } = params;
+  const response = await apiClient.patch(`/staff/${id}`, payload);
+  return response.data;
+}
+
+export async function getInviteDetails(inviteToken: string): Promise<InviteDetails> {
+  const response = await apiClient.get(`/onboarding/invite/${inviteToken}`);
+  return response.data;
+}
+
+export async function acceptInvite(params: AcceptInviteParams): Promise<{ userId: string; name: string; email: string; role: string }> {
+  const response = await apiClient.post('/onboarding/accept-invite', params);
+  return response.data;
 }
 
 // Merchant Settings API
@@ -399,6 +422,19 @@ export async function updateLocation(id: string, params: UpdateLocationParams): 
     isActive: response.data.isActive,
     merchantId: response.data.tenantId,
   };
+}
+
+export async function deleteLocation(id: string): Promise<void> {
+  if (shouldUseMockData()) {
+    await new Promise(resolve => setTimeout(resolve, 250));
+    const index = mockMerchant.branches.findIndex((b) => b.id === id);
+    if (index !== -1) {
+      mockMerchant.branches.splice(index, 1);
+    }
+    return;
+  }
+
+  await apiClient.delete(`/locations/${id}`);
 }
 
 // Scan API

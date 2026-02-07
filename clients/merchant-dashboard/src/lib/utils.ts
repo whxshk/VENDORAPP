@@ -40,8 +40,24 @@ export function toNumber(value: any): number {
   if (value === null || value === undefined) {
     return 0;
   }
-  if (typeof value === 'object' && '$numberDecimal' in value) {
-    return Number(value.$numberDecimal);
+  if (typeof value === 'object') {
+    if ('$numberDecimal' in value) {
+      const parsed = Number((value as any).$numberDecimal);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+    if ('$numberInt' in value) {
+      const parsed = Number((value as any).$numberInt);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+    if ('$numberLong' in value) {
+      const parsed = Number((value as any).$numberLong);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+    if ('$numberDouble' in value) {
+      const parsed = Number((value as any).$numberDouble);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
   }
-  return Number(value);
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
 }

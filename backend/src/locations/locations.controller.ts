@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { LocationsService, CreateLocationDto, UpdateLocationDto } from './locations.service';
 import { ScopeGuard } from '../common/guards/scope.guard';
@@ -21,19 +21,13 @@ export class LocationsController {
 
   @Get(':id')
   @RequireScope('merchant:*')
-  async findOne(
-    @TenantContext() tenantId: string,
-    @Param('id') id: string,
-  ) {
+  async findOne(@TenantContext() tenantId: string, @Param('id') id: string) {
     return this.locationsService.findOne(tenantId, id);
   }
 
   @Post()
   @RequireScope('merchant:*')
-  async create(
-    @TenantContext() tenantId: string,
-    @Body() dto: CreateLocationDto,
-  ) {
+  async create(@TenantContext() tenantId: string, @Body() dto: CreateLocationDto) {
     return this.locationsService.create(tenantId, dto);
   }
 
@@ -45,5 +39,11 @@ export class LocationsController {
     @Body() dto: UpdateLocationDto,
   ) {
     return this.locationsService.update(tenantId, id, dto);
+  }
+
+  @Delete(':id')
+  @RequireScope('merchant:*')
+  async delete(@TenantContext() tenantId: string, @Param('id') id: string) {
+    return this.locationsService.delete(tenantId, id);
   }
 }

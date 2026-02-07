@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { authApi } from '../api/client';
 import { useAuthStore } from '../store/authStore';
 import { Input } from '../components/ui/input';
@@ -13,6 +13,7 @@ export default function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { setTokens, setUser } = useAuthStore();
 
@@ -46,11 +47,16 @@ export default function Login() {
         navigate('/dashboard');
       }
     } catch (err: any) {
+      const status = err?.response?.status;
       const msg = err?.response?.data?.error?.message
         ?? err?.response?.data?.message
         ?? err?.message
-        ?? 'Login failed. Check credentials and ensure the backend is running at http://localhost:3000.';
-      setError(msg);
+        ?? 'Login failed. Check credentials and ensure the backend is running (for local dev, usually http://localhost:3001).';
+      if (status === 500) {
+        setError('Backend is not reachable from the dashboard. Start backend on port 3001 and try again.');
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -175,6 +181,11 @@ export default function Login() {
                 {error}
               </div>
             )}
+            {searchParams.get('inviteAccepted') === '1' && !error && (
+              <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-sm animate-fade-in-down">
+                Invite accepted successfully. Your account is now active.
+              </div>
+            )}
 
             <Button
               type="submit"
@@ -197,14 +208,14 @@ export default function Login() {
                   "transition-all duration-300 hover:bg-blue-500/20 hover:border-blue-500/40",
                   "hover:translate-x-1 cursor-pointer group"
                 )}
-                onClick={() => { setEmail('sarah@pilot-merchant.com'); setPassword('password123'); }}
+                onClick={() => { setEmail('admin@example.com'); setPassword('password123'); }}
               >
                 <div className="flex items-start justify-between mb-2">
                   <div>
                     <div className="text-sm font-semibold text-blue-400 group-hover:text-blue-300 transition-colors">MERCHANT_ADMIN</div>
                     <div className="text-xs text-slate-400 mt-1">Full access to all features</div>
                   </div>
-                  <div className="text-xs text-slate-500 font-mono group-hover:text-blue-400 transition-colors">sarah@pilot-merchant.com</div>
+                  <div className="text-xs text-slate-500 font-mono group-hover:text-blue-400 transition-colors">admin@example.com</div>
                 </div>
                 <div className="text-xs text-slate-400">Password: password123</div>
                 <div className="text-xs text-slate-500 mt-2">
@@ -219,14 +230,14 @@ export default function Login() {
                   "transition-all duration-300 hover:bg-purple-500/20 hover:border-purple-500/40",
                   "hover:translate-x-1 cursor-pointer group"
                 )}
-                onClick={() => { setEmail('manager@pilot-merchant.com'); setPassword('password123'); }}
+                onClick={() => { setEmail('manager@example.com'); setPassword('password123'); }}
               >
                 <div className="flex items-start justify-between mb-2">
                   <div>
                     <div className="text-sm font-semibold text-purple-400 group-hover:text-purple-300 transition-colors">MANAGER</div>
                     <div className="text-xs text-slate-400 mt-1">View and manage operations</div>
                   </div>
-                  <div className="text-xs text-slate-500 font-mono group-hover:text-purple-400 transition-colors">manager@pilot-merchant.com</div>
+                  <div className="text-xs text-slate-500 font-mono group-hover:text-purple-400 transition-colors">manager@example.com</div>
                 </div>
                 <div className="text-xs text-slate-400">Password: password123</div>
                 <div className="text-xs text-slate-500 mt-2">
@@ -241,14 +252,14 @@ export default function Login() {
                   "transition-all duration-300 hover:bg-green-500/20 hover:border-green-500/40",
                   "hover:translate-x-1 cursor-pointer group"
                 )}
-                onClick={() => { setEmail('cashier@pilot-merchant.com'); setPassword('password123'); }}
+                onClick={() => { setEmail('cashier@example.com'); setPassword('password123'); }}
               >
                 <div className="flex items-start justify-between mb-2">
                   <div>
                     <div className="text-sm font-semibold text-green-400 group-hover:text-green-300 transition-colors">CASHIER</div>
                     <div className="text-xs text-slate-400 mt-1">Point-of-sale operations</div>
                   </div>
-                  <div className="text-xs text-slate-500 font-mono group-hover:text-green-400 transition-colors">cashier@pilot-merchant.com</div>
+                  <div className="text-xs text-slate-500 font-mono group-hover:text-green-400 transition-colors">cashier@example.com</div>
                 </div>
                 <div className="text-xs text-slate-400">Password: password123</div>
                 <div className="text-xs text-slate-500 mt-2">
@@ -263,14 +274,14 @@ export default function Login() {
                   "transition-all duration-300 hover:bg-orange-500/20 hover:border-orange-500/40",
                   "hover:translate-x-1 cursor-pointer group"
                 )}
-                onClick={() => { setEmail('staff@pilot-merchant.com'); setPassword('password123'); }}
+                onClick={() => { setEmail('staff@example.com'); setPassword('password123'); }}
               >
                 <div className="flex items-start justify-between mb-2">
                   <div>
                     <div className="text-sm font-semibold text-orange-400 group-hover:text-orange-300 transition-colors">STAFF</div>
                     <div className="text-xs text-slate-400 mt-1">Limited access</div>
                   </div>
-                  <div className="text-xs text-slate-500 font-mono group-hover:text-orange-400 transition-colors">staff@pilot-merchant.com</div>
+                  <div className="text-xs text-slate-500 font-mono group-hover:text-orange-400 transition-colors">staff@example.com</div>
                 </div>
                 <div className="text-xs text-slate-400">Password: password123</div>
                 <div className="text-xs text-slate-500 mt-2">

@@ -144,10 +144,10 @@ async function main() {
     const hashedPassword = await bcrypt.hash(PASSWORD, 10);
     
     const usersData = [
-      { email: 'admin@example.com', role: 'MERCHANT_ADMIN', scopes: ['merchant:*'] },
-      { email: 'manager@example.com', role: 'MANAGER', scopes: ['scan:*'] },
-      { email: 'cashier@example.com', role: 'CASHIER', scopes: ['scan:*'] },
-      { email: 'staff@example.com', role: 'STAFF', scopes: ['scan:*'] },
+      { name: 'Admin User', email: 'admin@example.com', role: 'MERCHANT_ADMIN', scopes: ['merchant:*'] },
+      { name: 'Manager User', email: 'manager@example.com', role: 'MANAGER', scopes: ['scan:*'] },
+      { name: 'Cashier User', email: 'cashier@example.com', role: 'CASHIER', scopes: ['scan:*'] },
+      { name: 'Staff User', email: 'staff@example.com', role: 'STAFF', scopes: ['scan:*'] },
     ];
 
     const users = await Promise.all(
@@ -157,6 +157,7 @@ async function main() {
           {
             $set: {
               tenantId: tenant._id,
+              name: userData.name,
               email: userData.email,
               hashedPassword,
               roles: [userData.role],

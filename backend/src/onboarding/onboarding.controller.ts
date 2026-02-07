@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Get, Param } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { OnboardingService } from './onboarding.service';
 import { MerchantSignupDto } from './dto/merchant-signup.dto';
@@ -38,12 +38,20 @@ export class OnboardingController {
   }
 
   @Public()
+  @Get('invite/:inviteToken')
+  @ApiOperation({ summary: 'Get invite details for invite landing page' })
+  @ApiResponse({ status: 200, description: 'Invite details retrieved' })
+  async getInviteDetails(@Param('inviteToken') inviteToken: string) {
+    return this.onboardingService.getInviteDetails(inviteToken);
+  }
+
+  @Public()
   @Post('accept-invite')
   @ApiOperation({ summary: 'Accept staff invite and create account' })
   @ApiResponse({ status: 201, description: 'Invite accepted, account created' })
   async acceptInvite(
-    @Body() body: { inviteToken: string; password: string },
+    @Body() body: { inviteToken: string; name: string; password?: string },
   ) {
-    return this.onboardingService.acceptInvite(body.inviteToken, body.password);
+    return this.onboardingService.acceptInvite(body.inviteToken, body.name, body.password);
   }
 }

@@ -40,6 +40,19 @@ async function bootstrap() {
     credentials: true,
   });
 
+  // Root health/info endpoint for quick browser checks
+  app
+    .getHttpAdapter()
+    .getInstance()
+    .get('/', async (_request: any, reply: any) => {
+      return reply.send({
+        success: true,
+        message: 'SharkBand API is running',
+        docs: '/api/docs',
+        apiBase: '/api/v1',
+      });
+    });
+
   // Global prefix
   app.setGlobalPrefix('api');
 
@@ -103,7 +116,7 @@ async function bootstrap() {
     },
   });
 
-  const port = process.env.PORT || 3000;
+  const port = process.env.PORT || 3001;
   await app.listen(port, '0.0.0.0');
 
   console.log(`🚀 SharkBand API is running on: http://localhost:${port}`);

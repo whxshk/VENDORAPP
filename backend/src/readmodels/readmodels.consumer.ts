@@ -83,18 +83,20 @@ export class ReadmodelsConsumer implements OnModuleInit, OnModuleDestroy {
           const deviceId = data.deviceId || null;
           let locationId: string | null = null;
           if (deviceId) {
-            const device = await this.deviceModel.findOne({ _id: deviceId }).select('locationId').exec();
+            const device = await this.deviceModel
+              .findOne({ _id: deviceId })
+              .select('locationId')
+              .exec();
             locationId = device?.locationId || null;
           }
           await this.pilotMetricsService.trackCustomerActivity(tenantId, customerId, txDate);
-          await this.pilotMetricsService.updateDailyMetrics(
-            tenantId,
-            locationId,
-            txDate,
-            { transactionsIssue: 1 },
-          );
+          await this.pilotMetricsService.updateDailyMetrics(tenantId, locationId, txDate, {
+            transactionsIssue: 1,
+          });
 
-          msg.ack();
+          if (typeof msg.ack === 'function') {
+            msg.ack();
+          }
         } catch (error) {
           this.logger.error('Error processing points.issued event', error);
           // Don't ack on error (redelivery)
@@ -143,14 +145,13 @@ export class ReadmodelsConsumer implements OnModuleInit, OnModuleDestroy {
           if (rewardId) {
             await this.pilotMetricsService.trackRewardUsage(tenantId, rewardId, txDate);
           }
-          await this.pilotMetricsService.updateDailyMetrics(
-            tenantId,
-            null,
-            txDate,
-            { transactionsRedeem: 1 },
-          );
+          await this.pilotMetricsService.updateDailyMetrics(tenantId, null, txDate, {
+            transactionsRedeem: 1,
+          });
 
-          msg.ack();
+          if (typeof msg.ack === 'function') {
+            msg.ack();
+          }
         } catch (error) {
           this.logger.error('Error processing points.redeemed event', error);
           // Don't ack on error (redelivery)

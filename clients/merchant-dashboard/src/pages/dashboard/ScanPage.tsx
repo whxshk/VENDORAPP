@@ -513,8 +513,8 @@ export default function ScanPage() {
                       <div className="text-sm text-slate-400">
                         {log.result === 'success' ? (
                           <>
-                            {log.type === 'earn' || log.type === 'ISSUE' ? `Issued ${Math.abs(toNumber(log.points))} points` : `Redeemed ${Math.abs(toNumber(log.points))} points`}
-                            {(log.type === 'earn' || log.type === 'ISSUE') && log.amount && (
+                            {log.type === 'earn' ? `Issued ${Math.abs(toNumber(log.points))} points` : `Redeemed ${Math.abs(toNumber(log.points))} points`}
+                            {log.type === 'earn' && log.amount && (
                               <span className="text-slate-500 ml-2">({toNumber(log.amount)} QAR)</span>
                             )}
                           </>
@@ -548,9 +548,9 @@ export default function ScanPage() {
                     style={{ animationDelay: `${(sessionScanLogs.length + index) * 50}ms` }}
                   >
                     <div className="flex items-center gap-4">
-                      {tx.status === 'completed' || tx.status === 'COMPLETED' ? (
+                      {tx.status === 'completed' ? (
                         <CheckCircle2 className="h-5 w-5 text-emerald-400" />
-                      ) : tx.status === 'failed' || tx.status === 'FAILED' ? (
+                      ) : tx.status === 'failed' ? (
                         <XCircle className="h-5 w-5 text-red-400" />
                       ) : (
                         <CheckCircle2 className="h-5 w-5 text-slate-400" />
@@ -558,10 +558,10 @@ export default function ScanPage() {
                       <div>
                         <div className="font-semibold text-white">{tx.customerName || 'Customer'}</div>
                         <div className="text-sm text-slate-400">
-                          {tx.type === 'earn' || tx.type === 'ISSUE' 
+                          {tx.type === 'earn' 
                             ? `Issued ${Math.abs(toNumber(tx.points))} points` 
                             : `Redeemed ${Math.abs(toNumber(tx.points))} points`}
-                          {(tx.type === 'earn' || tx.type === 'ISSUE') && tx.amount && (
+                          {tx.type === 'earn' && tx.amount && (
                             <span className="text-slate-500 ml-2">({toNumber(tx.amount)} QAR)</span>
                           )}
                         </div>

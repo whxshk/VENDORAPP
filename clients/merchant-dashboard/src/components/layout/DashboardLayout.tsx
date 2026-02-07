@@ -5,11 +5,14 @@ import { PageTransition } from '../ui/page-transition';
 
 export function DashboardLayout() {
   return (
-    <div className="min-h-screen bg-[#0a0f1a]">
+    <div className="relative min-h-screen overflow-hidden bg-[#0a0f1a]">
+      <div className="ambient-orb left-[-120px] top-[90px] h-72 w-72 bg-blue-500/20" />
+      <div className="ambient-orb ambient-orb--alt right-[-110px] top-[240px] h-80 w-80 bg-cyan-500/12" />
+      <div className="ambient-orb bottom-[-120px] left-[30%] h-80 w-80 bg-indigo-500/12" />
       <Sidebar />
-      <div className="lg:pl-64 min-h-screen transition-all duration-300">
+      <div className="relative z-10 min-h-screen transition-all duration-300 lg:pl-64">
         <TopBar />
-        <main className="p-8 max-w-[1920px] mx-auto">
+        <main className="max-w-[1920px] animate-reveal-up p-8 mx-auto">
           <PageTransition>
             <Outlet />
           </PageTransition>

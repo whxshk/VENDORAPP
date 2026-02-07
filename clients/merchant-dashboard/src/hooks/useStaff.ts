@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { listStaff, inviteStaff, createStaff } from '../api/merchant';
+import { listStaff, inviteStaff, createStaff, updateStaff } from '../api/merchant';
 import type { Staff } from '../api/types';
 
 // Helper to invalidate all staff-related queries
@@ -32,6 +32,17 @@ export function useCreateStaff() {
   
   return useMutation({
     mutationFn: createStaff,
+    onSuccess: () => {
+      invalidateStaffRelatedQueries(queryClient);
+    },
+  });
+}
+
+export function useUpdateStaff() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: updateStaff,
     onSuccess: () => {
       invalidateStaffRelatedQueries(queryClient);
     },

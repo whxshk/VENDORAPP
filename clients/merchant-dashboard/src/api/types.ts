@@ -47,7 +47,7 @@ export interface Staff {
   id: string;
   name: string;
   email: string;
-  role: 'owner' | 'manager' | 'cashier';
+  role: 'owner' | 'manager' | 'cashier' | 'staff' | 'janitor';
   status: 'active' | 'inactive' | 'invited';
   lastActive?: Date | string;
   createdAt: Date | string;
@@ -179,15 +179,35 @@ export interface CreateRewardParams {
 
 export interface InviteStaffParams {
   email: string;
-  role: 'owner' | 'manager' | 'cashier';
+  role: 'owner' | 'manager' | 'cashier' | 'staff' | 'janitor';
+}
+
+export interface InviteDetails {
+  email: string;
+  role: 'MERCHANT_ADMIN' | 'MANAGER' | 'CASHIER' | 'STAFF' | 'JANITOR';
+  tenantName: string;
+  expiresAt: Date | string;
+}
+
+export interface AcceptInviteParams {
+  inviteToken: string;
+  name: string;
 }
 
 export interface CreateStaffParams {
   name: string;
   email: string;
   password: string;
-  role: 'MERCHANT_ADMIN' | 'MANAGER' | 'CASHIER' | 'STAFF';
+  role: 'MERCHANT_ADMIN' | 'MANAGER' | 'CASHIER' | 'STAFF' | 'JANITOR';
   locationId?: string;
+}
+
+export interface UpdateStaffParams {
+  id: string;
+  name?: string;
+  email?: string;
+  role?: 'owner' | 'manager' | 'cashier' | 'janitor' | 'staff';
+  password?: string;
 }
 
 export interface SimulateScanParams {

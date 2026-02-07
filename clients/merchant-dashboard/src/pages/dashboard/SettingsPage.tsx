@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useMerchantSettings, useUpdateMerchantSettings, useCreateLocation, useUpdateLocation } from '../../hooks/useMerchant';
+import { useMerchantSettings, useUpdateMerchantSettings, useCreateLocation, useUpdateLocation, useDeleteLocation } from '../../hooks/useMerchant';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -8,9 +8,10 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '../../components/ui/dialog';
+import { ConfirmDialog } from '../../components/ui/confirm-dialog';
 import { Badge } from '../../components/ui/badge';
 import { useErrorHandlerContext } from '../../hooks/useErrorHandler';
-import { Building2, Pencil } from 'lucide-react';
+import { Building2, Pencil, Trash2 } from 'lucide-react';
 import type { Branch } from '../../api/types';
 
 const locationSchema = z.object({
@@ -34,11 +35,13 @@ export default function SettingsPage() {
   const updateMerchant = useUpdateMerchantSettings();
   const createLocation = useCreateLocation();
   const updateLocationMutation = useUpdateLocation();
+  const deleteLocationMutation = useDeleteLocation();
   const { addError } = useErrorHandlerContext();
   const [activeTab, setActiveTab] = useState('profile');
   const [isBranchDialogOpen, setIsBranchDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
+  const [branchToDelete, setBranchToDelete] = useState<Branch | null>(null);
 
   const {
     register,
@@ -183,6 +186,27 @@ export default function SettingsPage() {
     setIsEditDialogOpen(true);
   };
 
+  const handleDeleteBranch = (branch: Branch) => {
+    setBranchToDelete(branch);
+  };
+
+  const confirmDeleteBranch = () => {
+    if (!branchToDelete) return;
+    deleteLocationMutation.mutate(branchToDelete.id, {
+      onSuccess: () => {
+        setBranchToDelete(null);
+      },
+      onError: (error: any) => {
+        const errorMessage = error?.response?.data?.error?.message
+          || error?.response?.data?.message
+          || error?.message
+          || 'Failed to delete branch';
+
+        addError(new Error(`Unable to delete branch: ${errorMessage}`), 'Branch Delete Error');
+      },
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-8">
@@ -283,6 +307,15 @@ export default function SettingsPage() {
                           className="text-slate-400 hover:text-white"
                         >
                           <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteBranch(branch)}
+                          disabled={deleteLocationMutation.isPending}
+                          className="text-slate-400 hover:text-red-400"
+                        >
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                         <Badge variant={branch.isActive ? 'success' : 'secondary'}>
                           {branch.isActive ? 'Active' : 'Inactive'}
@@ -402,6 +435,22 @@ export default function SettingsPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!branchToDelete}
+        title="Delete Branch"
+        description={
+          branchToDelete
+            ? `Delete branch "${branchToDelete.name}"? This action cannot be undone.`
+            : ''
+        }
+        confirmLabel="Delete Branch"
+        cancelLabel="Keep Branch"
+        tone="danger"
+        isLoading={deleteLocationMutation.isPending}
+        onCancel={() => setBranchToDelete(null)}
+        onConfirm={confirmDeleteBranch}
+      />
 
       {/* Edit Branch Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={(open) => {

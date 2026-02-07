@@ -329,10 +329,21 @@ export class ScanService {
         };
       }
 
-      // Look up location/branch name if locationId provided
+      // Ensure we always have a location for dashboard reporting
+      let effectiveLocationId = locationId;
+      if (!effectiveLocationId) {
+        const fallbackLocation = await this.locationModel
+          .findOne({ tenantId, isActive: true })
+          .sort({ createdAt: 1 })
+          .select('_id name')
+          .exec();
+        effectiveLocationId = fallbackLocation?._id;
+      }
+
+      // Look up location/branch name
       let branchName: string | undefined;
-      if (locationId) {
-        const location = await this.locationModel.findOne({ _id: locationId, tenantId }).exec();
+      if (effectiveLocationId) {
+        const location = await this.locationModel.findOne({ _id: effectiveLocationId, tenantId }).exec();
         branchName = location?.name;
       }
 
@@ -375,7 +386,7 @@ export class ScanService {
               customerName: customer.name,
               customerEmail: customer.email,
               customerPhone: customer.phone,
-              branchId: locationId,
+              branchId: effectiveLocationId,
               branchName: branchName,
             },
           },
@@ -400,7 +411,7 @@ export class ScanService {
             amount: txMetadata.purchaseAmount || qarAmount, // QAR amount for reference
             staffId: '',
             staffName: 'System',
-            branchId: locationId,
+            branchId: effectiveLocationId,
             branchName: branchName,
             timestamp: (transaction as any)?.createdAt || new Date(),
             status: 'completed',
@@ -450,7 +461,7 @@ export class ScanService {
                 customerEmail: customer.email,
                 customerPhone: customer.phone,
                 rewardName: reward?.name,
-                branchId: locationId,
+                branchId: effectiveLocationId,
                 branchName: branchName,
               },
             },
@@ -472,7 +483,7 @@ export class ScanService {
             rewardName: reward?.name,
             staffId: '',
             staffName: 'System',
-            branchId: locationId,
+            branchId: effectiveLocationId,
             branchName: branchName,
             timestamp: (transaction as any)?.createdAt || new Date(),
             status: 'completed',
