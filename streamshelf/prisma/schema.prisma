@@ -1,0 +1,58 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Provider {
+  id        String   @id @default(cuid())
+  name      String
+  url       String   @unique
+  icon      String?
+  type      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Media {
+  id             String    @id @default(cuid())
+  tmdbId         Int
+  title          String
+  localPath      String?
+  streamUrl      String?
+  poster         String?
+  backdrop       String?
+  type           String
+  refererHeader  String?
+  originHeader   String?
+  sourceVariants String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  playback       Playback?
+
+  @@index([tmdbId])
+  @@unique([tmdbId, type])
+}
+
+model Playback {
+  id         String   @id @default(cuid())
+  mediaId     String   @unique
+  timestamp   Int
+  duration    Int
+  lastPlayed  DateTime @default(now())
+  media       Media    @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+}
+
+model Addon {
+  id           String   @id @default(cuid())
+  manifestId   String
+  name         String
+  endpoint     String
+  manifestJson String
+  createdAt    DateTime @default(now())
+
+  @@unique([manifestId, endpoint])
+}

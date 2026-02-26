@@ -1,0 +1,7 @@
+node_modules
+.next
+dist-electron
+.env
+dev.db
+dev.db-journal
+playwright/.local-browsers
