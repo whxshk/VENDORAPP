@@ -1,0 +1,83 @@
+import { Module, NestModule, MiddlewareConsumer, RequestMethod } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
+import { RateLimitMiddleware } from './common/middleware/rate-limit.middleware';
+import { ConfigService, default as appConfig } from './config/config.service';
+import { MongoDBModule } from './database/mongodb.module';
+import { AuthModule } from './auth/auth.module';
+import { TenancyModule } from './tenancy/tenancy.module';
+import { LedgerModule } from './ledger/ledger.module';
+import { OutboxModule } from './outbox/outbox.module';
+import { TransactionsModule } from './transactions/transactions.module';
+import { ReadmodelsModule } from './readmodels/readmodels.module';
+import { RewardsModule } from './rewards/rewards.module';
+import { RulesetsModule } from './rulesets/rulesets.module';
+import { DevicesModule } from './devices/devices.module';
+import { CustomersModule } from './customers/customers.module';
+import { LocationsModule } from './locations/locations.module';
+import { UsersModule } from './users/users.module';
+import { AnalyticsModule } from './analytics/analytics.module';
+import { AuditModule } from './audit/audit.module';
+import { OnboardingModule } from './onboarding/onboarding.module';
+import { FraudSignalsModule } from './fraud-signals/fraud-signals.module';
+import { OperatorToolsModule } from './operator-tools/operator-tools.module';
+import { PilotMetricsModule } from './pilot-metrics/pilot-metrics.module';
+import { ScanModule } from './scan/scan.module';
+import { MerchantModule } from './merchant/merchant.module';
+import { MerchantsModule } from './merchants/merchants.module';
+
+@Module({
+  imports: [
+    // Configuration
+    ConfigModule.forRoot({
+      isGlobal: true,
+      load: [appConfig],
+    }),
+
+    // Database
+    MongoDBModule,
+
+    // Core modules
+    AuthModule,
+    TenancyModule,
+    LedgerModule,
+    OutboxModule,
+    TransactionsModule,
+    ReadmodelsModule,
+
+    // Domain modules
+    RewardsModule,
+    RulesetsModule,
+    DevicesModule,
+    CustomersModule,
+    LocationsModule,
+    UsersModule,
+    AnalyticsModule,
+    AuditModule,
+    OnboardingModule,
+    FraudSignalsModule,
+    OperatorToolsModule,
+    PilotMetricsModule,
+    ScanModule,
+    MerchantModule,
+    MerchantsModule,
+  ],
+  providers: [
+    RateLimitMiddleware,
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+  ],
+})
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(RateLimitMiddleware)
+      .forRoutes(
+        { path: 'scans', method: RequestMethod.ALL },
+        { path: 'transactions', method: RequestMethod.ALL },
+      );
+  }
+}

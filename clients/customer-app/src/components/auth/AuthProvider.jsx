@@ -1,0 +1,106 @@
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { authService } from "@/api/authService";
+import { customerService } from "@/api/customerService";
+
+const AuthContext = createContext(null);
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) throw new Error("useAuth must be used within AuthProvider");
+  return context;
+};
+
+export function AuthProvider({ children }) {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
+
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  const checkAuth = async () => {
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+    try {
+      const meRes = await authService.me();
+      const authUser = meRes.data;
+
+      // Try the richer customer profile (includes name, customerId)
+      let profile = null;
+      try {
+        const profileRes = await customerService.getProfile();
+        profile = profileRes.data;
+      } catch {
+        // Endpoint may not exist; fall back to auth/me data
+      }
+
+      setUser({
+        ...authUser,
+        full_name: profile?.full_name || authUser.name || authUser.email,
+        customerId: profile?.customerId || authUser.customerId || null,
+        created_date: profile?.created_date || null,
+      });
+      const onboarded =
+        localStorage.getItem("hasCompletedOnboarding") === "true";
+      setHasCompletedOnboarding(onboarded);
+    } catch {
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const login = async (email, password) => {
+    const res = await authService.login(email, password);
+    const { access_token, refresh_token } = res.data;
+    localStorage.setItem("access_token", access_token);
+    if (refresh_token) localStorage.setItem("refresh_token", refresh_token);
+    await checkAuth();
+    return res.data;
+  };
+
+  const register = async (email, password, name) => {
+    const res = await authService.register(email, password, name);
+    const { access_token, refresh_token } = res.data;
+    localStorage.setItem("access_token", access_token);
+    if (refresh_token) localStorage.setItem("refresh_token", refresh_token);
+    await checkAuth();
+    return res.data;
+  };
+
+  const completeOnboarding = () => {
+    localStorage.setItem("hasCompletedOnboarding", "true");
+    setHasCompletedOnboarding(true);
+  };
+
+  const logout = () => {
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+    localStorage.removeItem("hasCompletedOnboarding");
+    setUser(null);
+    setHasCompletedOnboarding(false);
+  };
+
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        hasCompletedOnboarding,
+        login,
+        register,
+        completeOnboarding,
+        logout,
+        checkAuth,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+}
