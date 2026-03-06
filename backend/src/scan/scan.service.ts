@@ -267,7 +267,7 @@ export class ScanService {
         deviceId: dto.deviceId ?? undefined,
         purpose: 'REDEEM',
         rewardId: dto.rewardId,
-        amount: -Number(reward.pointsRequired),
+        amount: -((reward as any).rewardType === 'stamps' ? Number((reward as any).stampsCost ?? 0) : Number(reward.pointsRequired)),
         status: 'OK',
         idempotencyKey,
       });
@@ -276,12 +276,15 @@ export class ScanService {
     } catch (e: any) {
       if (e?.code !== 11000) throw e; // MongoDB duplicate key error
     }
+    const rewardCost = (reward as any).rewardType === 'stamps'
+      ? Number((reward as any).stampsCost ?? 0)
+      : Number(reward.pointsRequired);
     if (scanEvId) {
       await this.auditService.log(tenantId, staffUserId, 'SCAN_APPLY', 'scan', scanEvId, {
         purpose: 'REDEEM',
         customerId,
         rewardId: dto.rewardId,
-        pointsDeducted: Number(reward.pointsRequired),
+        pointsDeducted: rewardCost,
       });
     }
     return {

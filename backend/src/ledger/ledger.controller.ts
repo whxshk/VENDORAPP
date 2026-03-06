@@ -20,6 +20,9 @@ import { RequireScope } from '../common/decorators/require-scope.decorator';
 import { TenantContext } from '../common/decorators/tenant-context.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
+// Customers register under the platform tenant; their accounts are per-merchant
+const PLATFORM_TENANT_ID = 'sharkband-platform';
+
 @ApiTags('ledger')
 @Controller('ledger')
 @UseGuards(ScopeGuard, TenantGuard)
@@ -41,7 +44,9 @@ export class LedgerController {
     @CurrentUser() user: { userId: string },
   ): Promise<WalletBalanceResponseDto> {
     const resolved = await this.resolveCustomerId(tenantId, user.userId, customerId);
-    const balance = await this.ledgerService.getBalance(tenantId, resolved);
+    // Platform customers have entries across all merchant tenants — pass null to sum all
+    const effectiveTenantId = tenantId === PLATFORM_TENANT_ID ? null : tenantId;
+    const balance = await this.ledgerService.getBalance(effectiveTenantId, resolved);
     return { balance };
   }
 
@@ -59,7 +64,9 @@ export class LedgerController {
     const resolved = await this.resolveCustomerId(tenantId, user.userId, customerId);
     const p = page ? parseInt(page, 10) : 1;
     const l = limit ? Math.min(parseInt(limit, 10) || 20, 100) : 20;
-    return this.ledgerService.getLedgerHistory(tenantId, resolved, p, l);
+    // Platform customers have entries across all merchant tenants — pass null to fetch all
+    const effectiveTenantId = tenantId === PLATFORM_TENANT_ID ? null : tenantId;
+    return this.ledgerService.getLedgerHistory(effectiveTenantId, resolved, p, l);
   }
 
   private async resolveCustomerId(
@@ -70,17 +77,24 @@ export class LedgerController {
     if (!customerId || !customerId.trim()) {
       throw new BadRequestException('customerId is required');
     }
-    const account = await this.accountModel.findOne({
-      tenantId,
-      customerId: customerId.trim(),
-    }).exec();
+    // Platform customers are registered under 'sharkband-platform' but their
+    // CustomerMerchantAccount records live under each merchant's tenantId.
+    // For platform callers, verify the customerId exists in ANY merchant account.
+    const accountQuery: any =
+      tenantId === PLATFORM_TENANT_ID
+        ? { customerId: customerId.trim() }
+        : { tenantId, customerId: customerId.trim() };
+
+    const account = await this.accountModel.findOne(accountQuery).exec();
     if (!account) {
       throw new ForbiddenException('Customer not found or access denied');
     }
-    const dbUser = await this.userModel.findOne({
-      _id: userId,
-      tenantId,
-    }).select('customerId').exec();
+
+    // Ownership check: customers can only access their own data
+    const dbUser = await this.userModel
+      .findOne({ _id: userId })
+      .select('customerId')
+      .exec();
     if (dbUser?.customerId && dbUser.customerId !== customerId.trim()) {
       throw new ForbiddenException('Customers can only access their own ledger');
     }

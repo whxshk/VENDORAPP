@@ -19,6 +19,11 @@ import {
 import { User, UserDocument } from '../database/schemas/User.schema';
 import { Tenant, TenantDocument } from '../database/schemas/Tenant.schema';
 import { Reward, RewardDocument } from '../database/schemas/Reward.schema';
+import {
+  Redemption,
+  RedemptionDocument,
+  RedemptionStatus,
+} from '../database/schemas/Redemption.schema';
 import { LedgerService } from '../ledger/ledger.service';
 import { RulesetsService } from '../rulesets/rulesets.service';
 import { buildQrPayload } from '../common/qr-payload';
@@ -36,6 +41,7 @@ export class CustomersService {
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Tenant.name) private tenantModel: Model<TenantDocument>,
     @InjectModel(Reward.name) private rewardModel: Model<RewardDocument>,
+    @InjectModel(Redemption.name) private redemptionModel: Model<RedemptionDocument>,
     private ledgerService: LedgerService,
     private rulesetsService: RulesetsService,
   ) {}
@@ -607,14 +613,58 @@ export class CustomersService {
           }
         }
         if (!stampsRequired) stampsRequired = 10;
+
+        // Compute stamps and points SEPARATELY from transaction metadata.
+        // This ensures that GIVE_POINTS transactions on a stamps-configured merchant
+        // are shown as points (not stamps) in the customer app.
+        const stampIssuedAgg = await this.transactionModel.aggregate([
+          {
+            $match: {
+              tenantId: account.tenantId,
+              customerId,
+              type: TransactionType.ISSUE,
+              'metadata.stampIssued': true,
+            },
+          },
+          { $group: { _id: null, total: { $sum: { $toDouble: '$amount' } } } },
+        ]).exec();
+        const stampsIssued = Math.round(stampIssuedAgg[0]?.total ?? 0);
+
+        // Find stamp reward IDs for this tenant
+        const stampRewards = await this.rewardModel
+          .find({ tenantId: account.tenantId, rewardType: 'stamps' })
+          .select('_id')
+          .exec();
+        const stampRewardIdList = stampRewards.map((r) => r._id as string);
+
+        // Sum stamp redemptions via the Redemption collection
+        let stampsRedeemed = 0;
+        if (stampRewardIdList.length > 0) {
+          const stampRedemptionAgg = await this.redemptionModel.aggregate([
+            {
+              $match: {
+                tenantId: account.tenantId,
+                customerId,
+                rewardId: { $in: stampRewardIdList },
+                status: RedemptionStatus.COMPLETED,
+              },
+            },
+            { $group: { _id: null, total: { $sum: { $toDouble: '$pointsDeducted' } } } },
+          ]).exec();
+          stampsRedeemed = Math.round(stampRedemptionAgg[0]?.total ?? 0);
+        }
+
+        const stamps_count = Math.max(0, stampsIssued - stampsRedeemed);
+        const points_balance = Math.max(0, balance - stamps_count);
+
         return {
           id: account._id,
           merchant_id: account.tenantId,
           merchant_name: tenant?.name || 'Unknown',
           merchant_category: config['category'] || null,
           loyalty_type: loyaltyType,
-          points_balance: loyaltyType === 'stamps' ? 0 : balance,
-          stamps_count: loyaltyType === 'stamps' ? balance : 0,
+          points_balance,
+          stamps_count,
           stamps_required: stampsRequired,
           total_visits: txCount,
           membership_status: account.membershipStatus,

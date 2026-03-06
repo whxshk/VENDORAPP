@@ -11,6 +11,7 @@ import { LoyaltyLedgerEntry, LoyaltyLedgerEntrySchema } from '../database/schema
 import { User, UserSchema } from '../database/schemas/User.schema';
 import { Tenant, TenantSchema } from '../database/schemas/Tenant.schema';
 import { Reward, RewardSchema } from '../database/schemas/Reward.schema';
+import { Redemption, RedemptionSchema } from '../database/schemas/Redemption.schema';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { Reward, RewardSchema } from '../database/schemas/Reward.schema';
       { name: User.name, schema: UserSchema },
       { name: Tenant.name, schema: TenantSchema },
       { name: Reward.name, schema: RewardSchema },
+      { name: Redemption.name, schema: RedemptionSchema },
     ]),
     LedgerModule,
     RulesetsModule,

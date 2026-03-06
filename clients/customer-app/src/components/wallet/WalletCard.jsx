@@ -41,7 +41,18 @@ export default function WalletCard({ account, index }) {
               <p className="text-xs text-gray-400 mt-0.5 capitalize">{account.merchant_category?.replace(/_/g, " ")}</p>
               
               {account.loyalty_type === "stamps" ? (
-                <StampProgress current={account.stamps_count || 0} total={account.stamps_required || 10} />
+                <>
+                  <StampProgress
+                    current={account.stamps_count || 0}
+                    total={account.stamps_required || 10}
+                  />
+                  {account.points_balance > 0 && (
+                    <div className="mt-1 flex items-baseline gap-1">
+                      <span className="text-xl font-bold text-[#0A1931]">{account.points_balance.toLocaleString()}</span>
+                      <span className="text-xs text-gray-400 font-medium">pts</span>
+                    </div>
+                  )}
+                </>
               ) : (
                 <div className="mt-2 flex items-baseline gap-1">
                   <span className="text-xl font-bold text-[#0A1931]">{(account.points_balance || 0).toLocaleString()}</span>

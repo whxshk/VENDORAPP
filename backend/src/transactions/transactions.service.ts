@@ -317,7 +317,39 @@ export class TransactionsService {
       throw new NotFoundException(`Reward ${rewardId} not found`);
     }
 
-    const pointsRequired = Number(reward.pointsRequired);
+    // For stamp rewards use stampsCost; for points rewards use pointsRequired
+    const pointsRequired =
+      (reward as any).rewardType === 'stamps'
+        ? Number((reward as any).stampsCost ?? 0)
+        : Number(reward.pointsRequired);
+
+    if (pointsRequired <= 0) {
+      throw new BadRequestException(`Reward ${rewardId} has no cost configured`);
+    }
+
+    // ── Type-aware pre-flight balance check ─────────────────────────────────
+    // The raw ledger balance mixes stamps + bonus points into a single number.
+    // We must validate against the *correct* balance for each reward type.
+    const stampsCount = await this.computeStampCount(tenantId, customerId);
+    const totalBalance = await this.ledgerService.getBalance(tenantId, customerId);
+
+    if ((reward as any).rewardType === 'stamps') {
+      // Stamp reward: only stamps (issued with stampIssued:true) count
+      if (stampsCount < pointsRequired) {
+        throw new BadRequestException(
+          `Insufficient stamps. Customer has ${stampsCount} stamp(s) but this reward requires ${pointsRequired}.`,
+        );
+      }
+    } else {
+      // Points reward: only the points portion of the balance counts
+      const pointsBalance = Math.max(0, totalBalance - stampsCount);
+      if (pointsBalance < pointsRequired) {
+        throw new BadRequestException(
+          `Insufficient points. Customer has ${pointsBalance} point(s) but this reward requires ${pointsRequired}.`,
+        );
+      }
+    }
+    // ────────────────────────────────────────────────────────────────────────
 
     if (!(await this.supportsTransactions())) {
       return this.redeemPointsWithoutTransaction(
@@ -336,16 +368,10 @@ export class TransactionsService {
     try {
       const balance = await this.ledgerService.getBalance(tenantId, customerId);
 
-      if (balance < pointsRequired) {
-        throw new BadRequestException(
-          `Insufficient points. Customer has ${balance} points, but reward requires ${pointsRequired} points.`,
-        );
-      }
-
-      // Ensure balance never goes below 0
+      // Ensure the total ledger never goes below 0 (safety net)
       if (balance - pointsRequired < 0) {
         throw new BadRequestException(
-          `Insufficient points. Customer has ${balance} points, but reward requires ${pointsRequired} points.`,
+          `Insufficient balance. Customer has ${balance}, but reward requires ${pointsRequired}.`,
         );
       }
 
@@ -439,11 +465,13 @@ export class TransactionsService {
     idempotencyKey: string,
     pointsRequired: number,
   ) {
+    // The type-aware pre-flight check in redeemPoints() already ran before this path.
+    // Keep a simple safety net against the ledger going negative.
     const balance = await this.ledgerService.getBalance(tenantId, customerId);
 
-    if (balance < pointsRequired || balance - pointsRequired < 0) {
+    if (balance - pointsRequired < 0) {
       throw new BadRequestException(
-        `Insufficient points. Customer has ${balance} points, but reward requires ${pointsRequired} points.`,
+        `Insufficient balance. Customer has ${balance}, but reward requires ${pointsRequired}.`,
       );
     }
 
@@ -502,6 +530,54 @@ export class TransactionsService {
   async redeemPointsFailure(tenantId: string, customerId: string) {
     // Track failed redemption
     await this.fraudSignalsService.trackRedemption(tenantId, customerId, false);
+  }
+
+  /**
+   * Computes the net number of stamps a customer has with a given tenant.
+   * stamps_count = (ISSUE txns with stampIssued:true) - (completed stamp reward redemptions)
+   * This is the source-of-truth for stamp balance validation.
+   */
+  private async computeStampCount(tenantId: string, customerId: string): Promise<number> {
+    const issuedAgg = await this.transactionModel
+      .aggregate([
+        {
+          $match: {
+            tenantId,
+            customerId,
+            type: TransactionType.ISSUE,
+            'metadata.stampIssued': true,
+          },
+        },
+        { $group: { _id: null, total: { $sum: { $toDouble: '$amount' } } } },
+      ])
+      .exec();
+    const stampsIssued = Math.round(issuedAgg[0]?.total ?? 0);
+
+    const stampRewards = await this.rewardModel
+      .find({ tenantId, rewardType: 'stamps' })
+      .select('_id')
+      .exec();
+    const stampRewardIds = stampRewards.map((r) => r._id as string);
+
+    let stampsRedeemed = 0;
+    if (stampRewardIds.length > 0) {
+      const redeemedAgg = await this.redemptionModel
+        .aggregate([
+          {
+            $match: {
+              tenantId,
+              customerId,
+              rewardId: { $in: stampRewardIds },
+              status: RedemptionStatus.COMPLETED,
+            },
+          },
+          { $group: { _id: null, total: { $sum: { $toDouble: '$pointsDeducted' } } } },
+        ])
+        .exec();
+      stampsRedeemed = Math.round(redeemedAgg[0]?.total ?? 0);
+    }
+
+    return Math.max(0, stampsIssued - stampsRedeemed);
   }
 
   async findAll(

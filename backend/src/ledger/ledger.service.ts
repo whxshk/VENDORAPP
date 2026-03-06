@@ -102,52 +102,43 @@ export class LedgerService {
   }
 
   /**
-   * Get customer balance (derived from ledger entries)
+   * Get customer balance (derived from ledger entries).
+   * Pass tenantId=null to sum across ALL merchants (used for customer-scope callers).
    */
-  async getBalance(tenantId: string, customerId: string): Promise<number> {
+  async getBalance(tenantId: string | null, customerId: string): Promise<number> {
+    const matchQuery: any = { customerId };
+    if (tenantId) matchQuery.tenantId = tenantId;
+
     const result = await this.ledgerModel.aggregate([
-      {
-        $match: {
-          tenantId,
-          customerId,
-        },
-      },
-      {
-        $group: {
-          _id: null,
-          total: { $sum: { $toDouble: '$amount' } },
-        },
-      },
+      { $match: matchQuery },
+      { $group: { _id: null, total: { $sum: { $toDouble: '$amount' } } } },
     ]).exec();
 
     return result.length > 0 ? result[0].total : 0;
   }
 
   /**
-   * Get ledger history with pagination
+   * Get ledger history with pagination.
+   * Pass tenantId=null to return history across ALL merchants (used for customer-scope callers).
    */
   async getLedgerHistory(
-    tenantId: string,
+    tenantId: string | null,
     customerId: string,
     page: number = 1,
     limit: number = 20,
   ) {
     const skip = (page - 1) * limit;
+    const query: any = { customerId };
+    if (tenantId) query.tenantId = tenantId;
 
     const [entries, total] = await Promise.all([
       this.ledgerModel
-        .find({
-          tenantId,
-          customerId,
-        })
+        .find(query)
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
         .exec(),
-      this.ledgerModel.countDocuments({
-        tenantId,
-        customerId,
-      }).exec(),
+      this.ledgerModel.countDocuments(query).exec(),
     ]);
 
     return {
