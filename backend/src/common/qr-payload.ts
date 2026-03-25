@@ -1,15 +1,20 @@
 /**
- * QR payload spec (Design 1): base64url(JSON) + '.' + hex(HMAC-SHA256).
- * Fields: c (customerId), b (bucket), e (expiresAt Unix ms).
- * ±1 bucket skew for validation.
+ * QR payload spec (Design 2): base64url(JSON) + '.' + hex(HMAC-SHA256).
+ * Fields: c (customerId), b (bucket), e (expiresAt Unix ms), j (jti UUID).
+ *
+ * j (jti) is a random UUID generated fresh for every token issuance.
+ * The backend enforces single-use: once a jti is consumed (scan succeeded),
+ * it is stored in UsedQrToken and all future attempts with the same jti are rejected.
+ * +/-1 bucket skew is still allowed for clock drift.
  */
 
 import * as crypto from 'crypto';
 
 export interface QrPayloadFields {
-  c: string;
-  b: number;
-  e: number;
+  c: string;  // customerId
+  b: number;  // bucket (time window index)
+  e: number;  // expiresAt Unix ms
+  j: string;  // jti: unique random UUID per issuance
 }
 
 function base64UrlEncode(s: string): string {
@@ -28,8 +33,8 @@ function base64UrlDecode(b64: string): string {
 }
 
 /**
- * Parse payload part of Design 1 qrToken only (no HMAC verify).
- * Used to get customerId for DB lookup before verify.
+ * Parse payload part only (no HMAC verify).
+ * Used to extract customerId + jti for DB lookups before full verification.
  */
 export function parseQrPayloadFields(qrToken: string): QrPayloadFields | null {
   if (!qrToken || typeof qrToken !== 'string') return null;
@@ -40,7 +45,14 @@ export function parseQrPayloadFields(qrToken: string): QrPayloadFields | null {
   try {
     const payloadStr = base64UrlDecode(payloadB64);
     const parsed = JSON.parse(payloadStr) as QrPayloadFields;
-    if (!parsed.c || typeof parsed.b !== 'number' || typeof parsed.e !== 'number') return null;
+    if (
+      !parsed.c ||
+      typeof parsed.b !== 'number' ||
+      typeof parsed.e !== 'number' ||
+      !parsed.j ||
+      typeof parsed.j !== 'string'
+    )
+      return null;
     return parsed;
   } catch {
     return null;
@@ -48,21 +60,20 @@ export function parseQrPayloadFields(qrToken: string): QrPayloadFields | null {
 }
 
 /**
- * Build a Design 1 qrToken for a customer.
- * @param customerId - UUID
- * @param secret - Customer.qrTokenSecret
- * @param rotationIntervalSec - Customer.rotationIntervalSec (default 120)
+ * Build a QR token for a customer.
+ * Generates a fresh jti (UUID) on every call — each token is unique and single-use.
  */
 export function buildQrPayload(
   customerId: string,
   secret: string,
-  rotationIntervalSec: number = 120,
+  rotationIntervalSec: number = 60,
 ): { qrToken: string; expiresAt: number; refreshIntervalSec: number } {
   const interval = Math.max(1, rotationIntervalSec);
   const nowSec = Math.floor(Date.now() / 1000);
   const bucket = Math.floor(nowSec / interval);
   const expiresAtMs = (bucket + 2) * interval * 1000;
-  const payload: QrPayloadFields = { c: customerId, b: bucket, e: expiresAtMs };
+  const jti = crypto.randomUUID();
+  const payload: QrPayloadFields = { c: customerId, b: bucket, e: expiresAtMs, j: jti };
   const payloadStr = JSON.stringify(payload);
   const sig = crypto.createHmac('sha256', secret).update(payloadStr).digest('hex');
   const qrToken = base64UrlEncode(payloadStr) + '.' + sig;
@@ -74,18 +85,16 @@ export function buildQrPayload(
 }
 
 /**
- * Verify Design 1 qrToken. Allows ±1 bucket skew.
- * @param qrToken - Full token string
- * @param secret - Customer.qrTokenSecret
- * @param rotationIntervalSec - Customer.rotationIntervalSec
- * @param nowMs - Override for tests (default: Date.now())
+ * Verify a QR token. Allows +/-1 bucket skew for clock drift.
+ * On success returns { customerId, jti }.
+ * Caller MUST then atomically consume the jti in UsedQrToken to enforce single-use.
  */
 export function verifyQrPayload(
   qrToken: string,
   secret: string,
   rotationIntervalSec: number,
   nowMs?: number,
-): { customerId: string } | { error: string } {
+): { customerId: string; jti: string } | { error: string } {
   const now = nowMs ?? Date.now();
   if (!qrToken || typeof qrToken !== 'string') return { error: 'Invalid or missing QR payload' };
   const dot = qrToken.indexOf('.');
@@ -103,8 +112,14 @@ export function verifyQrPayload(
     return { error: 'Invalid or tampered QR payload' };
   }
 
-  const { c: customerId, b: bucket, e: expiresAt } = parsed;
-  if (!customerId || typeof bucket !== 'number' || typeof expiresAt !== 'number')
+  const { c: customerId, b: bucket, e: expiresAt, j: jti } = parsed;
+  if (
+    !customerId ||
+    typeof bucket !== 'number' ||
+    typeof expiresAt !== 'number' ||
+    !jti ||
+    typeof jti !== 'string'
+  )
     return { error: 'Invalid QR payload fields' };
 
   const expectedSig = crypto.createHmac('sha256', secret).update(payloadStr).digest('hex');
@@ -125,5 +140,5 @@ export function verifyQrPayload(
     return { error: 'QR expired or invalid time window' };
   if (now > expiresAt) return { error: 'QR expired' };
 
-  return { customerId };
+  return { customerId, jti };
 }

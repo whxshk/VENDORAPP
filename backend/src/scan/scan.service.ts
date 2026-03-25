@@ -19,6 +19,7 @@ import { ScanEvent, ScanEventDocument } from '../database/schemas/ScanEvent.sche
 import { Reward, RewardDocument } from '../database/schemas/Reward.schema';
 import { Transaction, TransactionDocument } from '../database/schemas/Transaction.schema';
 import { Location, LocationDocument } from '../database/schemas/Location.schema';
+import { UsedQrToken, UsedQrTokenDocument } from '../database/schemas/UsedQrToken.schema';
 import { verifyQrPayload, parseQrPayloadFields } from '../common/qr-payload';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -35,11 +36,30 @@ export class ScanService {
     @InjectModel(Reward.name) private rewardModel: Model<RewardDocument>,
     @InjectModel(Transaction.name) private transactionModel: Model<TransactionDocument>,
     @InjectModel(Location.name) private locationModel: Model<LocationDocument>,
+    @InjectModel(UsedQrToken.name) private usedQrTokenModel: Model<UsedQrTokenDocument>,
     private transactionsService: TransactionsService,
     private customersService: CustomersService,
     private auditService: AuditService,
     private rulesetsService: RulesetsService,
   ) {}
+
+  /**
+   * Atomically claim a jti. Throws if already consumed (replay attack).
+   * Uses MongoDB unique index on jti — race-safe even under concurrent requests.
+   */
+  private async consumeJti(jti: string, customerId: string, expiresAtMs: number): Promise<void> {
+    try {
+      await this.usedQrTokenModel.create({
+        jti,
+        customerId,
+        expiresAt: new Date(expiresAtMs),
+      });
+    } catch (e: any) {
+      if (e?.code === 11000)
+        throw new BadRequestException('QR code already used. Please show a fresh QR code.');
+      throw e;
+    }
+  }
 
   async apply(
     tenantId: string,
@@ -86,16 +106,21 @@ export class ScanService {
     const v = verifyQrPayload(dto.qrPayload, customer.qrTokenSecret, interval);
     if ('error' in v) throw new BadRequestException(v.error);
     const customerId = v.customerId;
+    const jti = v.jti;
 
     const customerDetail = await this.customersService.findOne(tenantId, customerId);
 
     if (dto.purpose === 'CHECKIN') {
+      // Idempotency check first — allows network retries of the same request
       const existing = await this.scanEventModel.findOne({
         tenantId,
         idempotencyKey,
       }).exec();
       if (existing)
         return { success: true, purpose: 'CHECKIN' as const, customerId };
+
+      // Single-use enforcement after idempotency (not a retry — consume jti)
+      await this.consumeJti(jti, customerId, parsed.e);
 
       const since = new Date(Date.now() - CHECKIN_THROTTLE_SEC * 1000);
       const recent = await this.scanEventModel.findOne({
@@ -125,6 +150,9 @@ export class ScanService {
     }
 
     if (dto.purpose === 'PURCHASE') {
+      // Single-use enforcement — consume jti before any business logic
+      await this.consumeJti(jti, customerId, parsed.e);
+
       // Determine action from the caller's explicit intent:
       // - ADD_STAMP sends stampRewardId → issue stamps
       // - GIVE_POINTS sends no stampRewardId → issue points
@@ -227,6 +255,9 @@ export class ScanService {
         balance: result.balance,
       };
     }
+
+    // REDEEM — single-use enforcement
+    await this.consumeJti(jti, customerId, parsed.e);
 
     if (!dto.rewardId) throw new BadRequestException('rewardId is required for REDEEM');
     const reward = await this.rewardModel.findOne({

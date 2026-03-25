@@ -14,6 +14,7 @@ import { ScanEvent, ScanEventSchema } from '../database/schemas/ScanEvent.schema
 import { Reward, RewardSchema } from '../database/schemas/Reward.schema';
 import { Transaction, TransactionSchema } from '../database/schemas/Transaction.schema';
 import { Location, LocationSchema } from '../database/schemas/Location.schema';
+import { UsedQrToken, UsedQrTokenSchema } from '../database/schemas/UsedQrToken.schema';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { Location, LocationSchema } from '../database/schemas/Location.schema';
       { name: Reward.name, schema: RewardSchema },
       { name: Transaction.name, schema: TransactionSchema },
       { name: Location.name, schema: LocationSchema },
+      { name: UsedQrToken.name, schema: UsedQrTokenSchema },
     ]),
     TransactionsModule,
     CustomersModule,
