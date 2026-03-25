@@ -162,7 +162,11 @@ export class ScanService {
         // Points merchant: require amount, calculate points from conversion rate
         if (!amount)
           throw new BadRequestException('amount is required and must be > 0 for PURCHASE');
-        const pointsPer = await this.rulesetsService.getPointsConversion(tenantId);
+        const tenantConfig = (tenant?.config as Record<string, any>) || {};
+        const configuredRate = Number(tenantConfig['pointsPerQar']);
+        const pointsPer = configuredRate > 0
+          ? configuredRate
+          : await this.rulesetsService.getPointsConversion(tenantId);
         pointsIssued = Math.floor(amount * pointsPer);
         if (pointsIssued <= 0)
           throw new BadRequestException('Purchase amount must yield at least 1 point');

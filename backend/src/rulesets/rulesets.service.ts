@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Ruleset, RulesetDocument } from '../database/schemas/Ruleset.schema';
 
-const DEFAULT_POINTS_PER_CURRENCY = 0.5;
+const DEFAULT_POINTS_PER_CURRENCY = 1;
 
 @Injectable()
 export class RulesetsService {
