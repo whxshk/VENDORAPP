@@ -87,7 +87,7 @@ export default function Home() {
 
         {/* QR Code Section */}
         <div className="bg-[#FFFFFF] p-5 flex items-center justify-center">
-          <QRCodeDisplay data={sharkCode} size={300} color="#0A1931" />
+          <QRCodeDisplay data={sharkCode} size={280} />
         </div>
 
         {/* Card Footer */}
