@@ -177,8 +177,13 @@ export class AnalyticsService {
         type: tx.type === TransactionType.ISSUE ? 'earn' : 'redeem',
         points: tx.type === TransactionType.ISSUE ? numericPoints : -numericPoints,
         amount: tx.type === TransactionType.ISSUE ? issueAmount : undefined,
+        stampIssued: txMeta?.stampIssued === true,
+        rewardId: txMeta?.rewardId || undefined,
+        rewardName: txMeta?.rewardName || undefined,
         staffId: staffInfo.id,
         staffName: staffInfo.name,
+        branchId: txMeta?.branchId || undefined,
+        branchName: txMeta?.branchName || undefined,
         timestamp: (tx as any).createdAt || new Date(),
         status: tx.status.toLowerCase() as 'completed' | 'failed' | 'pending',
       };
