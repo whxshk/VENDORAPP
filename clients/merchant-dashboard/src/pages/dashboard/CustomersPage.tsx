@@ -26,18 +26,6 @@ function balanceLabel(balance: number, loyaltyType?: string) {
   return isStamps ? `${balance} stamps` : `${balance} pts`;
 }
 
-function _BalanceBadge({ balance, loyaltyType, stampsRequired }: { balance: number; loyaltyType?: string; stampsRequired?: number }) {
-  const isStamps = loyaltyType?.toLowerCase() === 'stamps';
-  if (isStamps) {
-    return (
-      <span className="font-bold text-orange-400">
-        {balance}<span className="text-slate-500 text-xs font-normal ml-1">/ {stampsRequired ?? '?'} stamps</span>
-      </span>
-    );
-  }
-  return <span className="font-bold text-blue-400">{balance} <span className="text-xs font-normal text-slate-400">pts</span></span>;
-}
-
 // ── component ─────────────────────────────────────────────────────────────────
 
 export default function CustomersPage() {

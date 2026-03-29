@@ -42,8 +42,6 @@ interface CustomerDonutChartProps {
 export function CustomerDonutChart({ returning, newCustomers }: CustomerDonutChartProps) {
   const total = returning + newCustomers;
   const returningPct = total > 0 ? Math.round((returning / total) * 100) : 0;
-  const _newPct = total > 0 ? Math.round((newCustomers / total) * 100) : 0;
-
   const data = [
     { name: 'Returning', value: returning || 0, color: '#818cf8', glow: 'rgba(99,102,241,0.3)' },
     { name: 'New', value: newCustomers || 0, color: '#38bdf8', glow: 'rgba(56,189,248,0.3)' },

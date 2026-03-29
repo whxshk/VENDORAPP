@@ -131,7 +131,7 @@ interface KPIStatCardProps {
   index?: number;
 }
 
-export function KPIStatCard({ title, value, description, icon, theme, trend, suffix, index: _index = 0 }: KPIStatCardProps) {
+export function KPIStatCard({ title, value, description, icon, theme, trend, suffix }: KPIStatCardProps) {
   const t = THEMES[theme];
   const [visible, setVisible] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
