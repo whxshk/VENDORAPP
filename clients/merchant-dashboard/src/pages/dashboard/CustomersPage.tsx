@@ -26,7 +26,7 @@ function balanceLabel(balance: number, loyaltyType?: string) {
   return isStamps ? `${balance} stamps` : `${balance} pts`;
 }
 
-function BalanceBadge({ balance, loyaltyType, stampsRequired }: { balance: number; loyaltyType?: string; stampsRequired?: number }) {
+function _BalanceBadge({ balance, loyaltyType, stampsRequired }: { balance: number; loyaltyType?: string; stampsRequired?: number }) {
   const isStamps = loyaltyType?.toLowerCase() === 'stamps';
   if (isStamps) {
     return (
