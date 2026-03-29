@@ -34,7 +34,10 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: backend-build
-          path: .
+          path: ./deploy
+
+      - name: Show artifact contents
+        run: ls -la ./deploy && ls -la ./deploy/backend/ 2>/dev/null || ls -la ./deploy/dist/ 2>/dev/null || echo "Checking structure..." && find ./deploy -maxdepth 3 -type d
 
       - name: Login to Azure via OIDC
         uses: azure/login@v2
@@ -47,4 +50,4 @@ jobs:
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          package: backend
+          package: ./deploy/backend

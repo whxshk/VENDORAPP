@@ -64,7 +64,8 @@ jobs:
         with:
           name: ${{ inputs.artifact-name }}
           path: |
-            ${{ inputs.working-directory }}/dist
-            ${{ inputs.working-directory }}/node_modules
+            ${{ inputs.working-directory }}/dist/
+            ${{ inputs.working-directory }}/node_modules/
             ${{ inputs.working-directory }}/package.json
+          include-hidden-files: false
           retention-days: 3
