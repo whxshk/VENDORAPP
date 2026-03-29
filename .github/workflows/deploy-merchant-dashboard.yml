@@ -1,0 +1,44 @@
+name: Deploy Merchant Dashboard to Azure
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "clients/merchant-dashboard/**"
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: clients/merchant-dashboard/package-lock.json
+
+      - name: Install dependencies
+        working-directory: clients/merchant-dashboard
+        run: npm ci
+
+      - name: Build
+        working-directory: clients/merchant-dashboard
+        env:
+          VITE_API_BASE_URL: https://sharkband-api.azurewebsites.net/api/v1
+          VITE_DEMO_MODE: "false"
+          VITE_ENVIRONMENT: LIVE
+        run: npm run build
+
+      - name: Deploy to Azure Static Web Apps
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.SWA_TOKEN_MERCHANT }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: clients/merchant-dashboard/dist
+          skip_app_build: true
+          skip_api_build: true
