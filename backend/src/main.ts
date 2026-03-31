@@ -35,8 +35,14 @@ async function bootstrap() {
     },
   });
 
+  const rawOrigin = process.env.CORS_ORIGIN || '*';
+  const corsOrigin =
+    rawOrigin === '*'
+      ? '*'
+      : rawOrigin.split(',').map((o) => o.trim());
+
   await app.register(cors, {
-    origin: process.env.CORS_ORIGIN || '*',
+    origin: corsOrigin,
     credentials: true,
   });
 
