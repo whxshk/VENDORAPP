@@ -16,7 +16,7 @@ export function TopBar() {
     environment === 'DEMO' ? 'warning' : environment === 'PILOT' ? 'secondary' : 'success';
 
   return (
-    <header className="h-16 sm:h-20 border-b border-white/5 bg-slate-900/60 backdrop-blur-2xl sticky top-0 z-30 shadow-lg shadow-black/30">
+    <header className="h-16 sm:h-20 border-b backdrop-blur-2xl sticky top-0 z-30 shadow-lg shadow-black/20" style={{ background: 'var(--topbar-bg)', borderColor: 'var(--border)' }}>
       <div className="h-full pl-14 lg:pl-8 pr-4 sm:pr-8 flex items-center justify-between">
         {/* Left: Merchant name */}
         <div className="flex items-center gap-2 sm:gap-4 min-w-0">

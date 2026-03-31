@@ -5,7 +5,7 @@ import { PageTransition } from '../ui/page-transition';
 
 export function DashboardLayout() {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#0a0f1a]">
+    <div className="relative min-h-screen overflow-hidden" style={{ background: 'var(--bg-base)' }}>
       <div className="ambient-orb left-[-120px] top-[90px] h-72 w-72 bg-blue-500/20" />
       <div className="ambient-orb ambient-orb--alt right-[-110px] top-[240px] h-80 w-80 bg-cyan-500/12" />
       <div className="ambient-orb bottom-[-120px] left-[30%] h-80 w-80 bg-indigo-500/12" />

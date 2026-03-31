@@ -73,13 +73,14 @@ export function Sidebar() {
       <aside
         className={cn(
           'fixed top-0 left-0 z-40 h-screen w-64',
-          'bg-slate-900/90 backdrop-blur-2xl',
-          'border-r border-white/5',
-          'shadow-[4px_0_24px_rgba(0,0,0,0.5)]',
+          'backdrop-blur-2xl',
+          'border-r',
+          'shadow-[4px_0_24px_rgba(0,0,0,0.3)]',
           'transition-transform duration-300 ease-out',
           'lg:translate-x-0',
           isMobileOpen ? 'translate-x-0' : '-translate-x-full'
         )}
+        style={{ background: 'var(--sidebar-bg)', borderColor: 'var(--border)' }}
       >
         <div className="h-full flex flex-col">
           {/* Logo with subtle animation */}
@@ -118,13 +119,14 @@ export function Sidebar() {
                     'overflow-hidden',
                     isActive
                       ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-white shadow-lg shadow-blue-500/10 border border-blue-500/30'
-                      : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10'
+                      : 'hover:bg-white/5 border border-transparent hover:border-white/10'
                   )}
                   style={{
                     animationDelay: mounted ? `${index * 50}ms` : '0ms',
                     opacity: mounted ? 1 : 0,
                     transform: mounted ? 'translateX(0)' : 'translateX(-20px)',
                     transition: `all 0.3s ease-out ${index * 50}ms`,
+                    color: isActive ? undefined : 'var(--text-secondary)',
                   }}
                 >
                   {/* Hover glow effect */}
@@ -163,7 +165,7 @@ export function Sidebar() {
           </nav>
           
           {/* Bottom gradient fade */}
-          <div className="h-8 bg-gradient-to-t from-slate-900/90 to-transparent pointer-events-none" />
+          <div className="h-8 bg-gradient-to-t from-[var(--sidebar-bg)] to-transparent pointer-events-none" />
         </div>
       </aside>
     </>

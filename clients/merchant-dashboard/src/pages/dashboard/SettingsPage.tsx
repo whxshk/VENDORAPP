@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useMerchantSettings, useUpdateMerchantSettings, useCreateLocation, useUpdateLocation, useDeleteLocation } from '../../hooks/useMerchant';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,7 +10,9 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/ta
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '../../components/ui/dialog';
 import { ConfirmDialog } from '../../components/ui/confirm-dialog';
 import { useErrorHandlerContext } from '../../hooks/useErrorHandler';
-import { Building2 } from 'lucide-react';
+import { Building2, Sun, Moon, Monitor } from 'lucide-react';
+import { useTheme } from '../../context/ThemeContext';
+import type { Theme } from '../../context/ThemeContext';
 import type { Branch } from '../../api/types';
 
 const locationSchema = z.object({
@@ -36,6 +38,7 @@ export default function SettingsPage() {
   const updateLocationMutation = useUpdateLocation();
   const deleteLocationMutation = useDeleteLocation();
   const { addError } = useErrorHandlerContext();
+  const { theme, setTheme } = useTheme();
   const [activeTab, setActiveTab] = useState('profile');
   const [isBranchDialogOpen, setIsBranchDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -220,6 +223,7 @@ export default function SettingsPage() {
         <TabsList className="mb-6">
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="branches">Branches</TabsTrigger>
+          <TabsTrigger value="appearance">Appearance</TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile" className="mt-0">
@@ -282,6 +286,59 @@ export default function SettingsPage() {
                   Save Changes
                 </Button>
               </form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="appearance" className="mt-0">
+          <Card>
+            <CardHeader>
+              <CardTitle>Appearance</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                  Choose how the dashboard looks. Your preference is saved automatically.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {(
+                    [
+                      { value: 'light', label: 'Light', Icon: Sun, desc: 'Classic light background' },
+                      { value: 'dark', label: 'Dark', Icon: Moon, desc: 'Easy on the eyes' },
+                      { value: 'system', label: 'System Default', Icon: Monitor, desc: 'Follows your OS setting' },
+                    ] as { value: Theme; label: string; Icon: React.ElementType; desc: string }[]
+                  ).map(({ value, label, Icon, desc }) => {
+                    const isSelected = theme === value;
+                    return (
+                      <button
+                        key={value}
+                        onClick={() => setTheme(value)}
+                        className={`flex flex-col items-center gap-3 p-5 rounded-xl border transition-all duration-200 text-left ${
+                          isSelected
+                            ? 'border-blue-500/60 bg-blue-500/10'
+                            : 'hover:border-white/20 hover:bg-white/5'
+                        }`}
+                        style={!isSelected ? { borderColor: 'var(--border)' } : undefined}
+                      >
+                        <Icon className={`h-6 w-6 ${isSelected ? 'text-blue-400' : ''}`}
+                          style={!isSelected ? { color: 'var(--text-muted)' } : undefined}
+                        />
+                        <div>
+                          <p className={`text-sm font-semibold ${isSelected ? 'text-blue-300' : ''}`}
+                            style={!isSelected ? { color: 'var(--text-primary)' } : undefined}
+                          >
+                            {label}
+                          </p>
+                          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{desc}</p>
+                        </div>
+                        {isSelected && (
+                          <div className="mt-auto w-full h-0.5 rounded-full bg-gradient-to-r from-blue-500 to-purple-500" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

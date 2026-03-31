@@ -6,13 +6,17 @@ const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElemen
     <div
       ref={ref}
       className={cn(
-        'animate-reveal-up rounded-2xl border border-white/5 bg-slate-900/40 backdrop-blur-2xl',
-        'shadow-2xl shadow-black/40',
-        'text-white',
-        'soft-glow hover:border-white/10 hover:shadow-[0_0_40px_rgba(59,130,246,0.15)] hover:-translate-y-[2px]',
+        'animate-reveal-up rounded-2xl border backdrop-blur-2xl',
+        'shadow-2xl shadow-black/20',
+        'soft-glow hover:shadow-[0_0_40px_rgba(59,130,246,0.15)] hover:-translate-y-[2px]',
         'transition-all duration-300 ease-out',
         className
       )}
+      style={{
+        background: 'var(--card-bg)',
+        borderColor: 'var(--card-border)',
+        color: 'var(--text-primary)',
+      }}
       {...props}
     />
   )
@@ -31,9 +35,10 @@ const CardTitle = React.forwardRef<HTMLParagraphElement, React.HTMLAttributes<HT
     <h3
       ref={ref}
       className={cn(
-        'text-xl font-bold leading-tight tracking-tight text-white',
+        'text-xl font-bold leading-tight tracking-tight',
         className
       )}
+      style={{ color: 'var(--text-primary)' }}
       {...props}
     />
   )
@@ -42,7 +47,7 @@ CardTitle.displayName = 'CardTitle';
 
 const CardDescription = React.forwardRef<HTMLParagraphElement, React.HTMLAttributes<HTMLParagraphElement>>(
   ({ className, ...props }, ref) => (
-    <p ref={ref} className={cn('text-sm text-slate-400', className)} {...props} />
+    <p ref={ref} className={cn('text-sm', className)} style={{ color: 'var(--text-muted)' }} {...props} />
   )
 );
 CardDescription.displayName = 'CardDescription';

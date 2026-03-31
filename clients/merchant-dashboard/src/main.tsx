@@ -5,6 +5,7 @@ import App from './App';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ErrorDisplay } from './components/ErrorDisplay';
 import { ErrorHandlerProvider, useErrorHandlerContext } from './hooks/useErrorHandler';
+import { ThemeProvider } from './context/ThemeContext';
 import { setErrorHandler } from './api/client';
 import './index.css';
 
@@ -52,13 +53,15 @@ const queryClient = new QueryClient({
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ErrorBoundary>
-      <ErrorHandlerProvider>
-        <ErrorHandlerInitializer />
-        <QueryClientProvider client={queryClient}>
-          <App />
-          <ErrorDisplay />
-        </QueryClientProvider>
-      </ErrorHandlerProvider>
+      <ThemeProvider>
+        <ErrorHandlerProvider>
+          <ErrorHandlerInitializer />
+          <QueryClientProvider client={queryClient}>
+            <App />
+            <ErrorDisplay />
+          </QueryClientProvider>
+        </ErrorHandlerProvider>
+      </ThemeProvider>
     </ErrorBoundary>
   </React.StrictMode>,
 );

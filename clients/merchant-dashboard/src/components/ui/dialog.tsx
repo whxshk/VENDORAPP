@@ -60,12 +60,16 @@ const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps>(
     <div
       ref={ref}
       className={cn(
-        'relative z-50 w-full max-w-lg rounded-2xl border border-white/10',
-        'bg-gradient-to-br from-slate-800/95 to-slate-900/95 backdrop-blur-xl',
+        'relative z-50 w-full max-w-lg rounded-2xl border backdrop-blur-xl',
         'p-8 shadow-2xl shadow-black/50',
         'max-h-[85vh] overflow-y-auto',
         className
       )}
+      style={{
+        background: 'var(--bg-surface)',
+        borderColor: 'var(--border-strong)',
+        color: 'var(--text-primary)',
+      }}
       {...props}
     >
       {children}
@@ -85,9 +89,9 @@ const DialogTitle = React.forwardRef<HTMLHeadingElement, React.HTMLAttributes<HT
       ref={ref} 
       className={cn(
         'text-2xl font-bold leading-tight tracking-tight',
-        'bg-gradient-to-r from-white via-white to-slate-300 bg-clip-text text-transparent',
         className
-      )} 
+      )}
+      style={{ color: 'var(--text-primary)' }}
       {...props} 
     />
   )

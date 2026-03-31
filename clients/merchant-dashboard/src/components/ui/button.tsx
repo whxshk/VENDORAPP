@@ -7,7 +7,14 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = 'default', size = 'default', ...props }, ref) => {
+  ({ className, variant = 'default', size = 'default', style, ...props }, ref) => {
+    const variantStyle: React.CSSProperties =
+      variant === 'outline'
+        ? { borderColor: 'var(--border-strong)', color: 'var(--text-primary)' }
+        : variant === 'ghost'
+        ? { color: 'var(--text-primary)' }
+        : {};
+
     return (
       <button
         className={cn(
@@ -18,8 +25,8 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           {
             'bg-gradient-to-r from-blue-500 via-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 hover:scale-[1.02] hover:-translate-y-[1px] active:scale-[0.98]': variant === 'default',
             'bg-blue-500/10 text-blue-400 border border-blue-500/30 hover:bg-blue-500/20 hover:border-blue-500/50 hover:-translate-y-[1px]': variant === 'secondary',
-            'border border-white/20 bg-transparent hover:bg-white/5 hover:border-white/30 text-white hover:-translate-y-[1px]': variant === 'outline',
-            'hover:bg-white/5 text-white hover:-translate-y-[1px]': variant === 'ghost',
+            'border bg-transparent hover:bg-white/5 hover:-translate-y-[1px]': variant === 'outline',
+            'hover:bg-white/5 hover:-translate-y-[1px]': variant === 'ghost',
             'bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 hover:border-red-500/50 hover:-translate-y-[1px]': variant === 'destructive',
             'h-11 px-6 text-sm': size === 'default',
             'h-9 px-4 text-xs': size === 'sm',
@@ -28,6 +35,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           },
           className
         )}
+        style={{ ...variantStyle, ...style }}
         ref={ref}
         {...props}
       />
