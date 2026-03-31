@@ -242,8 +242,39 @@ export default function SettingsPage() {
 
                 <div>
                   <label className="text-sm font-semibold text-white mb-2 block">Logo</label>
-                  <div className="border border-white/10 rounded-lg p-8 text-center text-slate-400 bg-slate-800/30">
-                    Logo upload coming soon
+                  <div className="flex items-center gap-4">
+                    {merchant?.logoUrl ? (
+                      <img
+                        src={merchant.logoUrl}
+                        alt="Business logo"
+                        className="w-16 h-16 rounded-xl object-cover border border-white/10 shrink-0"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 rounded-xl bg-slate-800 border border-white/10 flex items-center justify-center shrink-0">
+                        <Building2 className="h-7 w-7 text-slate-500" />
+                      </div>
+                    )}
+                    <label className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border border-dashed border-white/20 bg-white/5 text-slate-400 text-sm cursor-pointer hover:border-blue-400/50 hover:bg-blue-500/5 hover:text-slate-300 transition-all">
+                      <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      {merchant?.logoUrl ? 'Change logo' : 'Upload logo'}
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onload = () => {
+                            updateMerchant.mutate({ logoUrl: reader.result as string });
+                          };
+                          reader.readAsDataURL(file);
+                        }}
+                        disabled={updateMerchant.isPending}
+                      />
+                    </label>
                   </div>
                 </div>
 

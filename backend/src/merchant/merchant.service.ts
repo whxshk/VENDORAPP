@@ -8,6 +8,7 @@ export interface MerchantSettings {
   id: string;
   name: string;
   description?: string;
+  logoUrl?: string;
   pointsPerQar: number;
   config: Record<string, any>;
   branches: Array<{
@@ -21,6 +22,7 @@ export interface MerchantSettings {
 export interface UpdateMerchantSettingsDto {
   name?: string;
   description?: string;
+  logoUrl?: string;
   pointsPerQar?: number;
   config?: Record<string, any>;
 }
@@ -45,6 +47,7 @@ export class MerchantService {
       id: tenant._id as string,
       name: tenant.name,
       description: tenant.config?.description || '',
+      logoUrl: tenant.config?.logo_url || undefined,
       pointsPerQar: Number(tenant.config?.pointsPerQar ?? 1),
       config: tenant.config || {},
       branches: locations.map((loc) => ({
@@ -75,6 +78,10 @@ export class MerchantService {
     
     if (dto.description !== undefined) {
       updateData['config.description'] = dto.description;
+    }
+
+    if (dto.logoUrl !== undefined) {
+      updateData['config.logo_url'] = dto.logoUrl;
     }
 
     if (dto.pointsPerQar !== undefined) {

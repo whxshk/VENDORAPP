@@ -396,9 +396,9 @@ export default function CustomersPage() {
 
       {/* Customer Detail Dialog */}
       <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-full max-w-lg sm:max-w-2xl lg:max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-bold">{customerDetail?.name}</DialogTitle>
+            <DialogTitle className="text-lg sm:text-2xl font-bold">{customerDetail?.name}</DialogTitle>
             {customerDetail && (customerDetail as any).shortId && (
               <p className="text-sm text-slate-400 mt-1">
                 Customer ID:{' '}
@@ -414,7 +414,7 @@ export default function CustomersPage() {
             <div className="space-y-6 mt-4">
 
               {/* ── Balance + Visits ─────────────────────────────── */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div
                   className={`p-4 rounded-xl border ${
                     detailIsStamps
@@ -478,7 +478,7 @@ export default function CustomersPage() {
                   <span className="text-xs text-slate-500 font-normal">— fix mistakes</span>
                 </h4>
 
-                <div className="grid grid-cols-2 gap-3 mb-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                   <div>
                     <label className="text-xs text-slate-400 mb-1 block">
                       Amount (use − to remove)
@@ -588,8 +588,8 @@ export default function CustomersPage() {
 
               {/* ── Transaction History ───────────────────────────── */}
               <div>
-                <h3 className="text-lg font-bold text-white mb-4">Transaction History</h3>
-                <div className="overflow-x-auto">
+                <h3 className="text-base sm:text-lg font-bold text-white mb-4">Transaction History</h3>
+                <div className="overflow-x-auto -mx-1">
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-white/10">

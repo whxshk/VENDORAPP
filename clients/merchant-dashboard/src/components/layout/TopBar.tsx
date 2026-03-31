@@ -39,8 +39,12 @@ export function TopBar() {
             onClick={() => setShowUserMenu(!showUserMenu)}
             className="flex items-center gap-3 px-4 py-2 rounded-xl hover:bg-white/5 transition-all duration-200 border border-transparent hover:border-white/10"
           >
-            <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
-              <User className="h-5 w-5 text-white" />
+            <div className="h-10 w-10 rounded-full overflow-hidden bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/30 shrink-0">
+              {merchant?.logoUrl ? (
+                <img src={merchant.logoUrl} alt="logo" className="h-full w-full object-cover" />
+              ) : (
+                <User className="h-5 w-5 text-white" />
+              )}
             </div>
             <span className="text-sm font-semibold text-white hidden sm:block">
               {user?.email || 'User'}

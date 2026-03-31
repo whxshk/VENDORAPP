@@ -145,12 +145,25 @@ export class AnalyticsService {
       }
     });
 
+    // Look up real customer names from User documents (source of truth)
+    const activityCustomerIds = [...new Set(recentTransactions.map((tx) => tx.customerId))];
+    const activityCustomerUsers = await this.userModel
+      .find({ customerId: { $in: activityCustomerIds } })
+      .select('customerId name email')
+      .exec();
+    const activityCustomerMap = new Map<string, string>();
+    activityCustomerUsers.forEach((u) => {
+      if (u.customerId) {
+        activityCustomerMap.set(u.customerId, u.name || u.email?.split('@')[0] || '');
+      }
+    });
+
     // Transform to frontend format
     const recentActivity = recentTransactions.map((tx) => {
       const customerId = tx.customerId;
-      // Get customer name from transaction metadata or fallback
       const txMeta = tx.metadata as any;
-      const customerName = txMeta?.customerName || getCustomerInfoById(customerId).name;
+      // Use real User name as source of truth; fallback to stored metadata name, then hash-based
+      const customerName = activityCustomerMap.get(customerId) || txMeta?.customerName || getCustomerInfoById(customerId).name;
       const numericPoints = Math.abs(Number(tx.amount));
       const parsedPurchaseAmount =
         txMeta?.purchaseAmount === undefined || txMeta?.purchaseAmount === null

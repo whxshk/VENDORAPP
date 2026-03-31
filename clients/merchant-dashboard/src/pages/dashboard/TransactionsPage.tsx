@@ -8,12 +8,15 @@ import {
   flexRender,
 } from '@tanstack/react-table';
 import { useTransactions } from '../../hooks/useTransactions';
+import { useAdjustBalance } from '../../hooks/useCustomers';
 import { useMerchantSettings } from '../../hooks/useMerchant';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
 import { Select } from '../../components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '../../components/ui/dialog';
 import { PageHeader } from '../../components/dashboard/PageHeader';
-import { Download, X, MapPin, ChevronLeft, ChevronRight, ArrowUpRight, ArrowDownRight, Stamp } from 'lucide-react';
+import { Download, X, MapPin, ChevronLeft, ChevronRight, ArrowUpRight, ArrowDownRight, Stamp, SlidersHorizontal, CheckCircle2, XCircle } from 'lucide-react';
 import { formatDateTime, toNumber } from '../../lib/utils';
 import type { Transaction } from '../../api/types';
 
@@ -79,6 +82,46 @@ export default function TransactionsPage() {
   const [endDate, setEndDate] = useState('');
   const [locationId, setLocationId] = useState('');
   const [type, setType] = useState<'earn' | 'redeem' | ''>('');
+
+  // Adjust balance state
+  const [adjustCustomerId, setAdjustCustomerId] = useState('');
+  const [adjustCustomerName, setAdjustCustomerName] = useState('');
+  const [adjustDelta, setAdjustDelta] = useState('');
+  const [adjustReason, setAdjustReason] = useState('');
+  const [adjustSuccess, setAdjustSuccess] = useState<string | null>(null);
+  const [adjustError, setAdjustError] = useState<string | null>(null);
+  const [isAdjustOpen, setIsAdjustOpen] = useState(false);
+  const adjustBalanceMutation = useAdjustBalance();
+
+  const openAdjust = (customerId: string, customerName: string) => {
+    setAdjustCustomerId(customerId);
+    setAdjustCustomerName(customerName);
+    setAdjustDelta('');
+    setAdjustReason('');
+    setAdjustSuccess(null);
+    setAdjustError(null);
+    setIsAdjustOpen(true);
+  };
+
+  const handleAdjust = () => {
+    const delta = parseFloat(adjustDelta);
+    if (isNaN(delta) || delta === 0) { setAdjustError('Enter a non-zero number (e.g. +10 or -5)'); return; }
+    if (!adjustReason.trim()) { setAdjustError('Reason is required'); return; }
+    setAdjustError(null);
+    adjustBalanceMutation.mutate(
+      { id: adjustCustomerId, delta, reason: adjustReason.trim() },
+      {
+        onSuccess: (res) => {
+          setAdjustSuccess(`Done! New balance: ${res.newBalance} pts`);
+          setAdjustDelta('');
+          setAdjustReason('');
+        },
+        onError: (err: any) => {
+          setAdjustError(err?.response?.data?.message || err?.message || 'Adjustment failed');
+        },
+      }
+    );
+  };
 
   const { data: transactionsData, isLoading, isError } = useTransactions({
     page,
@@ -147,6 +190,20 @@ export default function TransactionsPage() {
       header: 'Time',
       cell: ({ row }) => (
         <span className="text-xs text-slate-500 tabular-nums">{formatDateTime(row.getValue('timestamp'))}</span>
+      ),
+    },
+    {
+      id: 'adjust',
+      header: '',
+      cell: ({ row }) => (
+        <button
+          onClick={() => openAdjust(row.original.customerId, row.original.customerName)}
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-white/8 transition-all border border-transparent hover:border-white/10"
+          title="Adjust balance"
+        >
+          <SlidersHorizontal className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">Adjust</span>
+        </button>
       ),
     },
   ];
@@ -402,6 +459,60 @@ export default function TransactionsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Adjust Balance Dialog */}
+      <Dialog open={isAdjustOpen} onOpenChange={(open) => { setIsAdjustOpen(open); if (!open) setAdjustSuccess(null); }}>
+        <DialogContent className="max-w-sm w-full">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <SlidersHorizontal className="h-4 w-4 text-slate-400" />
+              Adjust Balance
+            </DialogTitle>
+            <DialogClose onClose={() => setIsAdjustOpen(false)} />
+          </DialogHeader>
+          <div className="mt-4 space-y-4">
+            <p className="text-sm text-slate-400">
+              Adjusting balance for <span className="text-white font-semibold">{adjustCustomerName}</span>
+            </p>
+            <div>
+              <label className="text-xs text-slate-400 mb-1 block">Amount (use − to remove)</label>
+              <Input
+                type="number"
+                value={adjustDelta}
+                onChange={(e) => { setAdjustDelta(e.target.value); setAdjustError(null); setAdjustSuccess(null); }}
+                placeholder="e.g. +10 or -5"
+                className="font-mono"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-slate-400 mb-1 block">Reason (required)</label>
+              <Input
+                type="text"
+                value={adjustReason}
+                onChange={(e) => { setAdjustReason(e.target.value); setAdjustError(null); setAdjustSuccess(null); }}
+                placeholder="e.g. Points given by mistake"
+              />
+            </div>
+            {adjustError && (
+              <div className="flex items-center gap-2 text-xs text-red-400">
+                <XCircle className="h-3.5 w-3.5 shrink-0" />{adjustError}
+              </div>
+            )}
+            {adjustSuccess && (
+              <div className="flex items-center gap-2 text-xs text-emerald-400">
+                <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />{adjustSuccess}
+              </div>
+            )}
+            <Button
+              onClick={handleAdjust}
+              disabled={adjustBalanceMutation.isPending || !adjustDelta || !adjustReason.trim()}
+              className="w-full"
+            >
+              {adjustBalanceMutation.isPending ? 'Applying…' : 'Apply Adjustment'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );
