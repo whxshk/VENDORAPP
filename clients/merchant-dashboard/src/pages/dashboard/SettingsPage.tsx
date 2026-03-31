@@ -9,9 +9,8 @@ import { Input } from '../../components/ui/input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '../../components/ui/dialog';
 import { ConfirmDialog } from '../../components/ui/confirm-dialog';
-import { Badge } from '../../components/ui/badge';
 import { useErrorHandlerContext } from '../../hooks/useErrorHandler';
-import { Building2, Pencil, Trash2 } from 'lucide-react';
+import { Building2 } from 'lucide-react';
 import type { Branch } from '../../api/types';
 
 const locationSchema = z.object({
@@ -179,15 +178,6 @@ export default function SettingsPage() {
         },
       }
     );
-  };
-
-  const handleEditBranch = (branch: Branch) => {
-    setEditingBranch(branch);
-    setIsEditDialogOpen(true);
-  };
-
-  const handleDeleteBranch = (branch: Branch) => {
-    setBranchToDelete(branch);
   };
 
   const confirmDeleteBranch = () => {
