@@ -213,21 +213,9 @@ export default function StaffPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-white mb-2">Staff</h1>
-          <p className="text-slate-400">Manage your team members</p>
-        </div>
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={() => setIsCreateOpen(true)}>
-            <UserPlus className="h-4 w-4 mr-2" />
-            Add Staff
-          </Button>
-          <Button onClick={() => setIsInviteOpen(true)}>
-            <Mail className="h-4 w-4 mr-2" />
-            Invite Staff
-          </Button>
-        </div>
+      <div>
+        <h1 className="text-3xl font-bold text-white mb-2">Staff</h1>
+        <p className="text-slate-400">Manage your team members</p>
       </div>
 
       <Card>

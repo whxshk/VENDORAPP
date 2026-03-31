@@ -268,63 +268,13 @@ export default function SettingsPage() {
         <TabsContent value="branches" className="mt-0">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Branches</CardTitle>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setIsBranchDialogOpen(true)}
-                >
-                  <Building2 className="h-4 w-4 mr-2" />
-                  Add Branch
-                </Button>
-              </div>
+              <CardTitle>Branches</CardTitle>
             </CardHeader>
             <CardContent>
-              {merchant?.branches.length === 0 ? (
-                <div className="text-center py-12 text-slate-400">
-                  <Building2 className="h-12 w-12 mx-auto mb-4 text-slate-400" />
-                  <p className="text-sm">No branches added yet</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {merchant?.branches.map((branch) => (
-                    <div
-                      key={branch.id}
-                      className="flex items-center justify-between p-4 rounded-xl border border-white/5 bg-slate-800/30 hover:bg-slate-800/50 transition-colors"
-                    >
-                      <div>
-                        <div className="font-semibold text-white">{branch.name}</div>
-                        {branch.address && (
-                          <div className="text-sm text-slate-400 mt-1">{branch.address}</div>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEditBranch(branch)}
-                          className="text-slate-400 hover:text-white"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteBranch(branch)}
-                          disabled={deleteLocationMutation.isPending}
-                          className="text-slate-400 hover:text-red-400"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                        <Badge variant={branch.isActive ? 'success' : 'secondary'}>
-                          {branch.isActive ? 'Active' : 'Inactive'}
-                        </Badge>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <div className="text-center py-12 text-slate-400">
+                <Building2 className="h-12 w-12 mx-auto mb-4" />
+                <p className="text-sm font-medium">Coming soon</p>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

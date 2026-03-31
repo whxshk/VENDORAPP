@@ -12,7 +12,7 @@ export function DashboardLayout() {
       <Sidebar />
       <div className="relative z-10 min-h-screen transition-all duration-300 lg:pl-64">
         <TopBar />
-        <main className="max-w-[1920px] animate-reveal-up p-8 mx-auto">
+        <main className="max-w-[1920px] animate-reveal-up p-4 sm:p-6 lg:p-8 mx-auto">
           <PageTransition>
             <Outlet />
           </PageTransition>

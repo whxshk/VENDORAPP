@@ -16,11 +16,11 @@ export function TopBar() {
     environment === 'DEMO' ? 'warning' : environment === 'PILOT' ? 'secondary' : 'success';
 
   return (
-    <header className="h-20 border-b border-white/5 bg-slate-900/60 backdrop-blur-2xl sticky top-0 z-30 shadow-lg shadow-black/30">
-      <div className="h-full px-8 flex items-center justify-between">
+    <header className="h-16 sm:h-20 border-b border-white/5 bg-slate-900/60 backdrop-blur-2xl sticky top-0 z-30 shadow-lg shadow-black/30">
+      <div className="h-full pl-14 lg:pl-8 pr-4 sm:pr-8 flex items-center justify-between">
         {/* Left: Merchant name */}
-        <div className="flex items-center gap-4">
-          <h2 className="text-xl font-bold text-white">
+        <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+          <h2 className="text-base sm:text-xl font-bold text-white truncate">
             {merchantLoading ? 'Loading...' : (merchant?.name || 'Merchant Dashboard')}
           </h2>
           {demoMode && (

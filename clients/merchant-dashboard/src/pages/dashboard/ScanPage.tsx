@@ -19,6 +19,7 @@ type Action = 'GIVE_POINTS' | 'ADD_STAMP' | 'REDEEM';
 
 export default function ScanPage() {
   const [qrPayload, setQrPayload] = useState('');
+  const [qrScanned, setQrScanned] = useState(false);
   const [action, setAction] = useState<Action>('GIVE_POINTS');
   const [purchaseAmount, setPurchaseAmount] = useState('');
   const [rewardId, setRewardId] = useState('');
@@ -48,6 +49,7 @@ export default function ScanPage() {
           { fps: 10, qrbox: { width: 250, height: 250 } },
           (decodedText: string) => {
             setQrPayload(decodedText);
+            setQrScanned(true);
             closeCamera();
           },
           undefined,
@@ -75,11 +77,17 @@ export default function ScanPage() {
   const scanMutation = useMutation({
     mutationFn: (params: ScanApplyParams) => scanApply(params),
     onSuccess: (d) => {
-      const msg = `Success: ${d.purpose}${d.customerId ? ` · customer=${d.customerId.slice(0, 8)}…` : ''}${d.balance != null ? ` · balance=${d.balance}` : ''}`;
+      const msg =
+        d.purpose === 'REDEEM'
+          ? 'Redemption successful'
+          : action === 'ADD_STAMP'
+          ? 'Stamp issued successfully'
+          : 'Points issued successfully';
       setScanResult(msg);
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       refetchTransactions();
       setQrPayload('');
+      setQrScanned(false);
       setPurchaseAmount('');
       setRewardId('');
       setStampRewardId('');
@@ -175,25 +183,41 @@ export default function ScanPage() {
           {/* Step 1: QR */}
           <div>
             <label className="text-sm font-semibold text-white mb-2 block">
-              Step 1 — Scan or Paste Customer QR
+              Step 1 — Scan Customer QR
             </label>
-            <div className="flex gap-2 items-start">
-              <textarea
-                className="flex-1 min-h-[80px] px-3 py-2 rounded-lg bg-slate-800 border border-white/10 text-white placeholder-slate-500 text-sm font-mono resize-none"
-                value={qrPayload}
-                onChange={(e) => setQrPayload(e.target.value)}
-                placeholder="Paste QR payload from the customer app"
-              />
-              <Button
-                variant="outline"
-                onClick={() => setCameraOpen(true)}
-                className="shrink-0 flex-col gap-1 h-auto py-3 px-3"
-                title="Scan with camera"
-              >
-                <Camera className="h-5 w-5" />
-                <span className="text-xs">Camera</span>
-              </Button>
-            </div>
+            {qrScanned ? (
+              <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+                <div className="flex items-center gap-2 text-emerald-400 text-sm font-semibold">
+                  <CheckCircle2 className="h-5 w-5 shrink-0" />
+                  Customer verified
+                </div>
+                <button
+                  type="button"
+                  className="text-slate-400 hover:text-white transition-colors"
+                  onClick={() => { setQrPayload(''); setQrScanned(false); setScanResult(null); }}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex gap-2 items-start">
+                <textarea
+                  className="flex-1 min-h-[80px] px-3 py-2 rounded-lg bg-slate-800 border border-white/10 text-white placeholder-slate-500 text-sm resize-none"
+                  value={qrPayload}
+                  onChange={(e) => { setQrPayload(e.target.value); setQrScanned(false); }}
+                  placeholder="Paste QR code from the customer app, or use the camera"
+                />
+                <Button
+                  variant="outline"
+                  onClick={() => setCameraOpen(true)}
+                  className="shrink-0 flex-col gap-1 h-auto py-3 px-3"
+                  title="Scan with camera"
+                >
+                  <Camera className="h-5 w-5" />
+                  <span className="text-xs">Camera</span>
+                </Button>
+              </div>
+            )}
           </div>
 
           {/* Step 2: Action — always show all three */}
@@ -360,8 +384,8 @@ export default function ScanPage() {
 
           {scanResult && (
             <div
-              className={`p-3 rounded-lg border text-sm font-mono ${
-                scanResult.startsWith('Error')
+              className={`p-3 rounded-lg border text-sm font-semibold ${
+                scanResult.startsWith('Error') || scanResult.startsWith('Scan failed')
                   ? 'bg-red-500/10 border-red-500/30 text-red-400'
                   : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
               }`}
