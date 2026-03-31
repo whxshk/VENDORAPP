@@ -19,6 +19,7 @@ export interface MerchantSignupDto {
   adminPassword: string;
   locationName: string;
   locationAddress?: string;
+  logoUrl?: string;
 }
 
 export interface StaffInviteDto {
@@ -150,10 +151,14 @@ export class OnboardingService {
     }
 
     // Create tenant
+    const initialConfig: Record<string, any> = {};
+    if (signupDto.logoUrl) {
+      initialConfig['logo_url'] = signupDto.logoUrl;
+    }
     const tenant = new this.tenantModel({
       _id: uuidv4(),
       name: signupDto.merchantName,
-      config: {},
+      config: initialConfig,
       isActive: true,
     });
     await tenant.save();

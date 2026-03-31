@@ -30,6 +30,8 @@ export default function Login() {
   const [signupConfirmPassword, setSignupConfirmPassword] = useState('');
   const [signupLocationName, setSignupLocationName] = useState('');
   const [signupLocationAddress, setSignupLocationAddress] = useState('');
+  const [signupPasscode, setSignupPasscode] = useState('');
+  const [signupLogoDataUrl, setSignupLogoDataUrl] = useState<string | null>(null);
   const [signupError, setSignupError] = useState('');
   const [signupLoading, setSignupLoading] = useState(false);
 
@@ -93,6 +95,14 @@ export default function Login() {
     }
   };
 
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setSignupLogoDataUrl(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setSignupError('');
@@ -102,6 +112,7 @@ export default function Login() {
     if (signupPassword.length < 8) { setSignupError('Password must be at least 8 characters.'); return; }
     if (signupPassword !== signupConfirmPassword) { setSignupError('Passwords do not match.'); return; }
     if (!signupLocationName.trim()) { setSignupError('Location name is required.'); return; }
+    if (signupPasscode !== '2026') { setSignupError('Invalid secret passcode. Please contact SharkBand to get access.'); return; }
 
     setSignupLoading(true);
     try {
@@ -111,6 +122,7 @@ export default function Login() {
         adminPassword: signupPassword,
         locationName: signupLocationName.trim(),
         locationAddress: signupLocationAddress.trim() || undefined,
+        logoUrl: signupLogoDataUrl ?? undefined,
       });
 
       // Auto-login after successful signup
@@ -349,6 +361,55 @@ export default function Login() {
                 />
               </div>
 
+              <div>
+                <label className="block text-sm font-semibold text-white mb-2">
+                  Restaurant Logo
+                </label>
+                <div className="flex items-center gap-4">
+                  <label
+                    className={cn(
+                      "flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border border-dashed",
+                      "border-white/20 bg-white/5 text-slate-400 text-sm cursor-pointer",
+                      "hover:border-blue-400/50 hover:bg-blue-500/5 hover:text-slate-300 transition-all",
+                      signupLoading && "pointer-events-none opacity-50"
+                    )}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    {signupLogoDataUrl ? 'Change logo' : 'Upload logo (PNG, JPG)'}
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                      className="hidden"
+                      onChange={handleLogoChange}
+                      disabled={signupLoading}
+                    />
+                  </label>
+                  {signupLogoDataUrl && (
+                    <img
+                      src={signupLogoDataUrl}
+                      alt="Logo preview"
+                      className="w-14 h-14 rounded-lg object-cover border border-white/10"
+                    />
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-white mb-2">
+                  Secret Passcode <span className="text-red-400">*</span>
+                </label>
+                <Input
+                  type="password"
+                  value={signupPasscode}
+                  onChange={(e) => setSignupPasscode(e.target.value)}
+                  placeholder="Enter the secret passcode"
+                  disabled={signupLoading}
+                />
+                <p className="text-xs text-slate-500 mt-1">Contact SharkBand to obtain the passcode.</p>
+              </div>
+
               {signupError && (
                 <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm animate-fade-in-down">
                   {signupError}
@@ -372,102 +433,6 @@ export default function Login() {
             </form>
           )}
 
-          {/* Demo credentials — login mode only */}
-          {mode === 'login' && (
-            <div className="mt-8 pt-8 border-t border-white/10">
-              <h3 className="text-sm font-semibold text-white mb-4">Example Credentials by Role</h3>
-              <div className="space-y-4">
-                {/* MERCHANT_ADMIN */}
-                <div
-                  className={cn(
-                    "p-3 rounded-lg bg-blue-500/10 border border-blue-500/20",
-                    "transition-all duration-300 hover:bg-blue-500/20 hover:border-blue-500/40",
-                    "hover:translate-x-1 cursor-pointer group"
-                  )}
-                  onClick={() => { setEmail('merchant@test.com'); setPassword('password'); }}
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <div className="text-sm font-semibold text-blue-400 group-hover:text-blue-300 transition-colors">MERCHANT_ADMIN</div>
-                      <div className="text-xs text-slate-400 mt-1">Full access to all features</div>
-                    </div>
-                    <div className="text-xs text-slate-500 font-mono group-hover:text-blue-400 transition-colors">merchant@test.com</div>
-                  </div>
-                  <div className="text-xs text-slate-400">Password: password</div>
-                  <div className="text-xs text-slate-500 mt-2">
-                    • Dashboard • Customers • Transactions • Rewards • Staff Management • Settings
-                  </div>
-                </div>
-
-                {/* MANAGER */}
-                <div
-                  className={cn(
-                    "p-3 rounded-lg bg-purple-500/10 border border-purple-500/20",
-                    "transition-all duration-300 hover:bg-purple-500/20 hover:border-purple-500/40",
-                    "hover:translate-x-1 cursor-pointer group"
-                  )}
-                  onClick={() => { setEmail('manager@example.com'); setPassword('password123'); }}
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <div className="text-sm font-semibold text-purple-400 group-hover:text-purple-300 transition-colors">MANAGER</div>
-                      <div className="text-xs text-slate-400 mt-1">View and manage operations</div>
-                    </div>
-                    <div className="text-xs text-slate-500 font-mono group-hover:text-purple-400 transition-colors">manager@example.com</div>
-                  </div>
-                  <div className="text-xs text-slate-400">Password: password123</div>
-                  <div className="text-xs text-slate-500 mt-2">
-                    • Dashboard • Customers (view) • Transactions (view) • Rewards (view) • Staff (view) • Settings (view)
-                  </div>
-                </div>
-
-                {/* CASHIER */}
-                <div
-                  className={cn(
-                    "p-3 rounded-lg bg-green-500/10 border border-green-500/20",
-                    "transition-all duration-300 hover:bg-green-500/20 hover:border-green-500/40",
-                    "hover:translate-x-1 cursor-pointer group"
-                  )}
-                  onClick={() => { setEmail('cashier@example.com'); setPassword('password123'); }}
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <div className="text-sm font-semibold text-green-400 group-hover:text-green-300 transition-colors">CASHIER</div>
-                      <div className="text-xs text-slate-400 mt-1">Point-of-sale operations</div>
-                    </div>
-                    <div className="text-xs text-slate-500 font-mono group-hover:text-green-400 transition-colors">cashier@example.com</div>
-                  </div>
-                  <div className="text-xs text-slate-400">Password: password123</div>
-                  <div className="text-xs text-slate-500 mt-2">
-                    • Scan Page • Customers (view) • Transactions (view)
-                  </div>
-                </div>
-
-                {/* STAFF */}
-                <div
-                  className={cn(
-                    "p-3 rounded-lg bg-orange-500/10 border border-orange-500/20",
-                    "transition-all duration-300 hover:bg-orange-500/20 hover:border-orange-500/40",
-                    "hover:translate-x-1 cursor-pointer group"
-                  )}
-                  onClick={() => { setEmail('staff@example.com'); setPassword('password123'); }}
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <div className="text-sm font-semibold text-orange-400 group-hover:text-orange-300 transition-colors">STAFF</div>
-                      <div className="text-xs text-slate-400 mt-1">Limited access</div>
-                    </div>
-                    <div className="text-xs text-slate-500 font-mono group-hover:text-orange-400 transition-colors">staff@example.com</div>
-                  </div>
-                  <div className="text-xs text-slate-400">Password: password123</div>
-                  <div className="text-xs text-slate-500 mt-2">
-                    • Scan Page (limited)
-                  </div>
-                </div>
-              </div>
-              <p className="text-xs text-slate-500 mt-4 text-center">Click a role card to auto-fill credentials</p>
-            </div>
-          )}
         </div>
       </div>
     </div>

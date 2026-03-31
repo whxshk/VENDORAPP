@@ -553,6 +553,7 @@ export async function merchantSignup(params: {
   adminPassword: string;
   locationName: string;
   locationAddress?: string;
+  logoUrl?: string;
 }): Promise<{ tenantId: string; adminUserId: string; email: string }> {
   const response = await apiClient.post('/onboarding/merchant-signup', params);
   return response.data;

@@ -7,6 +7,7 @@ export const MerchantSignupSchema = z.object({
   adminPassword: z.string().min(8, 'Password must be at least 8 characters'),
   locationName: z.string().min(1, 'Location name is required'),
   locationAddress: z.string().optional(),
+  logoUrl: z.string().optional(),
 });
 
 export class MerchantSignupDto extends createZodDto(MerchantSignupSchema) {}
