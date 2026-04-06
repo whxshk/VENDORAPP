@@ -2,13 +2,19 @@ import { Injectable, ConflictException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, ClientSession } from 'mongoose';
 import { LoyaltyLedgerEntry, LoyaltyLedgerEntryDocument } from '../database/schemas/LoyaltyLedgerEntry.schema';
+import { Transaction, TransactionDocument } from '../database/schemas/Transaction.schema';
+import { Tenant, TenantDocument } from '../database/schemas/Tenant.schema';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class LedgerService {
   constructor(
-    @InjectModel(LoyaltyLedgerEntry.name) 
+    @InjectModel(LoyaltyLedgerEntry.name)
     private ledgerModel: Model<LoyaltyLedgerEntryDocument>,
+    @InjectModel(Transaction.name)
+    private transactionModel: Model<TransactionDocument>,
+    @InjectModel(Tenant.name)
+    private tenantModel: Model<TenantDocument>,
   ) {}
 
   /**
@@ -120,6 +126,8 @@ export class LedgerService {
   /**
    * Get ledger history with pagination.
    * Pass tenantId=null to return history across ALL merchants (used for customer-scope callers).
+   * Enriches each entry with tenantId, merchantName, and stampIssued so the
+   * customer Activity tab can display the correct merchant name and reward type.
    */
   async getLedgerHistory(
     tenantId: string | null,
@@ -141,15 +149,42 @@ export class LedgerService {
       this.ledgerModel.countDocuments(query).exec(),
     ]);
 
+    // Batch-fetch corresponding Transaction docs to get stampIssued from metadata
+    const transactionIds = entries
+      .map((e: LoyaltyLedgerEntryDocument) => e.transactionId)
+      .filter(Boolean);
+    const transactions = await this.transactionModel
+      .find({ _id: { $in: transactionIds } })
+      .select('_id metadata')
+      .exec();
+    const txMap = new Map<string, TransactionDocument>();
+    transactions.forEach((tx) => txMap.set(tx._id as string, tx));
+
+    // Batch-fetch tenant names for the unique tenantIds in this page
+    const uniqueTenantIds = [...new Set(entries.map((e: LoyaltyLedgerEntryDocument) => e.tenantId).filter(Boolean))];
+    const tenants = await this.tenantModel
+      .find({ _id: { $in: uniqueTenantIds } })
+      .select('_id name')
+      .exec();
+    const tenantNameMap = new Map<string, string>();
+    tenants.forEach((t) => tenantNameMap.set(t._id as string, t.name));
+
     return {
-      entries: entries.map((entry: LoyaltyLedgerEntryDocument) => ({
-        id: entry._id,
-        transactionId: entry.transactionId,
-        amount: Number(entry.amount),
-        balanceAfter: Number(entry.balanceAfter),
-        operationType: entry.operationType,
-        createdAt: (entry as any).createdAt || new Date(),
-      })),
+      entries: entries.map((entry: LoyaltyLedgerEntryDocument) => {
+        const tx = txMap.get(entry.transactionId);
+        const stampIssued = (tx?.metadata as any)?.stampIssued === true;
+        return {
+          id: entry._id,
+          transactionId: entry.transactionId,
+          tenantId: entry.tenantId,
+          merchantName: tenantNameMap.get(entry.tenantId) || null,
+          amount: Number(entry.amount),
+          balanceAfter: Number(entry.balanceAfter),
+          operationType: entry.operationType,
+          stampIssued,
+          createdAt: (entry as any).createdAt || new Date(),
+        };
+      }),
       pagination: {
         page,
         limit,

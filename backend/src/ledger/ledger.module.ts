@@ -5,6 +5,8 @@ import { LedgerService } from './ledger.service';
 import { LoyaltyLedgerEntry, LoyaltyLedgerEntrySchema } from '../database/schemas/LoyaltyLedgerEntry.schema';
 import { CustomerMerchantAccount, CustomerMerchantAccountSchema } from '../database/schemas/CustomerMerchantAccount.schema';
 import { User, UserSchema } from '../database/schemas/User.schema';
+import { Transaction, TransactionSchema } from '../database/schemas/Transaction.schema';
+import { Tenant, TenantSchema } from '../database/schemas/Tenant.schema';
 
 @Module({
   imports: [
@@ -12,6 +14,8 @@ import { User, UserSchema } from '../database/schemas/User.schema';
       { name: LoyaltyLedgerEntry.name, schema: LoyaltyLedgerEntrySchema },
       { name: CustomerMerchantAccount.name, schema: CustomerMerchantAccountSchema },
       { name: User.name, schema: UserSchema },
+      { name: Transaction.name, schema: TransactionSchema },
+      { name: Tenant.name, schema: TenantSchema },
     ]),
   ],
   controllers: [LedgerController],

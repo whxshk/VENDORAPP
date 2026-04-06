@@ -11,14 +11,27 @@ import { Button } from "@/components/ui/button";
 import MonthSummaryCard from "../components/activity/MonthSummaryCard";
 import InsightsCard from "../components/activity/InsightsCard";
 
-function entryToTx(entry, merchantName) {
+function entryToTx(entry, merchantMap) {
+  // Prefer the name returned directly from the API; fall back to the
+  // memberships map (keyed by tenantId) so older entries without merchantName
+  // still resolve correctly.
+  const resolvedName =
+    entry.merchantName ||
+    (entry.tenantId && merchantMap.get(entry.tenantId)) ||
+    "SharkBand";
+
+  const isStamp = entry.stampIssued === true;
+  const absAmount = Math.abs(entry.amount);
+
   return {
     id: entry.id || entry.transactionId,
     type: entry.amount > 0 ? "earn" : "redeem",
-    merchant_name: merchantName || "SharkBand",
+    merchant_name: resolvedName,
     description: entry.operationType,
     created_date: entry.createdAt,
-    points_amount: Math.abs(entry.amount),
+    // Set the correct amount field so TransactionItem renders "pts" vs "stamp(s)"
+    points_amount: isStamp ? undefined : absAmount,
+    stamps_amount: isStamp ? absAmount : undefined,
   };
 }
 
@@ -39,7 +52,11 @@ export default function Activity() {
     },
     enabled: !!user,
   });
-  const merchantName = memberships[0]?.merchant_name || "SharkBand";
+
+  // Build a merchantId → merchantName lookup from the memberships list
+  const merchantMap = new Map(
+    memberships.map((m) => [m.merchant_id, m.merchant_name])
+  );
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useInfiniteQuery({
     queryKey: ["ledger-history", user?.customerId],
@@ -48,7 +65,7 @@ export default function Activity() {
       const res = await ledgerService.getHistory(user.customerId, { page: pageParam, limit });
       const { entries = [], pagination = {} } = res.data;
       return {
-        transactions: entries.map((e) => entryToTx(e, merchantName)),
+        transactions: entries.map((e) => entryToTx(e, merchantMap)),
         nextPage: pagination.page < pagination.totalPages ? pagination.page + 1 : undefined,
       };
     },
