@@ -23,20 +23,6 @@ export class Tenant {
   @Prop({ type: Object, default: {} })
   config!: Record<string, any>;
 
-  /**
-   * GeoJSON Point — populated automatically when the merchant saves their
-   * address (via geocoding).  Sparse so tenants without coordinates are
-   * excluded from the index.
-   */
-  @Prop({
-    type: {
-      type: { type: String, enum: ['Point'], required: true },
-      coordinates: { type: [Number], required: true },
-    },
-    required: false,
-  })
-  location?: GeoPoint;
-
   @Prop({ default: true, type: Boolean })
   isActive!: boolean;
 
@@ -49,7 +35,17 @@ export class Tenant {
 
 export const TenantSchema = SchemaFactory.createForClass(Tenant);
 
+// GeoJSON Point field added directly to avoid Mongoose's type/GeoJSON keyword conflict.
+// The @Prop decorator cannot reliably express a sub-document whose own property is
+// also named "type" — adding it here is the standard Mongoose workaround.
+TenantSchema.add({
+  location: {
+    type: { type: String, enum: ['Point'] },
+    coordinates: { type: [Number] },
+  },
+});
+
 TenantSchema.index({ createdAt: 1 });
 TenantSchema.index({ isActive: 1 });
-// Sparse 2dsphere index — only indexes tenants that have coordinates set.
+// Sparse so only geocoded tenants are indexed; existing records without location are unaffected.
 TenantSchema.index({ location: '2dsphere' }, { sparse: true });
