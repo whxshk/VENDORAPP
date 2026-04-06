@@ -38,11 +38,6 @@ export default function Wallet() {
     ...new Set(memberships.map((a) => a.merchant_category).filter(Boolean)),
   ];
 
-  const totalPoints = memberships.reduce(
-    (sum, a) => sum + (a.points_balance || 0),
-    0
-  );
-
   const handleTouchStart = (e) => {
     if (window.scrollY === 0) setPullStart(e.touches[0].clientY);
   };
@@ -99,27 +94,6 @@ export default function Wallet() {
           <p className="text-sm text-gray-400 mt-1">Your loyalty cards in one place</p>
         </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="mt-5 bg-gradient-to-r from-[#0A1931] to-[#1a3355] rounded-2xl p-5 shadow-lg shadow-[#0A1931]/20"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-gray-400 font-medium">Total Points Balance</p>
-              <p className="text-3xl font-bold text-white mt-1">
-                {totalPoints.toLocaleString()}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-xs text-gray-400 font-medium">Active Cards</p>
-              <p className="text-3xl font-bold text-orange-400 mt-1">
-                {memberships.length}
-              </p>
-            </div>
-          </div>
-        </motion.div>
       </div>
 
       {/* Search & Filter */}
