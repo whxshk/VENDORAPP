@@ -10,6 +10,11 @@ export interface MerchantSettings {
   description?: string;
   logoUrl?: string;
   category?: string;
+  address?: string;
+  phone?: string;
+  openingHours?: string;
+  latitude?: number;
+  longitude?: number;
   pointsPerQar: number;
   config: Record<string, any>;
   branches: Array<{
@@ -25,6 +30,11 @@ export interface UpdateMerchantSettingsDto {
   description?: string;
   logoUrl?: string;
   category?: string;
+  address?: string;
+  phone?: string;
+  openingHours?: string;
+  latitude?: number;
+  longitude?: number;
   pointsPerQar?: number;
   config?: Record<string, any>;
 }
@@ -51,6 +61,11 @@ export class MerchantService {
       description: tenant.config?.description || '',
       logoUrl: tenant.config?.logo_url || undefined,
       category: tenant.config?.category || undefined,
+      address: tenant.config?.address || undefined,
+      phone: tenant.config?.phone || undefined,
+      openingHours: tenant.config?.opening_hours || undefined,
+      latitude: tenant.config?.latitude != null ? Number(tenant.config.latitude) : undefined,
+      longitude: tenant.config?.longitude != null ? Number(tenant.config.longitude) : undefined,
       pointsPerQar: Number(tenant.config?.pointsPerQar ?? 1),
       config: tenant.config || {},
       branches: locations.map((loc) => ({
@@ -89,6 +104,26 @@ export class MerchantService {
 
     if (dto.category !== undefined) {
       updateData['config.category'] = dto.category;
+    }
+
+    if (dto.address !== undefined) {
+      updateData['config.address'] = dto.address;
+    }
+
+    if (dto.phone !== undefined) {
+      updateData['config.phone'] = dto.phone;
+    }
+
+    if (dto.openingHours !== undefined) {
+      updateData['config.opening_hours'] = dto.openingHours;
+    }
+
+    if (dto.latitude !== undefined) {
+      updateData['config.latitude'] = dto.latitude;
+    }
+
+    if (dto.longitude !== undefined) {
+      updateData['config.longitude'] = dto.longitude;
     }
 
     if (dto.pointsPerQar !== undefined) {

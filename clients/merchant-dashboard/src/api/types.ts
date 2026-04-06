@@ -63,6 +63,11 @@ export interface Merchant {
   description?: string;
   logoUrl?: string;
   category?: string;
+  address?: string;
+  phone?: string;
+  openingHours?: string;
+  latitude?: number;
+  longitude?: number;
   pointsPerQar?: number;
   config?: Record<string, any>;
   branches: Branch[];
@@ -233,6 +238,11 @@ export interface UpdateMerchantSettingsParams {
   description?: string;
   logoUrl?: string;
   category?: string;
+  address?: string;
+  phone?: string;
+  openingHours?: string;
+  latitude?: number;
+  longitude?: number;
   pointsPerQar?: number;
 }
 

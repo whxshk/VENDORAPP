@@ -10,7 +10,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/ta
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '../../components/ui/dialog';
 import { ConfirmDialog } from '../../components/ui/confirm-dialog';
 import { useErrorHandlerContext } from '../../hooks/useErrorHandler';
-import { Building2, Sun, Moon, Monitor } from 'lucide-react';
+import { Building2, Sun, Moon, Monitor, MapPin, Navigation } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import type { Theme } from '../../context/ThemeContext';
 import type { Branch } from '../../api/types';
@@ -42,6 +42,11 @@ type MerchantFormData = {
   name: string;
   description: string;
   category: string;
+  address: string;
+  phone: string;
+  openingHours: string;
+  latitude: string;
+  longitude: string;
 };
 
 /** Resize + JPEG-compress an image file to a base64 data URL.
@@ -94,17 +99,28 @@ export default function SettingsPage() {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<MerchantFormData>({
     defaultValues: {
       name: merchant?.name || '',
       description: merchant?.description || '',
       category: merchant?.category || '',
+      address: merchant?.address || '',
+      phone: merchant?.phone || '',
+      openingHours: merchant?.openingHours || '',
+      latitude: merchant?.latitude?.toString() || '',
+      longitude: merchant?.longitude?.toString() || '',
     },
     values: merchant ? {
       name: merchant.name,
       description: merchant.description || '',
       category: merchant.category || '',
+      address: merchant.address || '',
+      phone: merchant.phone || '',
+      openingHours: merchant.openingHours || '',
+      latitude: merchant.latitude?.toString() || '',
+      longitude: merchant.longitude?.toString() || '',
     } : undefined,
   });
 
@@ -140,8 +156,29 @@ export default function SettingsPage() {
     }
   }, [editingBranch, resetEditLocation]);
 
+  const handleUseMyLocation = () => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setValue('latitude', pos.coords.latitude.toFixed(6));
+        setValue('longitude', pos.coords.longitude.toFixed(6));
+      },
+      () => addError(new Error('Could not get your location. Please enter coordinates manually.'), 'Location'),
+    );
+  };
+
   const onSubmit = (data: MerchantFormData) => {
-    updateMerchant.mutate({ ...data, category: data.category || undefined }, {
+    const lat = data.latitude ? parseFloat(data.latitude) : undefined;
+    const lng = data.longitude ? parseFloat(data.longitude) : undefined;
+    updateMerchant.mutate({
+      ...data,
+      category: data.category || undefined,
+      address: data.address || undefined,
+      phone: data.phone || undefined,
+      openingHours: data.openingHours || undefined,
+      latitude: lat && !isNaN(lat) ? lat : undefined,
+      longitude: lng && !isNaN(lng) ? lng : undefined,
+    }, {
       onSuccess: () => {
         // Show success message
       },
@@ -306,6 +343,63 @@ export default function SettingsPage() {
                   <p className="text-xs text-slate-500 mt-1">
                     Shown to customers in the Discover and Wallet screens.
                   </p>
+                </div>
+
+                {/* Location */}
+                <div className="pt-2 border-t border-white/10">
+                  <div className="flex items-center gap-2 mb-4">
+                    <MapPin className="h-4 w-4 text-slate-400" />
+                    <span className="text-sm font-semibold text-white">Location</span>
+                  </div>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-semibold text-white mb-2 block">Address</label>
+                      <Input {...register('address')} placeholder="123 Main Street, Doha" />
+                    </div>
+                    <div>
+                      <label className="text-sm font-semibold text-white mb-2 block">Phone</label>
+                      <Input {...register('phone')} placeholder="+974 1234 5678" />
+                    </div>
+                    <div>
+                      <label className="text-sm font-semibold text-white mb-2 block">Opening Hours</label>
+                      <Input {...register('openingHours')} placeholder="Sun–Thu 9am–10pm" />
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-sm font-semibold text-white">Coordinates</label>
+                        <button
+                          type="button"
+                          onClick={handleUseMyLocation}
+                          className="flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                        >
+                          <Navigation className="h-3 w-3" />
+                          Use my location
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Input {...register('latitude')} placeholder="Latitude (e.g. 25.2854)" />
+                        </div>
+                        <div>
+                          <Input {...register('longitude')} placeholder="Longitude (e.g. 51.5310)" />
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-1.5">
+                        Used to show your business on the map. Click "Use my location" if you're at your business, or paste coordinates from Google Maps.
+                      </p>
+                      {merchant?.latitude && merchant?.longitude && (
+                        <a
+                          href={`https://www.google.com/maps?q=${merchant.latitude},${merchant.longitude}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 mt-2 text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                        >
+                          <MapPin className="h-3 w-3" />
+                          View current pin on Google Maps
+                        </a>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 <div>
