@@ -15,30 +15,6 @@ const categoryEmoji = {
   other: "⭐",
 };
 
-// Glassmorphism pills — reduced opacity for a lighter, more refined look
-const categoryPill = {
-  cafe:          "bg-amber-400/15 text-amber-100",
-  restaurant:    "bg-red-400/15 text-red-100",
-  retail:        "bg-blue-400/15 text-blue-100",
-  grocery:       "bg-green-400/15 text-green-100",
-  fitness:       "bg-purple-400/15 text-purple-100",
-  entertainment: "bg-pink-400/15 text-pink-100",
-  beauty:        "bg-rose-400/15 text-rose-100",
-  other:         "bg-white/15 text-white/70",
-};
-
-// Fallback background for the logo circle when no logo is present
-const categoryBg = {
-  cafe:          "bg-amber-50",
-  restaurant:    "bg-red-50",
-  retail:        "bg-blue-50",
-  grocery:       "bg-green-50",
-  fitness:       "bg-purple-50",
-  entertainment: "bg-pink-50",
-  beauty:        "bg-rose-50",
-  other:         "bg-gray-50",
-};
-
 export default function MerchantCard({ merchant, index, rewards = [], distance }) {
   const featuredReward = rewards[0];
   const rewardPreview = featuredReward
@@ -47,27 +23,9 @@ export default function MerchantCard({ merchant, index, rewards = [], distance }
       : `${featuredReward.points_cost || 0} pts = ${featuredReward.name}`
     : null;
 
-  // Always show a logo circle — use the image if available, otherwise show
-  // the category emoji as a fallback so all cards look consistent.
-  const logoCircle = (
-    <div
-      className={`absolute left-1/2 -translate-x-1/2 z-10 w-14 h-14 rounded-full border-2 border-white overflow-hidden flex items-center justify-center ${
-        merchant.logo_url ? "bg-white" : (categoryBg[merchant.category] || "bg-gray-50")
-      }`}
-      style={{
-        bottom: -28, // perfectly bisects the dark/white boundary (half of 56px)
-        boxShadow: "0 4px 16px rgba(0,0,0,0.20)",
-      }}
-    >
-      {merchant.logo_url ? (
-        <img src={merchant.logo_url} alt="" className="w-full h-full object-cover" />
-      ) : (
-        <span className="text-2xl leading-none">
-          {categoryEmoji[merchant.category] || "🏪"}
-        </span>
-      )}
-    </div>
-  );
+  const label = merchant.category
+    ? merchant.category.charAt(0).toUpperCase() + merchant.category.slice(1)
+    : "Other";
 
   return (
     <motion.div
@@ -77,95 +35,207 @@ export default function MerchantCard({ merchant, index, rewards = [], distance }
       transition={{ delay: index * 0.04, duration: 0.3 }}
     >
       <Link to={createPageUrl("MerchantDetail") + `?merchantId=${merchant.id}`}>
+        {/*
+          Card shell — 3px solid black border + 24px radius.
+          overflow:hidden clips the cover image to rounded top corners.
+          The logo circle (absolutely placed inside the 3px equator band)
+          overflows its own parent but stays within the card bounds,
+          so it is NOT clipped here.
+        */}
         <div
-          className="bg-white overflow-visible group transition-all duration-300"
-          style={{ borderRadius: 16, boxShadow: "0 10px 30px rgba(0,0,0,0.05)" }}
+          className="group"
+          style={{
+            border: "3px solid #000",
+            borderRadius: 24,
+            overflow: "hidden",
+            boxShadow: "none",
+            background: "#fff",
+          }}
         >
-          {/* Cover — 16:9 with logo overlapping bottom edge */}
+          {/* ── DARK TOP (cover image) ────────────────────────────────── */}
           <div
-            className="relative w-full bg-gradient-to-br from-[#0A1931] to-[#162d50] overflow-visible"
-            style={{ aspectRatio: "16/9", borderRadius: "16px 16px 0 0", overflow: "hidden" }}
+            style={{
+              aspectRatio: "16/9",
+              position: "relative",
+              overflow: "hidden",
+              background: "linear-gradient(135deg, #0A1931 0%, #1a3355 100%)",
+            }}
           >
             {merchant.cover_image_url && (
               <img
                 src={merchant.cover_image_url}
                 alt=""
-                className="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-500"
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  opacity: 0.75,
+                  transition: "transform 0.5s",
+                }}
+                className="group-hover:scale-105"
               />
             )}
 
-            {/* Gradient scrim — fades to a solid dark at the bottom for the logo to pop */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent" />
+            {/* Scrim — makes tag readable */}
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                background: "linear-gradient(to top, rgba(0,0,0,0.35) 0%, transparent 60%)",
+              }}
+            />
 
-            {/* Category badge — top-left, 20px from edges (8px more breathing room) */}
-            <div className="absolute top-5 left-5">
+            {/*
+              Category tag — solid navy pill, 14px from edges.
+              14px aligns naturally with a 24px corner radius.
+            */}
+            <div style={{ position: "absolute", top: 14, left: 14 }}>
               <span
-                className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-medium tracking-wide backdrop-blur-md ${
-                  categoryPill[merchant.category] || categoryPill.other
-                }`}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  padding: "3px 10px",
+                  borderRadius: 999,
+                  background: "rgba(10, 25, 49, 0.85)",
+                  border: "1px solid rgba(255,255,255,0.18)",
+                  color: "#fff",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  letterSpacing: "0.03em",
+                  backdropFilter: "blur(6px)",
+                  WebkitBackdropFilter: "blur(6px)",
+                }}
               >
-                {categoryEmoji[merchant.category] || "⭐"}{" "}
-                {merchant.category
-                  ? merchant.category.charAt(0).toUpperCase() + merchant.category.slice(1)
-                  : "Other"}
+                {categoryEmoji[merchant.category] || "⭐"} {label}
               </span>
             </div>
-
-            {/* Logo circle — needs overflow:visible on parent, so we portal it out */}
           </div>
 
-          {/* Logo rendered outside the clipped cover so it can overflow */}
-          <div className="relative">
-            <div className="absolute left-1/2 -translate-x-1/2 -top-7 z-10">
+          {/*
+            ── EQUATOR BAND ─────────────────────────────────────────────
+            3px solid black — this IS the horizontal divider.
+            The logo circle is absolutely positioned at the exact centre
+            of this band; its white background visually "interrupts" the
+            line, recreating the Poké Ball plug-in effect.
+          */}
+          <div style={{ height: 3, background: "#000", position: "relative" }}>
+            <div
+              style={{
+                position: "absolute",
+                left: "50%",
+                top: "50%",
+                transform: "translate(-50%, -50%)",
+                width: 64,
+                height: 64,
+                borderRadius: "50%",
+                border: "3px solid #000",
+                background: "#fff",
+                overflow: "hidden",
+                zIndex: 10,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {merchant.logo_url ? (
+                <img
+                  src={merchant.logo_url}
+                  alt=""
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              ) : (
+                <span style={{ fontSize: 26, lineHeight: 1 }}>
+                  {categoryEmoji[merchant.category] || "🏪"}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* ── WHITE BOTTOM (info) ───────────────────────────────────── */}
+          <div
+            style={{
+              background: "#fff",
+              paddingTop: 44,   // 32px to clear half the logo + 12px breathing room
+              paddingBottom: 20,
+              paddingLeft: 16,
+              paddingRight: 16,
+              textAlign: "center",
+            }}
+          >
+            <h3
+              style={{
+                fontWeight: 600,
+                fontSize: 18,
+                color: "#0A1931",
+                lineHeight: 1.25,
+                margin: 0,
+              }}
+            >
+              {merchant.name}
+            </h3>
+
+            {/* Reward preview */}
+            {rewardPreview && (
               <div
-                className={`w-14 h-14 rounded-full border-2 border-white overflow-hidden flex items-center justify-center ${
-                  merchant.logo_url
-                    ? "bg-white"
-                    : (categoryBg[merchant.category] || "bg-gray-50")
-                }`}
-                style={{ boxShadow: "0 4px 16px rgba(0,0,0,0.18)" }}
+                style={{
+                  marginTop: 10,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  fontSize: 11,
+                  color: "#c2410c",
+                  background: "#fff7ed",
+                  borderRadius: 8,
+                  padding: "5px 10px",
+                  border: "1px solid #fed7aa",
+                }}
               >
-                {merchant.logo_url ? (
-                  <img src={merchant.logo_url} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-xl leading-none">
-                    {categoryEmoji[merchant.category] || "🏪"}
-                  </span>
-                )}
+                <span>🎁</span>
+                <span style={{ fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {rewardPreview}
+                </span>
               </div>
-            </div>
+            )}
 
-            {/* Info */}
-            <div className="px-4 pt-11 pb-5 text-center">
-              <h3
-                className="font-semibold text-[#0A1931] leading-snug"
-                style={{ fontSize: 18 }}
+            {/* Distance */}
+            {distance != null && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 4,
+                  marginTop: 8,
+                  color: "#9ca3af",
+                  fontSize: 11,
+                  fontWeight: 500,
+                }}
               >
-                {merchant.name}
-              </h3>
+                <MapPin style={{ width: 11, height: 11 }} />
+                {distance.toFixed(1)} km away
+              </div>
+            )}
 
-              {/* Reward preview */}
-              {rewardPreview && (
-                <div className="mt-2.5 flex items-center gap-1.5 text-xs text-orange-600 bg-orange-50 rounded-lg px-2.5 py-1.5 border border-orange-100">
-                  <span>🎁</span>
-                  <span className="font-medium truncate">{rewardPreview}</span>
-                </div>
-              )}
-
-              {/* Distance */}
-              {distance != null && (
-                <div className="flex items-center justify-center gap-1 mt-2 text-gray-400">
-                  <MapPin className="w-3 h-3" />
-                  <span className="text-xs font-medium">{distance.toFixed(1)} km away</span>
-                </div>
-              )}
-
-              {!rewardPreview && distance == null && merchant.description && (
-                <p className="text-xs text-gray-400 mt-1.5 line-clamp-2">
-                  {merchant.description}
-                </p>
-              )}
-            </div>
+            {!rewardPreview && distance == null && merchant.description && (
+              <p
+                style={{
+                  fontSize: 12,
+                  color: "#9ca3af",
+                  marginTop: 6,
+                  lineHeight: 1.4,
+                  overflow: "hidden",
+                  display: "-webkit-box",
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical",
+                }}
+              >
+                {merchant.description}
+              </p>
+            )}
           </div>
         </div>
       </Link>
