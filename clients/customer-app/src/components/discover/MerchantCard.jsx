@@ -54,6 +54,11 @@ export default function MerchantCard({ merchant, index, rewards = [], distance }
                 {categoryEmoji[merchant.category]} {merchant.category}
               </Badge>
             </div>
+            {merchant.logo_url && (
+              <div className="absolute bottom-3 right-3 w-10 h-10 rounded-xl overflow-hidden border-2 border-white shadow-md">
+                <img src={merchant.logo_url} alt="" className="w-full h-full object-cover" />
+              </div>
+            )}
           </div>
 
           {/* Info */}

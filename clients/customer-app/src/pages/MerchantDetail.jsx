@@ -119,9 +119,16 @@ export default function MerchantDetail() {
           </div>
         </Link>
 
-        <div className="absolute bottom-5 left-6 right-6">
-          <h1 className="text-2xl font-bold text-white">{merchant.name}</h1>
-          <p className="text-sm text-gray-300 mt-1 capitalize">{merchant.category}</p>
+        <div className="absolute bottom-5 left-6 right-6 flex items-end gap-4">
+          {merchant.logo_url && (
+            <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-white/80 shadow-lg flex-shrink-0">
+              <img src={merchant.logo_url} alt="" className="w-full h-full object-cover" />
+            </div>
+          )}
+          <div>
+            <h1 className="text-2xl font-bold text-white">{merchant.name}</h1>
+            <p className="text-sm text-gray-300 mt-0.5 capitalize">{merchant.category}</p>
+          </div>
         </div>
       </div>
 

@@ -27,11 +27,13 @@ export default function WalletCard({ account, index }) {
         <div className="bg-white rounded-2xl p-5 border border-gray-100 hover:border-orange-200 hover:shadow-lg transition-all duration-300 group">
           <div className="flex items-center gap-4">
             {/* Logo / Avatar */}
-            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#0A1931] to-[#1a3355] flex items-center justify-center flex-shrink-0 shadow-sm">
+            <div className="w-14 h-14 rounded-xl overflow-hidden border border-gray-200 bg-gray-50 flex items-center justify-center flex-shrink-0 shadow-sm">
               {account.merchant_logo_url ? (
-                <img src={account.merchant_logo_url} alt="" className="w-10 h-10 rounded-lg object-cover" />
+                <img src={account.merchant_logo_url} alt="" className="w-full h-full object-cover" />
               ) : (
-                <span className="text-2xl">{categoryEmoji[account.merchant_category] || "⭐"}</span>
+                <div className="w-full h-full bg-gradient-to-br from-[#0A1931] to-[#1a3355] flex items-center justify-center">
+                  <span className="text-2xl">{categoryEmoji[account.merchant_category] || "⭐"}</span>
+                </div>
               )}
             </div>
 
