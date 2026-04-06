@@ -20,6 +20,7 @@ async function bootstrap() {
       logger: true,
       requestIdLogLabel: 'requestId',
       disableRequestLogging: false,
+      bodyLimit: 10 * 1024 * 1024, // 10 MB — needed for base64 logo uploads
     }),
   );
 

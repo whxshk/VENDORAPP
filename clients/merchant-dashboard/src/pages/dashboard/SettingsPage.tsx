@@ -44,6 +44,39 @@ type MerchantFormData = {
   category: string;
 };
 
+/** Resize + JPEG-compress an image file to a base64 data URL.
+ *  Keeps the longest side ≤ maxPx and compresses to the given quality (0–1).
+ *  This ensures logo uploads stay well under Fastify's body limit. */
+function compressImage(file: File, maxPx = 512, quality = 0.75): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxPx || height > maxPx) {
+          if (width >= height) {
+            height = Math.round((height * maxPx) / width);
+            width = maxPx;
+          } else {
+            width = Math.round((width * maxPx) / height);
+            height = maxPx;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d')!.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = e.target!.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function SettingsPage() {
   const { data: merchant, isLoading } = useMerchantSettings();
   const updateMerchant = useUpdateMerchantSettings();
@@ -298,14 +331,15 @@ export default function SettingsPage() {
                         type="file"
                         accept="image/png,image/jpeg,image/webp,image/svg+xml"
                         className="hidden"
-                        onChange={(e) => {
+                        onChange={async (e) => {
                           const file = e.target.files?.[0];
                           if (!file) return;
-                          const reader = new FileReader();
-                          reader.onload = () => {
-                            updateMerchant.mutate({ logoUrl: reader.result as string });
-                          };
-                          reader.readAsDataURL(file);
+                          try {
+                            const compressed = await compressImage(file);
+                            updateMerchant.mutate({ logoUrl: compressed });
+                          } catch {
+                            addError(new Error('Failed to process image. Please try a different file.'), 'Logo Upload');
+                          }
                         }}
                         disabled={updateMerchant.isPending}
                       />
