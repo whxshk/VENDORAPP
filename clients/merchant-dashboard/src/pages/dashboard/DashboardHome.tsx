@@ -20,6 +20,7 @@
  */
 
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useDashboardSummary } from '../../hooks/useDashboardSummary';
 import { useMerchantSettings } from '../../hooks/useMerchant';
 import { KPIStatCard } from '../../components/dashboard/KPIStatCard';
@@ -31,7 +32,7 @@ import { TopRedeemedRewardsCard } from '../../components/dashboard/charts/TopRed
 import { Select } from '../../components/ui/select';
 import {
   Users, Receipt, TrendingUp, Building2,
-  ArrowUpRight, ArrowDownRight, Stamp,
+  ArrowUpRight, ArrowDownRight, Stamp, ScanLine,
 } from 'lucide-react';
 import { formatDateTime, toNumber } from '../../lib/utils';
 
@@ -118,6 +119,7 @@ export default function DashboardHome() {
   const [selectedLocationId, setSelectedLocationId] = useState('');
   const { data, isLoading, error } = useDashboardSummary(selectedLocationId || undefined);
   const { data: merchant } = useMerchantSettings();
+  const navigate = useNavigate();
 
   // ── Loading skeleton ────────────────────────────────────────────────────────
   if (isLoading) {
@@ -219,6 +221,17 @@ export default function DashboardHome() {
 
   return (
     <div className="space-y-8">
+
+      {/* ── Scan CTA ───────────────────────────────────────────────────────── */}
+      <button
+        onClick={() => navigate('/dashboard/scan')}
+        className="w-full flex items-center justify-center gap-4 py-6 rounded-2xl text-white font-black text-2xl tracking-tight shadow-2xl shadow-blue-500/30 transition-all duration-200 active:scale-[0.98] hover:shadow-blue-500/50 hover:brightness-110"
+        style={{ background: 'linear-gradient(135deg, #2563eb 0%, #6d28d9 100%)' }}
+        aria-label="Go to Scan page"
+      >
+        <ScanLine className="h-8 w-8 shrink-0" strokeWidth={2.5} />
+        Scan
+      </button>
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
