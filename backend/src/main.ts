@@ -44,7 +44,10 @@ async function bootstrap() {
 
   await app.register(cors, {
     origin: corsOrigin,
-    credentials: true,
+    credentials: corsOrigin !== '*',
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key', 'X-Request-ID'],
+    exposedHeaders: ['X-Request-ID'],
   });
 
   // Root health/info endpoint for quick browser checks
