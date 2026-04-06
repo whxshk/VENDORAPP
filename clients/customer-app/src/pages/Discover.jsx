@@ -41,12 +41,24 @@ export default function Discover() {
   const [nearMeFilter, setNearMeFilter] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
 
+  // Full merchant list — always loaded for grid/map view
   const { data: merchantsRaw = [], isLoading } = useQuery({
     queryKey: ["merchants"],
     queryFn: async () => {
       const res = await merchantService.list({ is_active: true });
       return Array.isArray(res.data) ? res.data : (res.data?.merchants || []);
     },
+  });
+
+  // Nearby query — server-side distance sort, only runs when user has location
+  const { data: nearbyRaw = [], isFetching: nearbyFetching } = useQuery({
+    queryKey: ["merchants-nearby", userLocation?.[0], userLocation?.[1]],
+    queryFn: async () => {
+      const res = await merchantService.nearby(userLocation[0], userLocation[1], 25000);
+      return Array.isArray(res.data) ? res.data : [];
+    },
+    enabled: !!userLocation,
+    staleTime: 60_000,
   });
 
   const { data: allRewards = [] } = useQuery({
@@ -66,36 +78,40 @@ export default function Discover() {
     }
   }, []);
 
-  let filtered = merchantsRaw.filter((m) => {
+  // When "Near Me" is active and location is available, use server-side nearby results;
+  // otherwise fall back to the full list with client-side distance annotation.
+  const baseList = nearMeFilter && userLocation ? nearbyRaw : merchantsRaw;
+
+  let filtered = baseList.filter((m) => {
     const matchSearch =
       !search ||
       m.name?.toLowerCase().includes(search.toLowerCase()) ||
       m.description?.toLowerCase().includes(search.toLowerCase());
     const matchCategory = category === "all" || m.category === category;
-    let matchNearMe = true;
-    if (nearMeFilter && userLocation && m.latitude && m.longitude) {
-      matchNearMe =
-        calculateDistance(userLocation[0], userLocation[1], m.latitude, m.longitude) <= 5;
-    } else if (nearMeFilter && !userLocation) {
-      matchNearMe = false;
-    }
-    return matchSearch && matchCategory && matchNearMe;
+    return matchSearch && matchCategory;
   });
 
+  // Attach client-side distance for merchants that have coordinates but came
+  // from the full list (not the nearby endpoint, which already has distance_meters)
   if (userLocation) {
-    filtered = filtered.map((m) => ({
-      ...m,
-      distance:
-        m.latitude && m.longitude
-          ? calculateDistance(userLocation[0], userLocation[1], m.latitude, m.longitude)
-          : null,
-    }));
+    filtered = filtered.map((m) => {
+      if (m.distance_meters != null) {
+        return { ...m, distance: m.distance_meters / 1000 };
+      }
+      if (m.latitude && m.longitude) {
+        return {
+          ...m,
+          distance: calculateDistance(userLocation[0], userLocation[1], m.latitude, m.longitude),
+        };
+      }
+      return m;
+    });
   }
 
   if (sortBy === "distance" && userLocation) {
     filtered = [...filtered].sort((a, b) => {
-      if (!a.distance) return 1;
-      if (!b.distance) return -1;
+      if (a.distance == null) return 1;
+      if (b.distance == null) return -1;
       return a.distance - b.distance;
     });
   }
@@ -192,7 +208,7 @@ export default function Discover() {
           {nearMeFilter && userLocation && " near you"}
         </p>
 
-        {isLoading ? (
+        {isLoading || (nearMeFilter && nearbyFetching && nearbyRaw.length === 0) ? (
           <div className="grid grid-cols-2 gap-3">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="bg-white rounded-2xl overflow-hidden animate-pulse">

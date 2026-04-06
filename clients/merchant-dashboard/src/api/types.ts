@@ -64,10 +64,13 @@ export interface Merchant {
   logoUrl?: string;
   category?: string;
   address?: string;
+  formattedAddress?: string;
   phone?: string;
   openingHours?: string;
   latitude?: number;
   longitude?: number;
+  /** 'resolved' | 'failed' | 'pending' | null — set automatically by geocoding */
+  geocodingStatus?: string | null;
   pointsPerQar?: number;
   config?: Record<string, any>;
   branches: Branch[];

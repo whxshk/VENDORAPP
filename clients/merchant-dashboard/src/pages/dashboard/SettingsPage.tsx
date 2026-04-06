@@ -10,7 +10,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/ta
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '../../components/ui/dialog';
 import { ConfirmDialog } from '../../components/ui/confirm-dialog';
 import { useErrorHandlerContext } from '../../hooks/useErrorHandler';
-import { Building2, Sun, Moon, Monitor, MapPin, Navigation } from 'lucide-react';
+import { Building2, Sun, Moon, Monitor, MapPin, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import type { Theme } from '../../context/ThemeContext';
 import type { Branch } from '../../api/types';
@@ -45,8 +45,6 @@ type MerchantFormData = {
   address: string;
   phone: string;
   openingHours: string;
-  latitude: string;
-  longitude: string;
 };
 
 /** Resize + JPEG-compress an image file to a base64 data URL.
@@ -99,7 +97,6 @@ export default function SettingsPage() {
   const {
     register,
     handleSubmit,
-    setValue,
     formState: { errors },
   } = useForm<MerchantFormData>({
     defaultValues: {
@@ -109,8 +106,6 @@ export default function SettingsPage() {
       address: merchant?.address || '',
       phone: merchant?.phone || '',
       openingHours: merchant?.openingHours || '',
-      latitude: merchant?.latitude?.toString() || '',
-      longitude: merchant?.longitude?.toString() || '',
     },
     values: merchant ? {
       name: merchant.name,
@@ -119,8 +114,6 @@ export default function SettingsPage() {
       address: merchant.address || '',
       phone: merchant.phone || '',
       openingHours: merchant.openingHours || '',
-      latitude: merchant.latitude?.toString() || '',
-      longitude: merchant.longitude?.toString() || '',
     } : undefined,
   });
 
@@ -156,28 +149,13 @@ export default function SettingsPage() {
     }
   }, [editingBranch, resetEditLocation]);
 
-  const handleUseMyLocation = () => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setValue('latitude', pos.coords.latitude.toFixed(6));
-        setValue('longitude', pos.coords.longitude.toFixed(6));
-      },
-      () => addError(new Error('Could not get your location. Please enter coordinates manually.'), 'Location'),
-    );
-  };
-
   const onSubmit = (data: MerchantFormData) => {
-    const lat = data.latitude ? parseFloat(data.latitude) : undefined;
-    const lng = data.longitude ? parseFloat(data.longitude) : undefined;
     updateMerchant.mutate({
       ...data,
       category: data.category || undefined,
       address: data.address || undefined,
       phone: data.phone || undefined,
       openingHours: data.openingHours || undefined,
-      latitude: lat && !isNaN(lat) ? lat : undefined,
-      longitude: lng && !isNaN(lng) ? lng : undefined,
     }, {
       onSuccess: () => {
         // Show success message
@@ -354,8 +332,45 @@ export default function SettingsPage() {
                   <div className="space-y-4">
                     <div>
                       <label className="text-sm font-semibold text-white mb-2 block">Address</label>
-                      <Input {...register('address')} placeholder="123 Main Street, Doha" />
+                      <Input
+                        {...register('address')}
+                        placeholder="e.g. The Pearl, Doha, Qatar"
+                      />
+                      <p className="text-xs text-slate-500 mt-1.5">
+                        Save your address and we'll automatically pin your business on the map.
+                      </p>
+
+                      {/* Geocoding status badge */}
+                      {merchant?.geocodingStatus === 'resolved' && merchant.latitude && merchant.longitude && (
+                        <div className="flex items-center justify-between mt-2">
+                          <span className="flex items-center gap-1.5 text-xs text-green-400">
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            Location pinned — {(merchant as any).formattedAddress || 'coordinates resolved'}
+                          </span>
+                          <a
+                            href={`https://www.google.com/maps?q=${merchant.latitude},${merchant.longitude}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                          >
+                            View on map ↗
+                          </a>
+                        </div>
+                      )}
+                      {merchant?.geocodingStatus === 'pending' && (
+                        <span className="flex items-center gap-1.5 mt-2 text-xs text-slate-400">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          Resolving coordinates…
+                        </span>
+                      )}
+                      {merchant?.geocodingStatus === 'failed' && (
+                        <span className="flex items-center gap-1.5 mt-2 text-xs text-amber-400">
+                          <AlertCircle className="h-3.5 w-3.5" />
+                          Couldn't pin this address. Try a more specific address.
+                        </span>
+                      )}
                     </div>
+
                     <div>
                       <label className="text-sm font-semibold text-white mb-2 block">Phone</label>
                       <Input {...register('phone')} placeholder="+974 1234 5678" />
@@ -363,41 +378,6 @@ export default function SettingsPage() {
                     <div>
                       <label className="text-sm font-semibold text-white mb-2 block">Opening Hours</label>
                       <Input {...register('openingHours')} placeholder="Sun–Thu 9am–10pm" />
-                    </div>
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <label className="text-sm font-semibold text-white">Coordinates</label>
-                        <button
-                          type="button"
-                          onClick={handleUseMyLocation}
-                          className="flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 transition-colors"
-                        >
-                          <Navigation className="h-3 w-3" />
-                          Use my location
-                        </button>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <Input {...register('latitude')} placeholder="Latitude (e.g. 25.2854)" />
-                        </div>
-                        <div>
-                          <Input {...register('longitude')} placeholder="Longitude (e.g. 51.5310)" />
-                        </div>
-                      </div>
-                      <p className="text-xs text-slate-500 mt-1.5">
-                        Used to show your business on the map. Click "Use my location" if you're at your business, or paste coordinates from Google Maps.
-                      </p>
-                      {merchant?.latitude && merchant?.longitude && (
-                        <a
-                          href={`https://www.google.com/maps?q=${merchant.latitude},${merchant.longitude}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 mt-2 text-xs text-blue-400 hover:text-blue-300 transition-colors"
-                        >
-                          <MapPin className="h-3 w-3" />
-                          View current pin on Google Maps
-                        </a>
-                      )}
                     </div>
                   </div>
                 </div>
