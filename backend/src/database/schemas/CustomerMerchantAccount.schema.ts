@@ -14,6 +14,9 @@ export class CustomerMerchantAccount {
   @Prop({ required: true, index: true, type: String })
   tenantId!: string;
 
+  @Prop({ type: String })
+  merchantName?: string;
+
   @Prop({ default: 'ACTIVE', index: true, type: String })
   membershipStatus!: string;
 }

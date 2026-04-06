@@ -2,8 +2,9 @@ import { useAuthStore } from '../../store/authStore';
 import { useMerchantSettings } from '../../hooks/useMerchant';
 import { getEnvironment, isDemoMode } from '../../config/env';
 import { Badge } from '../ui/badge';
-import { ChevronDown, LogOut, User } from 'lucide-react';
+import { ChevronDown, LogOut, User, ScanLine } from 'lucide-react';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export function TopBar() {
   const { logout, user } = useAuthStore();
@@ -11,6 +12,7 @@ export function TopBar() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const environment = getEnvironment();
   const demoMode = isDemoMode();
+  const navigate = useNavigate();
 
   const envBadgeVariant =
     environment === 'DEMO' ? 'warning' : environment === 'PILOT' ? 'secondary' : 'success';
@@ -32,6 +34,16 @@ export function TopBar() {
             {environment}
           </Badge>
         </div>
+
+        {/* Center/Right: Scan button */}
+        <button
+          onClick={() => navigate('/dashboard/scan')}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-semibold text-sm shadow-lg shadow-blue-500/30 transition-all duration-200 active:scale-95 min-w-[44px] min-h-[44px] justify-center"
+          aria-label="Open Scan page"
+        >
+          <ScanLine className="h-4 w-4 shrink-0" />
+          <span className="hidden sm:inline">Scan</span>
+        </button>
 
         {/* Right: User menu */}
         <div className="relative">

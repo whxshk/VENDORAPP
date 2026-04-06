@@ -40,6 +40,9 @@ export class Transaction {
   @Prop({ index: true, type: String })
   deviceId?: string;
 
+  @Prop({ type: String })
+  merchantName?: string;
+
   @Prop({ type: Object, default: {} })
   metadata!: Record<string, any>;
 }

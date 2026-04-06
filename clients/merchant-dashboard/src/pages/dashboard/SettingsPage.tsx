@@ -26,9 +26,22 @@ const locationSchema = z.object({
 
 type LocationFormData = z.infer<typeof locationSchema>;
 
+const MERCHANT_CATEGORIES = [
+  { value: '', label: 'Select a category…' },
+  { value: 'cafe', label: 'Café' },
+  { value: 'restaurant', label: 'Restaurant' },
+  { value: 'retail', label: 'Retail' },
+  { value: 'grocery', label: 'Grocery' },
+  { value: 'fitness', label: 'Fitness' },
+  { value: 'entertainment', label: 'Entertainment' },
+  { value: 'beauty', label: 'Beauty' },
+  { value: 'other', label: 'Other' },
+];
+
 type MerchantFormData = {
   name: string;
   description: string;
+  category: string;
 };
 
 export default function SettingsPage() {
@@ -53,10 +66,12 @@ export default function SettingsPage() {
     defaultValues: {
       name: merchant?.name || '',
       description: merchant?.description || '',
+      category: merchant?.category || '',
     },
     values: merchant ? {
       name: merchant.name,
       description: merchant.description || '',
+      category: merchant.category || '',
     } : undefined,
   });
 
@@ -93,7 +108,7 @@ export default function SettingsPage() {
   }, [editingBranch, resetEditLocation]);
 
   const onSubmit = (data: MerchantFormData) => {
-    updateMerchant.mutate(data, {
+    updateMerchant.mutate({ ...data, category: data.category || undefined }, {
       onSuccess: () => {
         // Show success message
       },
@@ -242,6 +257,22 @@ export default function SettingsPage() {
                 <div>
                   <label className="text-sm font-semibold text-white mb-2 block">Description</label>
                   <Input {...register('description')} placeholder="Brief description of your business" />
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold text-white mb-2 block">Category</label>
+                  <select
+                    {...register('category')}
+                    className="w-full px-3 py-2 rounded-lg text-sm border bg-slate-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    style={{ borderColor: 'var(--border)' }}
+                  >
+                    {MERCHANT_CATEGORIES.map((cat) => (
+                      <option key={cat.value} value={cat.value}>{cat.label}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Shown to customers in the Discover and Wallet screens.
+                  </p>
                 </div>
 
                 <div>

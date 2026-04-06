@@ -62,6 +62,7 @@ export interface Merchant {
   name: string;
   description?: string;
   logoUrl?: string;
+  category?: string;
   pointsPerQar?: number;
   config?: Record<string, any>;
   branches: Branch[];
@@ -231,6 +232,7 @@ export interface UpdateMerchantSettingsParams {
   name?: string;
   description?: string;
   logoUrl?: string;
+  category?: string;
   pointsPerQar?: number;
 }
 

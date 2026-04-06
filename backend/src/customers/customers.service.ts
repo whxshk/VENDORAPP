@@ -662,6 +662,7 @@ export class CustomersService {
           merchant_id: account.tenantId,
           merchant_name: tenant?.name || 'Unknown',
           merchant_category: config['category'] || null,
+          merchant_logo_url: config['logo_url'] || null,
           loyalty_type: loyaltyType,
           points_balance,
           stamps_count,

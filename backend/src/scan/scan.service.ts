@@ -75,7 +75,7 @@ export class ScanService {
     idempotencyKey: string,
   ) {
     const [tenant, user] = await Promise.all([
-      this.tenantModel.findById(tenantId).select('isActive config').exec(),
+      this.tenantModel.findById(tenantId).select('isActive config name').exec(),
       this.userModel.findOne({ _id: staffUserId, tenantId }).select('isActive').exec(),
     ]);
     if (!tenant?.isActive) throw new ForbiddenException('Tenant is disabled');
@@ -92,6 +92,7 @@ export class ScanService {
         _id: uuidv4(),
         customerId: parsed.c,
         tenantId,
+        merchantName: tenant?.name,
         membershipStatus: 'ACTIVE',
       });
       await account.save();
@@ -176,6 +177,7 @@ export class ScanService {
         );
         await this.transactionModel.findByIdAndUpdate(result.id, {
           $set: {
+            merchantName: tenant?.name,
             metadata: {
               stampIssued: true,
               purchaseAmount: amount,
@@ -208,6 +210,7 @@ export class ScanService {
         );
         await this.transactionModel.findByIdAndUpdate(result.id, {
           $set: {
+            merchantName: tenant?.name,
             metadata: {
               purchaseAmount: amount,
               pointsEarned: pointsIssued,
@@ -281,6 +284,7 @@ export class ScanService {
     if (tx) {
       await this.transactionModel.findByIdAndUpdate(tx._id, {
         $set: {
+          merchantName: tenant?.name,
           metadata: {
             ...((tx.metadata as Record<string, unknown>) || {}),
             customerName: customerDetail.name,

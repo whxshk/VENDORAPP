@@ -27,6 +27,7 @@ import {
   PilotOnboardingFunnel,
   PilotOnboardingFunnelDocument,
 } from '../database/schemas/PilotOnboardingFunnel.schema';
+import { Tenant, TenantDocument } from '../database/schemas/Tenant.schema';
 import { LedgerService } from '../ledger/ledger.service';
 import { OutboxService } from '../outbox/outbox.service';
 import { FraudSignalsService } from '../fraud-signals/fraud-signals.service';
@@ -50,6 +51,7 @@ export class TransactionsService {
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(PilotOnboardingFunnel.name)
     private funnelModel: Model<PilotOnboardingFunnelDocument>,
+    @InjectModel(Tenant.name) private tenantModel: Model<TenantDocument>,
     private ledgerService: LedgerService,
     private outboxService: OutboxService,
     private fraudSignalsService: FraudSignalsService,
@@ -700,6 +702,10 @@ export class TransactionsService {
       }
     });
 
+    // Look up the tenant (merchant) name for readability
+    const tenantDoc = await this.tenantModel.findById(tenantId).select('name').exec();
+    const merchantName = tenantDoc?.name || tenantId;
+
     // Look up real customer names from User documents (source of truth)
     const uniqueCustomerIds = [...new Set(transactions.map((tx: TransactionDocument) => tx.customerId))];
     const customerUsers = await this.userModel
@@ -754,6 +760,8 @@ export class TransactionsService {
           id: tx._id,
           customerId,
           customerName,
+          merchantId: tenantId,
+          merchantName: tx.merchantName || merchantName,
           type: tx.type === TransactionType.ISSUE ? 'earn' : 'redeem',
           points: tx.type === TransactionType.ISSUE ? numericPoints : -numericPoints,
           amount: tx.type === TransactionType.ISSUE ? issueAmount : undefined,

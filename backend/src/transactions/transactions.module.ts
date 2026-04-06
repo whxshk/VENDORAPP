@@ -15,6 +15,7 @@ import { Reward, RewardSchema } from '../database/schemas/Reward.schema';
 import { ScanEvent, ScanEventSchema } from '../database/schemas/ScanEvent.schema';
 import { User, UserSchema } from '../database/schemas/User.schema';
 import { PilotOnboardingFunnel, PilotOnboardingFunnelSchema } from '../database/schemas/PilotOnboardingFunnel.schema';
+import { Tenant, TenantSchema } from '../database/schemas/Tenant.schema';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { PilotOnboardingFunnel, PilotOnboardingFunnelSchema } from '../database/
       { name: ScanEvent.name, schema: ScanEventSchema },
       { name: User.name, schema: UserSchema },
       { name: PilotOnboardingFunnel.name, schema: PilotOnboardingFunnelSchema },
+      { name: Tenant.name, schema: TenantSchema },
     ]),
     LedgerModule,
     OutboxModule,
