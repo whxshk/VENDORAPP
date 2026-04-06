@@ -44,7 +44,6 @@ type MerchantFormData = {
   category: string;
   address: string;
   phone: string;
-  openingHours: string;
 };
 
 /** Resize + JPEG-compress an image file to a base64 data URL.
@@ -105,7 +104,6 @@ export default function SettingsPage() {
       category: merchant?.category || '',
       address: merchant?.address || '',
       phone: merchant?.phone || '',
-      openingHours: merchant?.openingHours || '',
     },
     values: merchant ? {
       name: merchant.name,
@@ -113,7 +111,6 @@ export default function SettingsPage() {
       category: merchant.category || '',
       address: merchant.address || '',
       phone: merchant.phone || '',
-      openingHours: merchant.openingHours || '',
     } : undefined,
   });
 
@@ -155,7 +152,6 @@ export default function SettingsPage() {
       category: data.category || undefined,
       address: data.address || undefined,
       phone: data.phone || undefined,
-      openingHours: data.openingHours || undefined,
     }, {
       onSuccess: () => {
         // Show success message
@@ -336,9 +332,6 @@ export default function SettingsPage() {
                         {...register('address')}
                         placeholder="e.g. The Pearl, Doha, Qatar"
                       />
-                      <p className="text-xs text-slate-500 mt-1.5">
-                        Save your address and we'll automatically pin your business on the map.
-                      </p>
 
                       {/* Geocoding status badge */}
                       {merchant?.geocodingStatus === 'resolved' && merchant.latitude && merchant.longitude && (
@@ -374,10 +367,6 @@ export default function SettingsPage() {
                     <div>
                       <label className="text-sm font-semibold text-white mb-2 block">Phone</label>
                       <Input {...register('phone')} placeholder="+974 1234 5678" />
-                    </div>
-                    <div>
-                      <label className="text-sm font-semibold text-white mb-2 block">Opening Hours</label>
-                      <Input {...register('openingHours')} placeholder="Sun–Thu 9am–10pm" />
                     </div>
                   </div>
                 </div>
