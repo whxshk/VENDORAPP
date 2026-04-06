@@ -38,7 +38,9 @@ export const TenantSchema = SchemaFactory.createForClass(Tenant);
 // GeoJSON Point field added directly to avoid Mongoose's type/GeoJSON keyword conflict.
 // The @Prop decorator cannot reliably express a sub-document whose own property is
 // also named "type" — adding it here is the standard Mongoose workaround.
-TenantSchema.add({
+// Cast to any because the TypeScript overloads for Schema.add() don't include
+// dynamic field names outside the class definition.
+(TenantSchema as any).add({
   location: {
     type: { type: String, enum: ['Point'] },
     coordinates: { type: [Number] },
