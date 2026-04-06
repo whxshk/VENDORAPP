@@ -2,15 +2,12 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { customerService } from "@/api/customerService";
 import { motion } from "framer-motion";
-import { Copy, CheckCheck } from "lucide-react";
-import { toast } from "sonner";
 import QRCodeDisplay from "../components/qr/QRCodeDisplay";
 
 export default function Home() {
   const { user } = useAuth();
   const [totalPoints, setTotalPoints] = useState(0);
   const [merchantCount, setMerchantCount] = useState(0);
-  const [copied, setCopied] = useState(false);
   const [qrPayload, setQrPayload] = useState(null);
   const [refreshIntervalSec, setRefreshIntervalSec] = useState(30);
 
@@ -51,13 +48,6 @@ export default function Home() {
 
   const sharkCode = qrPayload || "sharkband:loading";
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(sharkCode);
-    setCopied(true);
-    toast.success("Scan token copied");
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   return (
     <div className="min-h-full bg-gray-50 flex flex-col items-center px-5 pt-16 pb-24">
       {/* Apple Wallet Style Card */}
@@ -74,15 +64,6 @@ export default function Home() {
             <span className="text-2xl">🦈</span>
             <span className="text-white text-sm font-bold tracking-wide">SHARKBAND</span>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-white text-sm">{user?.full_name || "Loading..."}</span>
-            <button
-              onClick={handleCopy}
-              className="text-white/80 hover:text-white transition-colors"
-            >
-              {copied ? <CheckCheck className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-            </button>
-          </div>
         </div>
 
         {/* QR Code Section */}
@@ -92,13 +73,8 @@ export default function Home() {
 
         {/* Card Footer */}
         <div className="bg-[#0A1931] px-5 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-white/70 text-[11px]">Total Points</p>
-              <p className="text-white text-lg font-bold">{totalPoints.toLocaleString()} pts</p>
-            </div>
-            <div className="w-px h-10 bg-white/30" />
-            <div className="text-right">
+          <div className="flex items-center justify-center">
+            <div className="text-center">
               <p className="text-white/70 text-[11px]">Active Cards</p>
               <p className="text-white text-lg font-bold">
                 {merchantCount} merchant{merchantCount !== 1 ? "s" : ""}

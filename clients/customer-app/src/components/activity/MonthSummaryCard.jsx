@@ -26,8 +26,6 @@ export default function MonthSummaryCard({ transactions }) {
     >
       <p className="text-white/80 text-sm mb-2">This Month</p>
       <div className="flex items-center gap-3 text-white font-semibold">
-        <span className="text-orange-500">{totalSaved.toFixed(0)} QAR</span>
-        <span className="text-white/40">|</span>
         <span>+{totalPoints} pts</span>
         <span className="text-white/40">|</span>
         <span>{totalRedeemed} redeemed</span>
