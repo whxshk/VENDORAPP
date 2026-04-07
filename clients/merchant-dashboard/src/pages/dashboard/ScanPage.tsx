@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { Html5Qrcode } from 'html5-qrcode';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { scanApply, type ScanApplyParams } from '../../api/merchant';
 import { useRewards } from '../../hooks/useRewards';
@@ -39,23 +40,21 @@ export default function ScanPage() {
   useEffect(() => {
     if (!cameraOpen) return;
 
-    import('html5-qrcode').then(({ Html5Qrcode }) => {
-      const scanner = new Html5Qrcode('qr-reader-modal');
-      scannerRef.current = scanner;
+    const scanner = new Html5Qrcode('qr-reader-modal');
+    scannerRef.current = scanner;
 
-      scanner
-        .start(
-          { facingMode: 'environment' },
-          { fps: 10, qrbox: { width: 250, height: 250 } },
-          (decodedText: string) => {
-            setQrPayload(decodedText);
-            setQrScanned(true);
-            closeCamera();
-          },
-          undefined,
-        )
-        .catch(() => closeCamera());
-    });
+    scanner
+      .start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        (decodedText: string) => {
+          setQrPayload(decodedText);
+          setQrScanned(true);
+          closeCamera();
+        },
+        undefined,
+      )
+      .catch(() => closeCamera());
 
     return () => {
       if (scannerRef.current) {
