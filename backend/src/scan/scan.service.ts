@@ -81,8 +81,10 @@ export class ScanService {
     if (!tenant?.isActive) throw new ForbiddenException('Tenant is disabled');
     if (!user?.isActive) throw new ForbiddenException('Staff user is disabled');
 
-    const parsed = parseQrPayloadFields(dto.qrPayload);
-    if (!parsed) throw new BadRequestException('Invalid or missing QR payload');
+    // Sanitize: trim whitespace/newlines that cameras sometimes append
+    const rawPayload = (dto.qrPayload || '').trim().replace(/\s+/g, '');
+    const parsed = parseQrPayloadFields(rawPayload);
+    if (!parsed) throw new BadRequestException(`Invalid or missing QR payload (received: ${(dto.qrPayload || '').slice(0, 40)})`);
     const customer = await this.customerModel.findById(parsed.c).exec();
     if (!customer) throw new BadRequestException('Customer not found');
     let account = await this.accountModel.findOne({ tenantId, customerId: parsed.c }).exec();
@@ -104,7 +106,7 @@ export class ScanService {
       throw new ForbiddenException('Customer account is disabled');
 
     const interval = customer.rotationIntervalSec ?? 120;
-    const v = verifyQrPayload(dto.qrPayload, customer.qrTokenSecret, interval);
+    const v = verifyQrPayload(rawPayload, customer.qrTokenSecret, interval);
     if ('error' in v) throw new BadRequestException(v.error);
     const customerId = v.customerId;
     const jti = v.jti;

@@ -115,14 +115,14 @@ export default function ScanPage() {
   });
 
   const handleScan = () => {
-    if (!qrPayload.trim()) return;
+    if (!qrPayload.trim().replace(/\s+/g, '')) return;
     if (action === 'GIVE_POINTS' && !purchaseAmount) return;
     if (action === 'REDEEM' && !rewardId) return;
     setScanResult(null);
 
     // Both GIVE_POINTS and ADD_STAMP map to 'PURCHASE' on the backend
     scanMutation.mutate({
-      qrPayload: qrPayload.trim(),
+      qrPayload: qrPayload.trim().replace(/\s+/g, ''),
       purpose: action === 'REDEEM' ? 'REDEEM' : 'PURCHASE',
       amount: (action === 'GIVE_POINTS' || action === 'ADD_STAMP') && purchaseAmount
         ? parseFloat(purchaseAmount)
