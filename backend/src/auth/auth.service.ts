@@ -149,6 +149,9 @@ export class AuthService {
         { _id: PLATFORM_TENANT_ID },
         {
           $setOnInsert: { name: 'SharkBand Platform', config: {}, isActive: true, hasCompletedOnboarding: false },
+          // Remove any malformed location field — an empty/invalid GeoJSON object
+          // causes the 2dsphere index to throw "unknown GeoJSON type" on every write.
+          $unset: { location: '' },
         },
         { upsert: true, new: true, setDefaultsOnInsert: true },
       ).exec();
