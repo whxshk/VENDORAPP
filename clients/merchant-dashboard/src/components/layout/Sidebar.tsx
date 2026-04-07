@@ -84,7 +84,7 @@ export function Sidebar() {
       >
         <div className="h-full flex flex-col">
           {/* Logo with subtle animation */}
-          <div className="h-20 flex items-center px-6 border-b border-white/5">
+          <div className="h-20 flex items-center pl-14 pr-6 lg:pl-6 border-b border-white/5">
             <h1
               className={cn(
                 "text-2xl font-bold tracking-tight transition-all duration-500",

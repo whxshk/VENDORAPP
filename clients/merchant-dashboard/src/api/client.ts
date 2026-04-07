@@ -93,9 +93,9 @@ class ApiClient {
           }
         }
 
-        // Capture and display API errors (but NOT 403 permission errors, auth endpoints, or invite flow handled locally)
+        // Capture and display API errors (but NOT 403/409 errors, auth endpoints, or invite flow handled locally)
         const statusCode = error.response?.status || 0;
-        if (errorHandler && statusCode !== 403 && !isAuthRoute && !isInviteRoute) {
+        if (errorHandler && statusCode !== 403 && statusCode !== 409 && !isAuthRoute && !isInviteRoute) {
           const responseData = error.response?.data as any;
           const errorMessage = responseData?.error?.originalMessage
             || responseData?.error?.message
