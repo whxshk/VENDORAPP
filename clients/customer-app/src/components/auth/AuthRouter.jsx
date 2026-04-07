@@ -3,7 +3,7 @@ import { useAuth } from "./AuthProvider";
 import { useNavigate, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 
-const publicRoutes = ["Splash", "PhoneInput", "OTPVerification", "Welcome", "Register"];
+const publicRoutes = ["Splash", "PhoneInput", "OTPVerification", "Welcome", "Register", "ForgotPassword", "ResetPassword"];
 
 export function AuthRouter({ children, currentPageName }) {
   const { user, loading, hasCompletedOnboarding } = useAuth();

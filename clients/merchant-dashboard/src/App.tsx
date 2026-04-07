@@ -15,6 +15,8 @@ import PilotReportPage from './pages/PilotReport';
 import AcceptInvitePage from './pages/AcceptInvite';
 import InviteWelcomePage from './pages/InviteWelcome';
 import OnboardingPage from './pages/Onboarding';
+import ForgotPasswordPage from './pages/ForgotPassword';
+import ResetPasswordPage from './pages/ResetPassword';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, accessToken } = useAuthStore();
@@ -57,6 +59,8 @@ function App() {
         />
         <Route path="/invite/:inviteToken" element={<AcceptInvitePage />} />
         <Route path="/invite/welcome" element={<InviteWelcomePage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route
           path="/onboarding"
           element={

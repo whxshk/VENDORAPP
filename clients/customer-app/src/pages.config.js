@@ -49,12 +49,14 @@
  */
 import Activity from './pages/Activity';
 import Discover from './pages/Discover';
+import ForgotPassword from './pages/ForgotPassword';
 import Home from './pages/Home';
 import MerchantDetail from './pages/MerchantDetail';
 import OTPVerification from './pages/OTPVerification';
 import PhoneInput from './pages/PhoneInput';
 import Profile from './pages/Profile';
 import Register from './pages/Register';
+import ResetPassword from './pages/ResetPassword';
 import Splash from './pages/Splash';
 import Wallet from './pages/Wallet';
 import Welcome from './pages/Welcome';
@@ -64,12 +66,14 @@ import __Layout from './Layout.jsx';
 export const PAGES = {
     "Activity": Activity,
     "Discover": Discover,
+    "ForgotPassword": ForgotPassword,
     "Home": Home,
     "MerchantDetail": MerchantDetail,
     "OTPVerification": OTPVerification,
     "PhoneInput": PhoneInput,
     "Profile": Profile,
     "Register": Register,
+    "ResetPassword": ResetPassword,
     "Splash": Splash,
     "Wallet": Wallet,
     "Welcome": Welcome,

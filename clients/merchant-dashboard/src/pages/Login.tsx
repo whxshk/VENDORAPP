@@ -271,6 +271,16 @@ export default function Login() {
                 {loginLoading ? 'Logging in...' : 'Login'}
               </Button>
 
+              <p className="text-center text-sm text-slate-400">
+                <button
+                  type="button"
+                  onClick={() => navigate('/forgot-password')}
+                  className="text-slate-400 hover:text-slate-300 transition-colors"
+                >
+                  Forgot your password?
+                </button>
+              </p>
+
               <p className="text-center text-sm text-slate-400 pt-2">
                 Don't have an account?{' '}
                 <button

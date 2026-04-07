@@ -31,6 +31,12 @@ export class User {
 
   @Prop({ default: true, index: true, type: Boolean })
   isActive!: boolean;
+
+  @Prop({ type: String })
+  passwordResetToken?: string;
+
+  @Prop({ type: Date })
+  passwordResetExpiry?: Date;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

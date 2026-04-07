@@ -9,6 +9,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { User, UserSchema } from '../database/schemas/User.schema';
 import { Tenant, TenantSchema } from '../database/schemas/Tenant.schema';
 import { Customer, CustomerSchema } from '../database/schemas/Customer.schema';
+import { EmailModule } from '../email/email.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { Customer, CustomerSchema } from '../database/schemas/Customer.schema';
       { name: Tenant.name, schema: TenantSchema },
       { name: Customer.name, schema: CustomerSchema },
     ]),
+    EmailModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],

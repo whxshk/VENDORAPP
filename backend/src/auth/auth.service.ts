@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ConflictException, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, InternalServerErrorException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { JwtService } from '@nestjs/jwt';
@@ -10,6 +10,7 @@ import { User, UserDocument } from '../database/schemas/User.schema';
 import { Tenant, TenantDocument } from '../database/schemas/Tenant.schema';
 import { Customer, CustomerDocument } from '../database/schemas/Customer.schema';
 import { JwtPayload } from './strategies/jwt.strategy';
+import { EmailService } from '../email/email.service';
 
 const PLATFORM_TENANT_ID = 'sharkband-platform';
 
@@ -28,12 +29,15 @@ export interface AuthResponse {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Tenant.name) private tenantModel: Model<TenantDocument>,
     @InjectModel(Customer.name) private customerModel: Model<CustomerDocument>,
     private jwtService: JwtService,
     private configService: ConfigService,
+    private emailService: EmailService,
   ) {}
 
   async login(loginDto: LoginDto): Promise<AuthResponse> {
@@ -235,12 +239,84 @@ export class AuthService {
       throw new InternalServerErrorException(`Token signing failed: ${err?.message}`);
     }
 
+    // Send welcome email (fire-and-forget — don't block registration on email failure)
+    this.emailService.sendWelcomeEmail(dto.email, dto.name).catch((err) => {
+      this.logger.warn?.(`Failed to send welcome email to ${dto.email}: ${err?.message}`);
+    });
+
     return {
       access_token: accessToken,
       refresh_token: refreshToken,
       expires_in: 900,
       token_type: 'Bearer',
     };
+  }
+
+  async forgotPassword(email: string): Promise<{ message: string }> {
+    // Always return the same response to avoid leaking whether an email exists
+    const genericResponse = {
+      message: 'If an account with that email exists, we sent a password reset link.',
+    };
+
+    const user = await this.userModel.findOne({ email, isActive: true }).exec();
+    if (!user) {
+      return genericResponse;
+    }
+
+    // Generate a cryptographically random token
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const expiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await this.userModel.updateOne(
+      { _id: user._id },
+      { $set: { passwordResetToken: hashedToken, passwordResetExpiry: expiry } },
+    ).exec();
+
+    // Determine reset URL based on user role
+    const isCustomer = user.roles?.includes('CUSTOMER');
+    const baseUrl = isCustomer
+      ? (process.env.CUSTOMER_APP_URL || 'https://app.sharkband.cloud')
+      : (process.env.FRONTEND_URL || 'https://merchant.sharkband.cloud');
+    const resetPath = isCustomer ? '/ResetPassword' : '/reset-password';
+    const resetLink = `${baseUrl}${resetPath}?token=${rawToken}`;
+
+    this.emailService
+      .sendPasswordResetEmail(email, user.name || email, resetLink)
+      .catch((err) => {
+        this.logger.warn?.(`Failed to send password reset email to ${email}: ${err?.message}`);
+      });
+
+    return genericResponse;
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
+    if (!token || !newPassword || newPassword.length < 8) {
+      throw new BadRequestException('Password must be at least 8 characters.');
+    }
+
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+    const user = await this.userModel.findOne({
+      passwordResetToken: hashedToken,
+      passwordResetExpiry: { $gt: new Date() },
+      isActive: true,
+    }).exec();
+
+    if (!user) {
+      throw new BadRequestException('Reset token is invalid or has expired.');
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await this.userModel.updateOne(
+      { _id: user._id },
+      {
+        $set: { hashedPassword },
+        $unset: { passwordResetToken: '', passwordResetExpiry: '' },
+      },
+    ).exec();
+
+    return { message: 'Password has been reset successfully.' };
   }
 
   async validateUser(userId: string, tenantId: string) {

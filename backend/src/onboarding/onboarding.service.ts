@@ -3,7 +3,6 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
-import * as nodemailer from 'nodemailer';
 import { Tenant, TenantDocument } from '../database/schemas/Tenant.schema';
 import { Location, LocationDocument } from '../database/schemas/Location.schema';
 import { User, UserDocument } from '../database/schemas/User.schema';
@@ -13,6 +12,7 @@ import { Reward, RewardDocument } from '../database/schemas/Reward.schema';
 import { AuditService } from '../audit/audit.service';
 import { PilotMetricsService } from '../pilot-metrics/pilot-metrics.service';
 import { GeocodingService } from '../geocoding/geocoding.service';
+import { EmailService } from '../email/email.service';
 
 export interface MerchantSignupDto {
   merchantName: string;
@@ -53,6 +53,7 @@ export class OnboardingService {
     private auditService: AuditService,
     private pilotMetricsService: PilotMetricsService,
     private geocodingService: GeocodingService,
+    private emailService: EmailService,
   ) {}
 
   private async findInviteByToken(inviteToken: string) {
@@ -90,61 +91,6 @@ export class OnboardingService {
       return { role: 'JANITOR', scopes: ['scan:*'] };
     }
     return { role: 'STAFF', scopes: ['scan:*'] };
-  }
-
-  private async sendStaffInviteEmail(
-    recipientEmail: string,
-    inviteLink: string,
-    role: string,
-    tenantName: string,
-  ): Promise<void> {
-    const smtpHost = process.env.SMTP_HOST;
-    const smtpPort = Number(process.env.SMTP_PORT || '587');
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPass = process.env.SMTP_PASS;
-    const smtpFrom = process.env.SMTP_FROM || smtpUser;
-
-    if (!smtpHost || !smtpUser || !smtpPass || !smtpFrom) {
-      throw new BadRequestException(
-        'Email delivery is not configured. Please set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS and SMTP_FROM.',
-      );
-    }
-
-    const transporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: smtpPort,
-      secure: smtpPort === 465,
-      auth: {
-        user: smtpUser,
-        pass: smtpPass,
-      },
-    });
-
-    await transporter.sendMail({
-      from: smtpFrom,
-      to: recipientEmail,
-      subject: `You are invited to join ${tenantName} on SharkBand`,
-      html: `
-        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111;">
-          <h2>You're invited to SharkBand</h2>
-          <p>You were invited as <strong>${role}</strong> for <strong>${tenantName}</strong>.</p>
-          <p>Click below to accept your invite and finish onboarding:</p>
-          <p>
-            <a href="${inviteLink}" style="display:inline-block;padding:10px 16px;background:#2563eb;color:#fff;text-decoration:none;border-radius:6px;">
-              Accept Invite
-            </a>
-          </p>
-          <p>If the button does not work, use this link:</p>
-          <p><a href="${inviteLink}">${inviteLink}</a></p>
-          <p>This invite expires in 7 days.</p>
-        </div>
-      `,
-      text: [
-        `You were invited as ${role} for ${tenantName}.`,
-        `Accept your invite: ${inviteLink}`,
-        'This invite expires in 7 days.',
-      ].join('\n'),
-    });
   }
 
   async createMerchant(signupDto: MerchantSignupDto, userId?: string) {
@@ -239,6 +185,11 @@ export class OnboardingService {
     await this.pilotMetricsService.trackOnboardingMilestone(tenant._id, 'merchant_signup');
     await this.pilotMetricsService.trackOnboardingMilestone(tenant._id, 'first_location');
 
+    // Send welcome email (fire-and-forget)
+    this.emailService.sendMerchantWelcomeEmail(signupDto.adminEmail, signupDto.merchantName).catch((err) => {
+      this.logger.error(`Failed to send merchant welcome email to ${signupDto.adminEmail}: ${err?.message}`);
+    });
+
     return {
       tenantId: tenant._id,
       locationId: location._id,
@@ -311,7 +262,7 @@ export class OnboardingService {
     let emailSent = false;
     let emailError: string | undefined;
     try {
-      await this.sendStaffInviteEmail(inviteDto.email, inviteLink, roleConfig.role, tenant.name);
+      await this.emailService.sendStaffInviteEmail(inviteDto.email, inviteLink, roleConfig.role, tenant.name);
       emailSent = true;
     } catch (e: any) {
       emailError = e?.message || 'Email delivery failed';

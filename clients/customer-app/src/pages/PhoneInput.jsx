@@ -110,8 +110,15 @@ export default function PhoneInput() {
           </Button>
 
           <button
+            onClick={() => navigate(createPageUrl("ForgotPassword"))}
+            className="w-full text-sm text-center text-gray-500 hover:text-gray-700 transition-colors mt-1"
+          >
+            Forgot your password?
+          </button>
+
+          <button
             onClick={() => navigate(createPageUrl("Register"))}
-            className="w-full text-sm text-center text-orange-500 hover:text-orange-600 transition-colors font-medium mt-2"
+            className="w-full text-sm text-center text-orange-500 hover:text-orange-600 transition-colors font-medium mt-1"
           >
             Don't have an account? Create one
           </button>

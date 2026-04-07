@@ -129,6 +129,10 @@ export const authApi = {
   refresh: (refreshToken: string) =>
     apiClient.post('/auth/refresh', { refresh_token: refreshToken }),
   me: () => apiClient.get('/auth/me'),
+  forgotPassword: (email: string) =>
+    apiClient.post('/auth/forgot-password', { email }),
+  resetPassword: (token: string, password: string) =>
+    apiClient.post('/auth/reset-password', { token, password }),
 };
 
 // Analytics API
