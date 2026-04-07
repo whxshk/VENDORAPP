@@ -396,7 +396,7 @@ export default function CustomersPage() {
 
       {/* Customer Detail Dialog */}
       <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-        <DialogContent className="w-full max-w-lg sm:max-w-2xl lg:max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-full max-w-lg sm:max-w-2xl lg:max-w-4xl">
           <DialogHeader>
             <DialogTitle className="text-lg sm:text-2xl font-bold">{customerDetail?.name}</DialogTitle>
             {customerDetail && (customerDetail as any).shortId && (
@@ -411,7 +411,7 @@ export default function CustomersPage() {
           </DialogHeader>
 
           {customerDetail && (
-            <div className="space-y-6 mt-4">
+            <div className="space-y-6 mt-4 pb-6">
 
               {/* ── Balance + Visits ─────────────────────────────── */}
               <div className="grid grid-cols-2 gap-3">
@@ -450,25 +450,19 @@ export default function CustomersPage() {
               </div>
 
               {/* ── Contact ──────────────────────────────────────── */}
-              {(customerDetail.email || customerDetail.phone) && (
-                <div className="p-4 rounded-xl bg-slate-800/50 border border-white/5">
-                  <h4 className="text-sm font-semibold text-slate-300 mb-3">Contact Information</h4>
-                  <div className="space-y-2 text-sm">
-                    {customerDetail.email && (
-                      <div className="text-slate-400">
-                        <span className="font-semibold text-slate-300">Email:</span>{' '}
-                        {customerDetail.email}
-                      </div>
-                    )}
-                    {customerDetail.phone && (
-                      <div className="text-slate-400">
-                        <span className="font-semibold text-slate-300">Phone:</span>{' '}
-                        {customerDetail.phone}
-                      </div>
-                    )}
+              <div className="p-4 rounded-xl bg-slate-800/50 border border-white/5">
+                <h4 className="text-sm font-semibold text-slate-300 mb-3">Contact Information</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="text-slate-400">
+                    <span className="font-semibold text-slate-300">Email:</span>{' '}
+                    {customerDetail.email || <span className="italic text-slate-500">None provided</span>}
+                  </div>
+                  <div className="text-slate-400">
+                    <span className="font-semibold text-slate-300">Phone:</span>{' '}
+                    {customerDetail.phone || <span className="italic text-slate-500">None provided</span>}
                   </div>
                 </div>
-              )}
+              </div>
 
               {/* ── Adjust Balance ───────────────────────────────── */}
               <div className="p-4 rounded-xl bg-slate-800/50 border border-white/5">
