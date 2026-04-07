@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { configureOnboarding, completeOnboarding, updateMerchantSettings } from '../api/merchant';
+import { configureOnboarding, completeOnboarding } from '../api/merchant';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { cn } from '../lib/utils';
 
 type LoyaltyType = 'POINTS' | 'STAMPS' | 'DISCOUNT';
 
-const STEPS = ['Business Details', 'Loyalty Type', 'Configure', 'Finish'];
+const STEPS = ['Loyalty Type', 'Configure', 'Finish'];
 
 export default function Onboarding() {
   const navigate = useNavigate();
@@ -15,15 +15,10 @@ export default function Onboarding() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Step 1
-  const [businessName, setBusinessName] = useState('');
-  const [businessCategory, setBusinessCategory] = useState('');
-  const [businessAddress, setBusinessAddress] = useState('');
-
-  // Step 2
+  // Step 0 — loyalty type
   const [loyaltyType, setLoyaltyType] = useState<LoyaltyType | null>(null);
 
-  // Step 3 — dynamic based on loyaltyType
+  // Step 1 — dynamic based on loyaltyType
   const [pointsPerQar, setPointsPerQar] = useState('0.5');
   const [discountPer100, setDiscountPer100] = useState('10');
   const [stampsRequired, setStampsRequired] = useState('10');
@@ -34,27 +29,13 @@ export default function Onboarding() {
   const goNext = () => setStep((s) => Math.min(s + 1, STEPS.length - 1));
   const goBack = () => setStep((s) => Math.max(s - 1, 0));
 
-  const handleStep1 = async () => {
-    if (!businessName.trim()) { setError('Business name is required'); return; }
-    setError('');
-    setLoading(true);
-    try {
-      await updateMerchantSettings({ name: businessName });
-    } catch {
-      // Non-fatal — settings update may fail if endpoint not available, continue anyway
-    } finally {
-      setLoading(false);
-    }
-    goNext();
-  };
-
-  const handleStep2 = () => {
+  const handleStep0 = () => {
     if (!loyaltyType) { setError('Please select a loyalty type'); return; }
     setError('');
     goNext();
   };
 
-  const handleStep3 = async () => {
+  const handleStep1 = async () => {
     if (!loyaltyType) return;
     setError('');
     setLoading(true);
@@ -149,42 +130,8 @@ export default function Onboarding() {
             </div>
           )}
 
-          {/* Step 0 — Business Details */}
+          {/* Step 0 — Loyalty Type */}
           {step === 0 && (
-            <div className="space-y-5">
-              <h2 className="text-xl font-semibold text-white">Business Details</h2>
-              <div>
-                <label className="block text-sm font-semibold text-white mb-2">Business Name *</label>
-                <Input
-                  value={businessName}
-                  onChange={(e) => setBusinessName(e.target.value)}
-                  placeholder="e.g. The Pearl Coffee House"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-white mb-2">Category</label>
-                <Input
-                  value={businessCategory}
-                  onChange={(e) => setBusinessCategory(e.target.value)}
-                  placeholder="e.g. Café, Restaurant, Retail…"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-white mb-2">Address</label>
-                <Input
-                  value={businessAddress}
-                  onChange={(e) => setBusinessAddress(e.target.value)}
-                  placeholder="e.g. Doha, Qatar"
-                />
-              </div>
-              <Button onClick={handleStep1} disabled={loading} className="w-full" size="lg">
-                {loading ? 'Saving…' : 'Continue'}
-              </Button>
-            </div>
-          )}
-
-          {/* Step 1 — Loyalty Type */}
-          {step === 1 && (
             <div className="space-y-5">
               <h2 className="text-xl font-semibold text-white">Choose Loyalty Type</h2>
               <div className="space-y-3">
@@ -229,15 +176,15 @@ export default function Onboarding() {
                 <Button variant="outline" onClick={goBack} className="flex-1">
                   Back
                 </Button>
-                <Button onClick={handleStep2} className="flex-1" size="lg">
+                <Button onClick={handleStep0} className="flex-1" size="lg">
                   Continue
                 </Button>
               </div>
             </div>
           )}
 
-          {/* Step 2 — Configure */}
-          {step === 2 && (
+          {/* Step 1 — Configure */}
+          {step === 1 && (
             <div className="space-y-5">
               <h2 className="text-xl font-semibold text-white">Configure Your Program</h2>
 
@@ -330,15 +277,15 @@ export default function Onboarding() {
                 <Button variant="outline" onClick={goBack} className="flex-1">
                   Back
                 </Button>
-                <Button onClick={handleStep3} disabled={loading} className="flex-1" size="lg">
+                <Button onClick={handleStep1} disabled={loading} className="flex-1" size="lg">
                   {loading ? 'Saving…' : 'Continue'}
                 </Button>
               </div>
             </div>
           )}
 
-          {/* Step 3 — Finish */}
-          {step === 3 && (
+          {/* Step 2 — Finish */}
+          {step === 2 && (
             <div className="space-y-6 text-center">
               <div className="text-5xl">🎉</div>
               <h2 className="text-xl font-semibold text-white">You're all set!</h2>
