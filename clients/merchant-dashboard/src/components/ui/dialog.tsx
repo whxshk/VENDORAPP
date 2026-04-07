@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -29,29 +30,32 @@ const Dialog = ({ open, onOpenChange, children }: DialogProps) => {
 
   if (!isVisible) return null;
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-20 flex items-start justify-center p-4 pt-20 sm:pt-24 overflow-y-auto"
+      className="fixed inset-0 z-20 flex items-start justify-center overflow-y-auto"
+      style={{ paddingTop: 'calc(var(--topbar-h, 64px) + 16px)', paddingBottom: '32px', paddingLeft: '16px', paddingRight: '16px' }}
       onClick={() => onOpenChange(false)}
     >
+      {/* Overlay — behind TopBar (z-30) so header stays accessible */}
       <div
         className={cn(
-          "fixed inset-0 bg-black/60 backdrop-blur-md transition-opacity duration-300 ease-out",
+          "fixed inset-0 bg-black/70 backdrop-blur-md transition-opacity duration-300 ease-out",
           isAnimating ? "opacity-100" : "opacity-0"
         )}
       />
-      <div 
+      <div
         onClick={(e) => e.stopPropagation()}
         className={cn(
-          "transform transition-all duration-300 ease-out",
-          isAnimating 
-            ? "opacity-100 scale-100 translate-y-0" 
+          "relative z-10 w-full transform transition-all duration-300 ease-out",
+          isAnimating
+            ? "opacity-100 scale-100 translate-y-0"
             : "opacity-0 scale-95 translate-y-4"
         )}
       >
         {children}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
@@ -60,8 +64,9 @@ const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps>(
     <div
       ref={ref}
       className={cn(
-        'relative z-50 w-full max-w-lg rounded-2xl border backdrop-blur-xl',
+        'relative w-full max-w-lg rounded-2xl border backdrop-blur-xl',
         'p-8 pb-8 shadow-2xl shadow-black/50',
+        'max-h-[90vh] overflow-y-auto',
         className
       )}
       style={{
