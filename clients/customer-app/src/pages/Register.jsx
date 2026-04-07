@@ -39,8 +39,10 @@ export default function Register() {
         toast.error("An account with this email already exists. Please sign in.");
       } else {
         const msg =
-          error?.response?.data?.message ||
+          error?.response?.data?.error?.originalMessage ||
           error?.response?.data?.error?.message ||
+          error?.response?.data?.message ||
+          error?.message ||
           "Registration failed. Please try again.";
         toast.error(msg);
       }

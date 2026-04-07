@@ -142,16 +142,24 @@ export class AuthService {
   }
 
   async registerCustomer(dto: { email: string; password: string; name: string }): Promise<AuthResponse> {
-    // Ensure the platform tenant exists and is active.
-    // Note: _id must NOT be included in $setOnInsert when it is already in the filter —
-    // MongoDB treats that as a "Mod on _id not allowed" error in some versions.
-    await this.tenantModel.findOneAndUpdate(
-      { _id: PLATFORM_TENANT_ID },
-      { $setOnInsert: { name: 'SharkBand Platform', config: {}, isActive: true } },
-      { upsert: true, new: true },
-    ).exec();
+    // 1. Ensure platform tenant exists. Use $set so it works on both insert and update.
+    //    Do NOT include _id in the update payload — Mongoose 8 forbids modifying _id.
+    try {
+      await this.tenantModel.findOneAndUpdate(
+        { _id: PLATFORM_TENANT_ID },
+        {
+          $setOnInsert: { name: 'SharkBand Platform', config: {}, isActive: true, hasCompletedOnboarding: false },
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true },
+      ).exec();
+    } catch (err: any) {
+      // If the tenant already exists this is a no-op; ignore duplicate-key on _id
+      if (err?.code !== 11000) {
+        throw new InternalServerErrorException(`Tenant init failed: ${err?.message}`);
+      }
+    }
 
-    // Check for duplicate email on the platform tenant
+    // 2. Duplicate-email guard
     const existing = await this.userModel.findOne({ email: dto.email, tenantId: PLATFORM_TENANT_ID }).exec();
     if (existing) {
       throw new ConflictException('An account with this email already exists');
@@ -159,12 +167,19 @@ export class AuthService {
 
     const hashedPassword = await bcrypt.hash(dto.password, 10);
 
-    // Create Customer document
+    // 3. Create Customer document (holds QR secret)
     const customerId = uuidv4();
     const qrTokenSecret = crypto.randomBytes(32).toString('hex');
-    await this.customerModel.create({ _id: customerId, qrTokenSecret, rotationIntervalSec: 300 });
+    try {
+      await this.customerModel.create({ _id: customerId, qrTokenSecret, rotationIntervalSec: 300 });
+    } catch (err: any) {
+      if (err?.code === 11000) {
+        throw new ConflictException('An account with this email already exists');
+      }
+      throw new InternalServerErrorException(`Customer create failed: ${err?.message}`);
+    }
 
-    // Create User document linked to Customer
+    // 4. Create User document linked to Customer
     const userId = uuidv4();
     let user: UserDocument;
     try {
@@ -180,15 +195,15 @@ export class AuthService {
         isActive: true,
       });
     } catch (err: any) {
-      // Roll back the orphaned Customer document
+      // Roll back orphaned Customer document on failure
       await this.customerModel.deleteOne({ _id: customerId }).exec().catch(() => {});
-      // MongoDB E11000 duplicate key — race condition with concurrent registration
       if (err?.code === 11000) {
         throw new ConflictException('An account with this email already exists');
       }
-      throw new InternalServerErrorException('Failed to create account. Please try again.');
+      throw new InternalServerErrorException(`User create failed: ${err?.message}`);
     }
 
+    // 5. Issue JWT tokens
     const payload: JwtPayload = {
       sub: user._id,
       tenantId: user.tenantId,
@@ -197,17 +212,21 @@ export class AuthService {
       roles: user.roles,
     };
 
-    const accessToken = this.jwtService.sign(payload, {
-      expiresIn: this.configService.get<string>('app.jwt.accessTokenExpiry') || '15m',
-    });
+    const refreshSecret = this.configService.get<string>('app.jwt.refreshTokenSecret') || 'dev-refresh-secret';
+    const accessExpiry = this.configService.get<string>('app.jwt.accessTokenExpiry') || '15m';
+    const refreshExpiry = this.configService.get<string>('app.jwt.refreshTokenExpiry') || '7d';
 
-    const refreshToken = this.jwtService.sign(
-      { sub: user._id, tenantId: user.tenantId },
-      {
-        secret: this.configService.get<string>('app.jwt.refreshTokenSecret'),
-        expiresIn: this.configService.get<string>('app.jwt.refreshTokenExpiry') || '7d',
-      },
-    );
+    let accessToken: string;
+    let refreshToken: string;
+    try {
+      accessToken = this.jwtService.sign(payload, { expiresIn: accessExpiry });
+      refreshToken = this.jwtService.sign(
+        { sub: user._id, tenantId: user.tenantId },
+        { secret: refreshSecret, expiresIn: refreshExpiry },
+      );
+    } catch (err: any) {
+      throw new InternalServerErrorException(`Token signing failed: ${err?.message}`);
+    }
 
     return {
       access_token: accessToken,
