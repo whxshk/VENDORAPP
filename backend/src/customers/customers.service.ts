@@ -583,8 +583,11 @@ export class CustomersService {
       .exec();
     const tenantMap = new Map(tenants.map((t) => [t._id as string, t]));
 
+    // Skip accounts whose merchant has been deleted from the database
+    const activeAccounts = accounts.filter((a) => tenantMap.has(a.tenantId));
+
     const results = await Promise.all(
-      accounts.map(async (account) => {
+      activeAccounts.map(async (account) => {
         const tenant = tenantMap.get(account.tenantId);
         const config = (tenant?.config as Record<string, any>) || {};
         const balance = await this.ledgerService.getBalance(account.tenantId, customerId);
