@@ -23,8 +23,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuthStore();
-  // Only redirect if user is explicitly set (logged in)
   if (user) {
+    const isMerchantAdmin = user.roles?.includes('MERCHANT_ADMIN');
+    if (isMerchantAdmin && user.hasCompletedOnboarding === false) {
+      return <Navigate to="/onboarding" replace />;
+    }
     return <Navigate to="/dashboard" replace />;
   }
   return <>{children}</>;
