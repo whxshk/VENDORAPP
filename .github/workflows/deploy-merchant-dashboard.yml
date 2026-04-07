@@ -31,6 +31,7 @@ jobs:
           VITE_API_BASE_URL: https://sharkband-api.azurewebsites.net/api/v1
           VITE_DEMO_MODE: "false"
           VITE_ENVIRONMENT: LIVE
+          VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
         run: npm run build
 
       - name: Deploy to Azure Static Web Apps
