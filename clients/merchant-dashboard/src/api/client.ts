@@ -1,6 +1,6 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig, AxiosError } from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.sharkband.cloud/api/v1';
 
 // Error handler instance (will be set from outside)
 let errorHandler: ((error: Error, context?: string) => void) | null = null;
