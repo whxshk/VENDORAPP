@@ -36,15 +36,20 @@ async function bootstrap() {
     },
   });
 
+  const knownOrigins = [
+    'https://merchant.sharkband.cloud',
+    'https://app.sharkband.cloud',
+    'https://proud-forest-0fba2710f.1.azurestaticapps.net',
+    'https://purple-ground-02e4fe00f.6.azurestaticapps.net',
+  ];
+
   const rawOrigin = process.env.CORS_ORIGIN || '*';
-  const corsOrigin =
-    rawOrigin === '*'
-      ? '*'
-      : rawOrigin.split(',').map((o) => o.trim());
+  const extraOrigins = rawOrigin === '*' ? [] : rawOrigin.split(',').map((o) => o.trim());
+  const corsOrigin = [...new Set([...knownOrigins, ...extraOrigins])];
 
   await app.register(cors, {
     origin: corsOrigin,
-    credentials: corsOrigin !== '*',
+    credentials: true,
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key', 'X-Request-ID'],
     exposedHeaders: ['X-Request-ID'],
