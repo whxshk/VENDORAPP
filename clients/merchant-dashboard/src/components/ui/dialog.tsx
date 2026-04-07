@@ -31,30 +31,37 @@ const Dialog = ({ open, onOpenChange, children }: DialogProps) => {
   if (!isVisible) return null;
 
   return createPortal(
-    <div
-      className="fixed inset-0 z-20 flex items-start justify-center overflow-y-auto"
-      style={{ paddingTop: 'calc(var(--topbar-h, 64px) + 16px)', paddingBottom: '32px', paddingLeft: '16px', paddingRight: '16px' }}
-      onClick={() => onOpenChange(false)}
-    >
-      {/* Overlay — behind TopBar (z-30) so header stays accessible */}
+    <>
+      {/* Backdrop — z-40, covers full viewport including sidebar + topbar */}
       <div
         className={cn(
-          "fixed inset-0 bg-black/70 backdrop-blur-md transition-opacity duration-300 ease-out",
-          isAnimating ? "opacity-100" : "opacity-0"
+          'fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity duration-200',
+          isAnimating ? 'opacity-100' : 'opacity-0'
         )}
+        style={{ zIndex: 40 }}
+        onClick={() => onOpenChange(false)}
       />
+
+      {/* Modal wrapper — z-50, perfectly centered */}
       <div
-        onClick={(e) => e.stopPropagation()}
-        className={cn(
-          "relative z-10 w-full transform transition-all duration-300 ease-out",
-          isAnimating
-            ? "opacity-100 scale-100 translate-y-0"
-            : "opacity-0 scale-95 translate-y-4"
-        )}
+        className="fixed inset-0 flex items-center justify-center p-4"
+        style={{ zIndex: 50 }}
+        onClick={() => onOpenChange(false)}
       >
-        {children}
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className={cn(
+            'transition-all duration-200 ease-out w-full',
+            isAnimating
+              ? 'opacity-100 scale-100 translate-y-0'
+              : 'opacity-0 scale-95 translate-y-2'
+          )}
+          style={{ maxWidth: 600 }}
+        >
+          {children}
+        </div>
       </div>
-    </div>,
+    </>,
     document.body
   );
 };
@@ -64,15 +71,16 @@ const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps>(
     <div
       ref={ref}
       className={cn(
-        'relative w-full max-w-lg rounded-2xl border backdrop-blur-xl',
-        'p-8 pb-8 shadow-2xl shadow-black/50',
-        'max-h-[90vh] overflow-y-auto',
+        'relative w-full rounded-2xl border shadow-2xl shadow-black/60',
         className
       )}
       style={{
         background: 'var(--bg-surface)',
         borderColor: 'var(--border-strong)',
         color: 'var(--text-primary)',
+        padding: 24,
+        maxHeight: '85vh',
+        overflowY: 'auto',
       }}
       {...props}
     >
@@ -89,14 +97,11 @@ DialogHeader.displayName = 'DialogHeader';
 
 const DialogTitle = React.forwardRef<HTMLHeadingElement, React.HTMLAttributes<HTMLHeadingElement>>(
   ({ className, ...props }, ref) => (
-    <h2 
-      ref={ref} 
-      className={cn(
-        'text-2xl font-bold leading-tight tracking-tight',
-        className
-      )}
+    <h2
+      ref={ref}
+      className={cn('text-2xl font-bold leading-tight tracking-tight', className)}
       style={{ color: 'var(--text-primary)' }}
-      {...props} 
+      {...props}
     />
   )
 );
@@ -113,12 +118,12 @@ const DialogClose = ({ onClose }: { onClose: () => void }) => (
   <button
     onClick={onClose}
     className={cn(
-      "absolute right-4 top-4 rounded-full p-2",
-      "bg-white/5 hover:bg-white/10 active:bg-white/15",
-      "opacity-70 hover:opacity-100",
-      "transition-all duration-200 ease-out",
-      "hover:rotate-90 hover:scale-110 active:scale-95",
-      "focus:outline-none focus:ring-2 focus:ring-white/20"
+      'absolute right-4 top-4 rounded-full p-2',
+      'bg-white/5 hover:bg-white/10 active:bg-white/15',
+      'opacity-70 hover:opacity-100',
+      'transition-all duration-200 ease-out',
+      'hover:rotate-90 hover:scale-110 active:scale-95',
+      'focus:outline-none focus:ring-2 focus:ring-white/20'
     )}
   >
     <X className="h-4 w-4" />
