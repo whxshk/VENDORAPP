@@ -31,14 +31,14 @@ const Dialog = ({ open, onOpenChange, children }: DialogProps) => {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-20 flex items-start justify-center p-4 pt-20 sm:pt-24 overflow-y-auto"
       onClick={() => onOpenChange(false)}
     >
-      <div 
+      <div
         className={cn(
-          "fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ease-out",
+          "fixed inset-0 bg-black/60 backdrop-blur-md transition-opacity duration-300 ease-out",
           isAnimating ? "opacity-100" : "opacity-0"
-        )} 
+        )}
       />
       <div 
         onClick={(e) => e.stopPropagation()}

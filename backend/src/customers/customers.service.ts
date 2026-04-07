@@ -378,14 +378,10 @@ export class CustomersService {
       .select('name email')
       .exec();
 
-    const fallback = getCustomerInfoById(actualCustomerId);
     const customerInfo = {
-      name: customerUser?.name || fallback.name,
-      email: customerUser?.email || fallback.email,
-      phone: fallback.phone,
-      joinDate: fallback.joinDate,
-      preferredLocation: fallback.preferredLocation,
-      notes: fallback.notes,
+      name: customerUser?.name || 'Customer',
+      email: customerUser?.email || null,
+      phone: null as string | null,
     };
 
     // Get short ID from the already-fetched aggregation

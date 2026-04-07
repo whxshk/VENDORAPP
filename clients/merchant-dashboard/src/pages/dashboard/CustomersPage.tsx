@@ -488,7 +488,7 @@ export default function CustomersPage() {
                       value={adjustDelta}
                       onChange={(e) => { setAdjustDelta(e.target.value); setAdjustError(null); setAdjustSuccess(null); }}
                       placeholder={detailIsStamps ? 'e.g. +1 or -2 stamps' : 'e.g. +10 or -5 pts'}
-                      className="font-mono"
+                      className="font-mono border border-white/15 bg-slate-900/60 px-3 py-2"
                     />
                     {adjustDelta && !isNaN(parseFloat(adjustDelta)) && (
                       <p className="text-xs mt-1 text-slate-400">
@@ -509,6 +509,7 @@ export default function CustomersPage() {
                       value={adjustReason}
                       onChange={(e) => { setAdjustReason(e.target.value); setAdjustError(null); setAdjustSuccess(null); }}
                       placeholder="e.g. Stamp given by mistake"
+                      className="border border-white/15 bg-slate-900/60 px-3 py-2"
                     />
                   </div>
                 </div>
