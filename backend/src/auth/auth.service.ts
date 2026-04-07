@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, InternalServerErrorException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { JwtService } from '@nestjs/jwt';
@@ -142,10 +142,12 @@ export class AuthService {
   }
 
   async registerCustomer(dto: { email: string; password: string; name: string }): Promise<AuthResponse> {
-    // Ensure the platform tenant exists and is active
+    // Ensure the platform tenant exists and is active.
+    // Note: _id must NOT be included in $setOnInsert when it is already in the filter —
+    // MongoDB treats that as a "Mod on _id not allowed" error in some versions.
     await this.tenantModel.findOneAndUpdate(
       { _id: PLATFORM_TENANT_ID },
-      { $setOnInsert: { _id: PLATFORM_TENANT_ID, name: 'SharkBand Platform', config: {}, isActive: true } },
+      { $setOnInsert: { name: 'SharkBand Platform', config: {}, isActive: true } },
       { upsert: true, new: true },
     ).exec();
 
@@ -164,17 +166,28 @@ export class AuthService {
 
     // Create User document linked to Customer
     const userId = uuidv4();
-    const user = await this.userModel.create({
-      _id: userId,
-      tenantId: PLATFORM_TENANT_ID,
-      customerId,
-      email: dto.email,
-      name: dto.name,
-      hashedPassword,
-      roles: ['CUSTOMER'],
-      scopes: ['customer:*'],
-      isActive: true,
-    });
+    let user: UserDocument;
+    try {
+      user = await this.userModel.create({
+        _id: userId,
+        tenantId: PLATFORM_TENANT_ID,
+        customerId,
+        email: dto.email,
+        name: dto.name,
+        hashedPassword,
+        roles: ['CUSTOMER'],
+        scopes: ['customer:*'],
+        isActive: true,
+      });
+    } catch (err: any) {
+      // Roll back the orphaned Customer document
+      await this.customerModel.deleteOne({ _id: customerId }).exec().catch(() => {});
+      // MongoDB E11000 duplicate key — race condition with concurrent registration
+      if (err?.code === 11000) {
+        throw new ConflictException('An account with this email already exists');
+      }
+      throw new InternalServerErrorException('Failed to create account. Please try again.');
+    }
 
     const payload: JwtPayload = {
       sub: user._id,
