@@ -24,7 +24,7 @@ export default function WalletCard({ account, index }) {
       transition={{ delay: index * 0.05, duration: 0.3 }}
     >
       <Link to={createPageUrl("MerchantDetail") + `?merchantId=${account.merchant_id}&accountId=${account.id}`}>
-        <div className="bg-white rounded-2xl p-5 border border-gray-100 hover:border-orange-200 hover:shadow-lg transition-all duration-300 group">
+        <div className="bg-white rounded-2xl p-5 hover:shadow-lg transition-all duration-300 group" style={{ border: '0.75px solid #000000' }}>
           <div className="flex items-center gap-4">
             {/* Logo / Avatar */}
             <div className="w-14 h-14 rounded-xl overflow-hidden border border-gray-200 bg-gray-50 flex items-center justify-center flex-shrink-0 shadow-sm">
