@@ -45,7 +45,7 @@ export default function MerchantCard({ merchant, index, rewards = [], distance }
         <div
           className="group"
           style={{
-            border: "3px solid #000",
+            border: "0.75px solid #000000",
             borderRadius: 24,
             overflow: "hidden",
             boxShadow: "none",
@@ -131,7 +131,7 @@ export default function MerchantCard({ merchant, index, rewards = [], distance }
                 width: 64,
                 height: 64,
                 borderRadius: "50%",
-                border: "3px solid #000",
+                border: "0.75px solid #000000",
                 background: "#fff",
                 overflow: "hidden",
                 zIndex: 10,
