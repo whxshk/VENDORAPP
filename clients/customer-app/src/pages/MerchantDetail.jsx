@@ -90,7 +90,9 @@ export default function MerchantDetail() {
       }
     : null;
 
-  const transactions = (historyData?.entries || []).map((e) => entryToTx(e, merchant?.name));
+  const transactions = (historyData?.entries || [])
+    .filter((e) => e.tenantId === merchantId)
+    .map((e) => entryToTx(e, merchant?.name));
 
   if (!merchant) {
     return (
