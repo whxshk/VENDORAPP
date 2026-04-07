@@ -143,13 +143,7 @@ export default function Onboarding() {
                       desc: 'Customers earn points on every spend and redeem them for rewards.',
                       color: 'blue',
                     },
-                    {
-                      type: 'DISCOUNT' as LoyaltyType,
-                      title: 'Cashback Discount',
-                      desc: 'Customers earn a percentage cashback on every purchase.',
-                      color: 'emerald',
-                    },
-                    {
+{
                       type: 'STAMPS' as LoyaltyType,
                       title: 'Stamp Card',
                       desc: 'Customers collect stamps and earn a free reward after N visits.',
