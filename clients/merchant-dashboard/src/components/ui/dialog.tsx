@@ -32,20 +32,20 @@ const Dialog = ({ open, onOpenChange, children }: DialogProps) => {
 
   return createPortal(
     <>
-      {/* Backdrop — z-40, covers full viewport including sidebar + topbar */}
+      {/* Backdrop — z-[9998], above sidebar (z-40) and topbar (z-30) */}
       <div
         className={cn(
           'fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity duration-200',
           isAnimating ? 'opacity-100' : 'opacity-0'
         )}
-        style={{ zIndex: 40 }}
+        style={{ zIndex: 9998 }}
         onClick={() => onOpenChange(false)}
       />
 
-      {/* Modal wrapper — z-50, perfectly centered */}
+      {/* Modal wrapper — z-[9999], perfectly centered over everything */}
       <div
         className="fixed inset-0 flex items-center justify-center p-4"
-        style={{ zIndex: 50 }}
+        style={{ zIndex: 9999 }}
         onClick={() => onOpenChange(false)}
       >
         <div
