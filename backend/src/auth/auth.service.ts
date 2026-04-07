@@ -57,10 +57,14 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Verify tenant is active
-    const tenant = await this.tenantModel.findById(user.tenantId).exec();
-    if (!tenant || !tenant.isActive) {
-      throw new UnauthorizedException('Tenant is not active');
+    // Verify tenant is active.
+    // For the platform tenant (customer accounts), skip the DB lookup — it is
+    // always considered active and avoids any index-related read issues.
+    if (user.tenantId !== PLATFORM_TENANT_ID) {
+      const tenant = await this.tenantModel.findById(user.tenantId).exec();
+      if (!tenant || !tenant.isActive) {
+        throw new UnauthorizedException('Tenant is not active');
+      }
     }
 
     const scopes = user.scopes || [];

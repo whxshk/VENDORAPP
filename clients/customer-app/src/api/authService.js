@@ -2,7 +2,7 @@ import apiClient from './apiClient';
 
 export const authService = {
   login: (email, password) =>
-    apiClient.post('/auth/login', { email, password }),
+    apiClient.post('/auth/login', { email, password, tenantId: 'sharkband-platform' }),
   register: (email, password, name) =>
     apiClient.post('/auth/register', { email, password, name }),
   me: () => apiClient.get('/auth/me'),
