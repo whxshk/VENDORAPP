@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, ConflictException } from '@nestjs/common';
+import { Injectable, BadRequestException, ConflictException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
@@ -12,6 +12,7 @@ import { Ruleset, RulesetDocument } from '../database/schemas/Ruleset.schema';
 import { Reward, RewardDocument } from '../database/schemas/Reward.schema';
 import { AuditService } from '../audit/audit.service';
 import { PilotMetricsService } from '../pilot-metrics/pilot-metrics.service';
+import { GeocodingService } from '../geocoding/geocoding.service';
 
 export interface MerchantSignupDto {
   merchantName: string;
@@ -39,6 +40,8 @@ export interface ConfigureLoyaltyDto {
 
 @Injectable()
 export class OnboardingService {
+  private readonly logger = new Logger(OnboardingService.name);
+
   constructor(
     @InjectModel(Tenant.name) private tenantModel: Model<TenantDocument>,
     @InjectModel(Location.name) private locationModel: Model<LocationDocument>,
@@ -48,6 +51,7 @@ export class OnboardingService {
     @InjectModel(Reward.name) private rewardModel: Model<RewardDocument>,
     private auditService: AuditService,
     private pilotMetricsService: PilotMetricsService,
+    private geocodingService: GeocodingService,
   ) {}
 
   private async findInviteByToken(inviteToken: string) {
@@ -155,6 +159,10 @@ export class OnboardingService {
     if (signupDto.logoUrl) {
       initialConfig['logo_url'] = signupDto.logoUrl;
     }
+    if (signupDto.locationAddress) {
+      initialConfig['address'] = signupDto.locationAddress;
+      initialConfig['geocoding_status'] = 'pending';
+    }
     const tenant = new this.tenantModel({
       _id: uuidv4(),
       name: signupDto.merchantName,
@@ -162,6 +170,35 @@ export class OnboardingService {
       isActive: true,
     });
     await tenant.save();
+
+    // Geocode the address asynchronously so the merchant appears on the map
+    if (signupDto.locationAddress) {
+      const tenantId = tenant._id as string;
+      this.geocodingService.geocode(signupDto.locationAddress).then((geo) => {
+        if (geo) {
+          this.tenantModel.updateOne(
+            { _id: tenantId },
+            {
+              $set: {
+                'config.latitude': geo.latitude,
+                'config.longitude': geo.longitude,
+                'config.formatted_address': geo.formattedAddress,
+                'config.geocoding_status': 'resolved',
+                ...(geo.placeId ? { 'config.place_id': geo.placeId } : {}),
+                location: { type: 'Point', coordinates: [geo.longitude, geo.latitude] },
+              },
+            },
+          ).exec().catch((err) =>
+            this.logger.error(`Failed to persist geocode for new tenant ${tenantId}: ${err.message}`),
+          );
+        } else {
+          this.tenantModel.updateOne(
+            { _id: tenantId },
+            { $set: { 'config.geocoding_status': 'failed' } },
+          ).exec().catch(() => {});
+        }
+      });
+    }
 
     // Create first location
     const location = new this.locationModel({

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useMerchantSettings, useUpdateMerchantSettings, useCreateLocation, useUpdateLocation, useDeleteLocation } from '../../hooks/useMerchant';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
@@ -14,6 +14,7 @@ import { Building2, Sun, Moon, Monitor, MapPin, CheckCircle2, AlertCircle, Loade
 import { useTheme } from '../../context/ThemeContext';
 import type { Theme } from '../../context/ThemeContext';
 import type { Branch } from '../../api/types';
+import { PlacesAutocompleteInput } from '../../components/ui/PlacesAutocompleteInput';
 
 const locationSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -96,6 +97,7 @@ export default function SettingsPage() {
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors },
   } = useForm<MerchantFormData>({
     defaultValues: {
@@ -328,9 +330,17 @@ export default function SettingsPage() {
                   <div className="space-y-4">
                     <div>
                       <label className="text-sm font-semibold text-white mb-2 block">Address</label>
-                      <Input
-                        {...register('address')}
-                        placeholder="e.g. The Pearl, Doha, Qatar"
+                      <Controller
+                        name="address"
+                        control={control}
+                        render={({ field }) => (
+                          <PlacesAutocompleteInput
+                            value={field.value ?? ''}
+                            onChange={field.onChange}
+                            placeholder="e.g. The Pearl, Doha, Qatar"
+                            disabled={updateMerchant.isPending}
+                          />
+                        )}
                       />
 
                       {/* Geocoding status badge */}

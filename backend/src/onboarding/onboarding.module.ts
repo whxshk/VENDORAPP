@@ -4,6 +4,7 @@ import { OnboardingService } from './onboarding.service';
 import { OnboardingController } from './onboarding.controller';
 import { AuditModule } from '../audit/audit.module';
 import { PilotMetricsModule } from '../pilot-metrics/pilot-metrics.module';
+import { GeocodingModule } from '../geocoding/geocoding.module';
 import { Tenant, TenantSchema } from '../database/schemas/Tenant.schema';
 import { Location, LocationSchema } from '../database/schemas/Location.schema';
 import { User, UserSchema } from '../database/schemas/User.schema';
@@ -23,6 +24,7 @@ import { Reward, RewardSchema } from '../database/schemas/Reward.schema';
     ]),
     AuditModule,
     PilotMetricsModule,
+    GeocodingModule,
   ],
   controllers: [OnboardingController],
   providers: [OnboardingService],

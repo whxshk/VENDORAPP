@@ -4,6 +4,7 @@ import { authApi } from '../api/client';
 import { merchantSignup } from '../api/merchant';
 import { useAuthStore } from '../store/authStore';
 import { Input } from '../components/ui/input';
+import { PlacesAutocompleteInput } from '../components/ui/PlacesAutocompleteInput';
 import { Button } from '../components/ui/button';
 import { isDemoMode } from '../config/env';
 import { cn } from '../lib/utils';
@@ -353,12 +354,13 @@ export default function Login() {
                 <label className="block text-sm font-semibold text-white mb-2">
                   Location Address
                 </label>
-                <Input
+                <PlacesAutocompleteInput
                   value={signupLocationAddress}
-                  onChange={(e) => setSignupLocationAddress(e.target.value)}
-                  placeholder="e.g. Doha, Qatar (optional)"
+                  onChange={setSignupLocationAddress}
+                  placeholder="e.g. The Pearl, Doha, Qatar (optional)"
                   disabled={signupLoading}
                 />
+                <p className="text-xs text-slate-500 mt-1">Start typing to search — we'll pin it on the map automatically.</p>
               </div>
 
               <div>
