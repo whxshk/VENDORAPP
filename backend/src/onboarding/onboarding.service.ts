@@ -31,6 +31,7 @@ export interface StaffInviteDto {
 
 export interface ConfigureLoyaltyDto {
   loyaltyType: 'POINTS' | 'STAMPS' | 'DISCOUNT';
+  category?: string;
   pointsPerQar?: number;
   discountPer100?: number;
   stampsRequired?: number;
@@ -449,16 +450,36 @@ export class OnboardingService {
     if (dto.loyaltyType === 'POINTS') {
       tenantConfigUpdate['config.points_per_qar'] = dto.pointsPerQar ?? 1;
     }
+    if (dto.category) {
+      tenantConfigUpdate['config.category'] = dto.category;
+    }
     await this.tenantModel.updateOne({ _id: tenantId }, { $set: tenantConfigUpdate }).exec();
 
-    // Create rewards if provided
+    // Create rewards
     const createdRewards: any[] = [];
+
+    // For STAMPS: create a reward document representing the stamp card prize
+    if (dto.loyaltyType === 'STAMPS' && dto.stampReward) {
+      const stampsReward = new this.rewardModel({
+        _id: uuidv4(),
+        tenantId,
+        name: dto.stampReward,
+        rewardType: 'stamps',
+        stampsCost: dto.stampsRequired ?? 10,
+        isActive: true,
+      });
+      await stampsReward.save();
+      createdRewards.push({ id: stampsReward._id, name: stampsReward.name });
+    }
+
+    // For POINTS: create reward documents passed in the rewards array
     if (dto.rewards?.length) {
       for (const r of dto.rewards) {
         const reward = new this.rewardModel({
           _id: uuidv4(),
           tenantId,
           name: r.name,
+          rewardType: 'points',
           pointsRequired: r.pointsRequired,
           description: r.description,
           isActive: true,

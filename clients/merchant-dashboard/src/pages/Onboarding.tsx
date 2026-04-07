@@ -7,7 +7,18 @@ import { cn } from '../lib/utils';
 
 type LoyaltyType = 'POINTS' | 'STAMPS' | 'DISCOUNT';
 
-const STEPS = ['Loyalty Type', 'Configure', 'Finish'];
+const STEPS = ['Category', 'Loyalty Type', 'Configure', 'Finish'];
+
+const CATEGORIES = [
+  { value: 'cafe', label: 'Cafe' },
+  { value: 'restaurant', label: 'Restaurant' },
+  { value: 'retail', label: 'Retail' },
+  { value: 'grocery', label: 'Grocery' },
+  { value: 'fitness', label: 'Fitness' },
+  { value: 'entertainment', label: 'Entertainment' },
+  { value: 'beauty', label: 'Beauty' },
+  { value: 'other', label: 'Other' },
+];
 
 export default function Onboarding() {
   const navigate = useNavigate();
@@ -15,10 +26,13 @@ export default function Onboarding() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Step 0 — loyalty type
+  // Step 0 — category
+  const [category, setCategory] = useState<string | null>(null);
+
+  // Step 1 — loyalty type
   const [loyaltyType, setLoyaltyType] = useState<LoyaltyType | null>(null);
 
-  // Step 1 — dynamic based on loyaltyType
+  // Step 2 — configure fields (dynamic based on loyaltyType)
   const [pointsPerQar, setPointsPerQar] = useState('0.5');
   const [discountPer100, setDiscountPer100] = useState('10');
   const [stampsRequired, setStampsRequired] = useState('10');
@@ -30,12 +44,18 @@ export default function Onboarding() {
   const goBack = () => setStep((s) => Math.max(s - 1, 0));
 
   const handleStep0 = () => {
+    if (!category) { setError('Please select a category'); return; }
+    setError('');
+    goNext();
+  };
+
+  const handleStep1 = () => {
     if (!loyaltyType) { setError('Please select a loyalty type'); return; }
     setError('');
     goNext();
   };
 
-  const handleStep1 = async () => {
+  const handleStep2 = async () => {
     if (!loyaltyType) return;
     setError('');
     setLoading(true);
@@ -47,6 +67,7 @@ export default function Onboarding() {
 
       await configureOnboarding({
         loyaltyType,
+        category: category || undefined,
         pointsPerQar: loyaltyType === 'POINTS' ? parseFloat(pointsPerQar) || 0.5 : undefined,
         discountPer100: loyaltyType === 'DISCOUNT' ? parseFloat(discountPer100) || 10 : undefined,
         stampsRequired: loyaltyType === 'STAMPS' ? parseInt(stampsRequired) || 10 : undefined,
@@ -130,8 +151,34 @@ export default function Onboarding() {
             </div>
           )}
 
-          {/* Step 0 — Loyalty Type */}
+          {/* Step 0 — Category */}
           {step === 0 && (
+            <div className="space-y-5">
+              <h2 className="text-xl font-semibold text-white">What type of business are you?</h2>
+              <div className="grid grid-cols-2 gap-3">
+                {CATEGORIES.map(({ value, label }) => (
+                  <button
+                    key={value}
+                    onClick={() => setCategory(value)}
+                    className={cn(
+                      'text-left p-4 rounded-xl border transition-all',
+                      category === value
+                        ? 'border-blue-500/60 bg-blue-500/10'
+                        : 'border-white/10 bg-slate-800/40 hover:border-white/20',
+                    )}
+                  >
+                    <div className="font-semibold text-white">{label}</div>
+                  </button>
+                ))}
+              </div>
+              <Button onClick={handleStep0} className="w-full" size="lg">
+                Continue
+              </Button>
+            </div>
+          )}
+
+          {/* Step 1 — Loyalty Type */}
+          {step === 1 && (
             <div className="space-y-5">
               <h2 className="text-xl font-semibold text-white">Choose Loyalty Type</h2>
               <div className="space-y-3">
@@ -143,7 +190,7 @@ export default function Onboarding() {
                       desc: 'Customers earn points on every spend and redeem them for rewards.',
                       color: 'blue',
                     },
-{
+                    {
                       type: 'STAMPS' as LoyaltyType,
                       title: 'Stamp Card',
                       desc: 'Customers collect stamps and earn a free reward after N visits.',
@@ -170,15 +217,15 @@ export default function Onboarding() {
                 <Button variant="outline" onClick={goBack} className="flex-1">
                   Back
                 </Button>
-                <Button onClick={handleStep0} className="flex-1" size="lg">
+                <Button onClick={handleStep1} className="flex-1" size="lg">
                   Continue
                 </Button>
               </div>
             </div>
           )}
 
-          {/* Step 1 — Configure */}
-          {step === 1 && (
+          {/* Step 2 — Configure */}
+          {step === 2 && (
             <div className="space-y-5">
               <h2 className="text-xl font-semibold text-white">Configure Your Program</h2>
 
@@ -271,15 +318,15 @@ export default function Onboarding() {
                 <Button variant="outline" onClick={goBack} className="flex-1">
                   Back
                 </Button>
-                <Button onClick={handleStep1} disabled={loading} className="flex-1" size="lg">
+                <Button onClick={handleStep2} disabled={loading} className="flex-1" size="lg">
                   {loading ? 'Saving…' : 'Continue'}
                 </Button>
               </div>
             </div>
           )}
 
-          {/* Step 2 — Finish */}
-          {step === 2 && (
+          {/* Step 3 — Finish */}
+          {step === 3 && (
             <div className="space-y-6 text-center">
               <div className="text-5xl">🎉</div>
               <h2 className="text-xl font-semibold text-white">You're all set!</h2>

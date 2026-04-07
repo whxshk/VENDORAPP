@@ -562,6 +562,7 @@ export async function merchantSignup(params: {
 // Onboarding API
 export async function configureOnboarding(data: {
   loyaltyType: 'POINTS' | 'STAMPS' | 'DISCOUNT';
+  category?: string;
   pointsPerQar?: number;
   discountPer100?: number;
   stampsRequired?: number;
