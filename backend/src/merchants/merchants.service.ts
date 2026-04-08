@@ -18,6 +18,8 @@ export class MerchantsService {
     }
     // Exclude platform/test tenants that are flagged as hidden
     query['config.excludeFromDiscover'] = { $ne: true };
+    // Always exclude the internal platform tenant
+    query['_id'] = { $ne: 'sharkband-platform' };
     const tenants = await this.tenantModel.find(query).sort({ name: 1 }).exec();
     return tenants.map((t) => this.toDto(t));
   }
@@ -44,6 +46,7 @@ export class MerchantsService {
       .find({
         isActive: true,
         'config.excludeFromDiscover': { $ne: true },
+        _id: { $ne: 'sharkband-platform' },
         location: {
           $near: {
             $geometry: { type: 'Point', coordinates: [lng, lat] },
