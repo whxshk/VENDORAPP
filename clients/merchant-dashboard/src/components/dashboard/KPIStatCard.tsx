@@ -14,7 +14,7 @@ const THEMES = {
     trendBg: 'rgba(59,130,246,0.1)',
     trendColor: '#60a5fa',
     trendBorder: 'rgba(59,130,246,0.18)',
-    valueColor: '#eff6ff',
+    valueColor: 'var(--text-primary)',
   },
   indigo: {
     bgFrom: 'rgba(99,102,241,0.05)',
@@ -28,7 +28,7 @@ const THEMES = {
     trendBg: 'rgba(99,102,241,0.1)',
     trendColor: '#818cf8',
     trendBorder: 'rgba(99,102,241,0.18)',
-    valueColor: '#eef2ff',
+    valueColor: 'var(--text-primary)',
   },
   purple: {
     bgFrom: 'rgba(168,85,247,0.05)',
@@ -42,7 +42,7 @@ const THEMES = {
     trendBg: 'rgba(168,85,247,0.1)',
     trendColor: '#c084fc',
     trendBorder: 'rgba(168,85,247,0.18)',
-    valueColor: '#faf5ff',
+    valueColor: 'var(--text-primary)',
   },
   emerald: {
     bgFrom: 'rgba(52,211,153,0.04)',
@@ -56,7 +56,7 @@ const THEMES = {
     trendBg: 'rgba(52,211,153,0.08)',
     trendColor: '#34d399',
     trendBorder: 'rgba(52,211,153,0.14)',
-    valueColor: '#ecfdf5',
+    valueColor: 'var(--text-primary)',
   },
   rose: {
     bgFrom: 'rgba(244,63,94,0.05)',
@@ -70,7 +70,7 @@ const THEMES = {
     trendBg: 'rgba(244,63,94,0.1)',
     trendColor: '#fb7185',
     trendBorder: 'rgba(244,63,94,0.18)',
-    valueColor: '#fff1f2',
+    valueColor: 'var(--text-primary)',
   },
   amber: {
     bgFrom: 'rgba(245,158,11,0.05)',
@@ -84,7 +84,7 @@ const THEMES = {
     trendBg: 'rgba(245,158,11,0.1)',
     trendColor: '#f59e0b',
     trendBorder: 'rgba(245,158,11,0.18)',
-    valueColor: '#fffbeb',
+    valueColor: 'var(--text-primary)',
   },
   slate: {
     bgFrom: 'rgba(100,116,139,0.05)',
@@ -98,7 +98,7 @@ const THEMES = {
     trendBg: 'rgba(100,116,139,0.08)',
     trendColor: '#94a3b8',
     trendBorder: 'rgba(100,116,139,0.15)',
-    valueColor: '#f8fafc',
+    valueColor: 'var(--text-primary)',
   },
 } as const;
 
@@ -153,7 +153,7 @@ export function KPIStatCard({ title, value, description, icon, theme, trend, suf
       ref={ref}
       className="relative rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:scale-[1.01]"
       style={{
-        background: `linear-gradient(150deg, ${t.bgFrom} 0%, #0d1424 55%, #0a0f1a 100%)`,
+        background: `linear-gradient(150deg, ${t.bgFrom} 0%, var(--card-bg) 100%)`,
         border: `1px solid ${t.border}`,
         boxShadow: `${t.outerGlow}, 0 4px 16px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04)`,
         padding: '20px 20px 18px',

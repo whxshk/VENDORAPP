@@ -281,12 +281,12 @@ export default function TransactionsPage() {
       </PageHeader>
 
       {/* Section rule */}
-      <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)' }} />
+      <div style={{ height: '1px', background: 'var(--border)' }} />
 
       {/* Filter Toolbar */}
       <div
         className="rounded-xl px-5 py-4"
-        style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
+        style={{ background: 'var(--bg-surface-subtle)', border: '1px solid var(--border)' }}
       >
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div>
@@ -333,7 +333,7 @@ export default function TransactionsPage() {
         </div>
 
         {hasFilters && (
-          <div className="flex items-center gap-2 mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+          <div className="flex items-center gap-2 mt-3 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
             <span className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider mr-1">Active:</span>
             {startDate && <FilterChip label={`From ${startDate}`} onRemove={() => { setStartDate(''); setPage(1); }} />}
             {endDate && <FilterChip label={`To ${endDate}`} onRemove={() => { setEndDate(''); setPage(1); }} />}
@@ -359,7 +359,7 @@ export default function TransactionsPage() {
         <CardContent className="p-0">
           <div
             className="px-6 py-4 flex items-center justify-between"
-            style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+            style={{ borderBottom: '1px solid var(--border)' }}
           >
             <div>
               <h2 className="text-sm font-semibold text-white">All Transactions</h2>
@@ -382,7 +382,7 @@ export default function TransactionsPage() {
                 <table className="w-full">
                   <thead>
                     {table.getHeaderGroups().map((headerGroup) => (
-                      <tr key={headerGroup.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                      <tr key={headerGroup.id} style={{ borderBottom: '1px solid var(--border)' }}>
                         {headerGroup.headers.map((header) => (
                           <th
                             key={header.id}
@@ -400,10 +400,10 @@ export default function TransactionsPage() {
                         key={row.id}
                         style={{
                           borderBottom: index < table.getRowModel().rows.length - 1
-                            ? '1px solid rgba(255,255,255,0.03)'
+                            ? '1px solid var(--border)'
                             : 'none',
                         }}
-                        onMouseEnter={e => { (e.currentTarget as HTMLTableRowElement).style.background = 'rgba(255,255,255,0.025)'; }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLTableRowElement).style.background = 'var(--bg-surface-subtle)'; }}
                         onMouseLeave={e => { (e.currentTarget as HTMLTableRowElement).style.background = 'transparent'; }}
                       >
                         {row.getVisibleCells().map((cell) => (
@@ -420,7 +420,7 @@ export default function TransactionsPage() {
               {/* Pagination */}
               <div
                 className="flex items-center justify-between px-6 py-4"
-                style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}
+                style={{ borderTop: '1px solid var(--border)' }}
               >
                 <p className="text-xs text-slate-500 tabular-nums">
                   Showing{' '}
@@ -435,7 +435,7 @@ export default function TransactionsPage() {
                     onClick={() => setPage(p => Math.max(1, p - 1))}
                     disabled={page === 1}
                     className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                    style={{ background: 'rgba(255,255,255,0.06)', color: '#94a3b8' }}
+                    style={{ background: 'var(--bg-surface-subtle)', color: 'var(--text-secondary)' }}
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </button>
@@ -449,7 +449,7 @@ export default function TransactionsPage() {
                     onClick={() => setPage(p => p + 1)}
                     disabled={!transactionsData || page * 20 >= totalTransactions}
                     className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                    style={{ background: 'rgba(255,255,255,0.06)', color: '#94a3b8' }}
+                    style={{ background: 'var(--bg-surface-subtle)', color: 'var(--text-secondary)' }}
                   >
                     <ChevronRight className="h-4 w-4" />
                   </button>

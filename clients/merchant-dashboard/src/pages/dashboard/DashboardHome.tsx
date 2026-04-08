@@ -101,11 +101,11 @@ function SectionDivider({ label, badge }: { label: string; badge?: string }) {
   return (
     <div className="flex items-center gap-3">
       <h2 className="text-[10px] font-black text-slate-600 uppercase tracking-widest whitespace-nowrap">{label}</h2>
-      <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.04)' }} />
+      <div style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
       {badge && (
         <span
           className="text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap"
-          style={{ background: 'rgba(255,255,255,0.04)', color: '#334155', border: '1px solid rgba(255,255,255,0.06)' }}
+          style={{ background: 'var(--bg-surface-subtle)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
         >
           {badge}
         </span>
@@ -261,7 +261,7 @@ export default function DashboardHome() {
         </div>
       </div>
 
-      <div style={{ height: '1px', background: 'rgba(255,255,255,0.05)' }} />
+      <div style={{ height: '1px', background: 'var(--border)' }} />
 
       {/* ── 5 KPI Cards ─────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
@@ -338,9 +338,9 @@ export default function DashboardHome() {
       <div
         className="rounded-2xl overflow-hidden"
         style={{
-          background: 'linear-gradient(135deg, #141c2e 0%, #0f172a 100%)',
-          border: '1px solid rgba(255,255,255,0.07)',
-          boxShadow: '0 2px 12px rgba(0,0,0,0.3)',
+          background: 'var(--card-bg)',
+          border: '1px solid var(--card-border)',
+          boxShadow: '0 2px 12px rgba(0,0,0,0.1)',
         }}
       >
         {recentActivity.length === 0 ? (
@@ -351,7 +351,7 @@ export default function DashboardHome() {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                <tr style={{ borderBottom: '1px solid var(--border)' }}>
                   <th className="text-left py-3 px-5 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Customer</th>
                   <th className="text-left py-3 px-5 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Type</th>
                   <th className="text-right py-3 px-5 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Amount</th>
@@ -370,10 +370,10 @@ export default function DashboardHome() {
                       key={tx.id}
                       style={{
                         borderBottom: index < recentActivity.length - 1
-                          ? '1px solid rgba(255,255,255,0.03)'
+                          ? '1px solid var(--border)'
                           : 'none',
                       }}
-                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.02)'; }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-surface-subtle)'; }}
                       onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
                     >
                       <td className="py-3 px-5">

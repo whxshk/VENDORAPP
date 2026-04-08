@@ -40,7 +40,7 @@ function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0a0f1a]">
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-base)' }}>
         <p className="text-slate-400">Loading...</p>
       </div>
     );
