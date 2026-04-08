@@ -377,7 +377,10 @@ export class AuthService {
       { $set: { passwordResetToken: hashedToken, passwordResetExpiry: expiry } },
     ).exec();
 
-    const isCustomer = user.roles?.includes('CUSTOMER');
+    const isCustomer =
+      user.roles?.includes('CUSTOMER') ||
+      user.tenantId === PLATFORM_TENANT_ID ||
+      Boolean(user.customerId);
     const baseUrl = isCustomer
       ? (process.env.CUSTOMER_APP_URL || 'https://proud-forest-0fba2710f.1.azurestaticapps.net')
       : (process.env.FRONTEND_URL || 'https://purple-ground-02e4fe00f.6.azurestaticapps.net');
