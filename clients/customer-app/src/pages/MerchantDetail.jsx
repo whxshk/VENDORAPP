@@ -7,22 +7,27 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { motion } from "framer-motion";
 import { ArrowLeft, MapPin, Clock, Phone, Gift, History } from "lucide-react";
-import { Link } from "react-router-dom";
-import { createPageUrl } from "@/utils";
+import { useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import StampProgress from "../components/wallet/StampProgress";
 import TransactionItem from "../components/transactions/TransactionItem";
 import EmptyState from "../components/shared/EmptyState";
 import RewardCard from "../components/merchant/RewardCard";
 
-function entryToTx(entry, merchantName) {
+function entryToTx(entry, merchantName, loyaltyType) {
+  const isStampEarn = entry.stampIssued === true;
+  const isStampMerchant = loyaltyType === "stamps";
+  // For stamp merchants, both earn and redeem entries are stamp-based
+  const isStamp = isStampEarn || isStampMerchant;
+  const absAmount = Math.abs(entry.amount);
   return {
     id: entry.id || entry.transactionId,
     type: entry.amount > 0 ? "earn" : "redeem",
-    merchant_name: merchantName || "SharkBand",
+    merchant_name: merchantName || "Unknown Merchant",
     description: entry.operationType,
     created_date: entry.createdAt,
-    points_amount: Math.abs(entry.amount),
+    points_amount: isStamp ? undefined : absAmount,
+    stamps_amount: isStamp ? absAmount : undefined,
   };
 }
 
@@ -30,6 +35,7 @@ export default function MerchantDetail() {
   const params = new URLSearchParams(window.location.search);
   const merchantId = params.get("merchantId");
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const { data: merchant } = useQuery({
     queryKey: ["merchant", merchantId],
@@ -92,7 +98,7 @@ export default function MerchantDetail() {
 
   const transactions = (historyData?.entries || [])
     .filter((e) => e.tenantId === merchantId)
-    .map((e) => entryToTx(e, merchant?.name));
+    .map((e) => entryToTx(e, merchant?.name, account?.loyalty_type));
 
   if (!merchant) {
     return (
@@ -115,11 +121,11 @@ export default function MerchantDetail() {
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
 
-        <Link to={createPageUrl("Discover")} className="absolute top-6 left-4 z-10">
+        <button onClick={() => navigate(-1)} className="absolute top-6 left-4 z-10">
           <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center">
             <ArrowLeft className="w-5 h-5 text-white" />
           </div>
-        </Link>
+        </button>
 
         <div className="absolute bottom-5 left-6 right-6 flex items-end gap-4">
           {merchant.logo_url && (

@@ -48,8 +48,20 @@ export default function Home() {
 
   const sharkCode = qrPayload || "sharkband:loading";
 
+  const firstName = user?.full_name?.split(" ")[0] || user?.name?.split(" ")[0] || "there";
+
   return (
-    <div className="min-h-full bg-gray-50 flex flex-col items-center px-5 pt-16 pb-24">
+    <div className="min-h-full bg-gray-50 flex flex-col items-center px-5 pt-10 pb-24">
+      {/* Greeting */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-sm mb-6"
+      >
+        <p className="text-xs text-gray-400 font-medium uppercase tracking-widest">Welcome back</p>
+        <h1 className="text-2xl font-bold text-[#0A1931] dark:text-white mt-0.5">{firstName} 👋</h1>
+      </motion.div>
+
       {/* Apple Wallet Style Card */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -81,8 +93,9 @@ export default function Home() {
               </p>
             </div>
           </div>
-          <div className="mt-3 pt-3 border-t border-white/10">
-            <p className="text-[#F97316] text-sm font-bold text-center">Show this to earn & redeem</p>
+          <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-center gap-2">
+            <span className="text-white/40 text-sm">📲</span>
+            <p className="text-white/70 text-xs text-center select-none">Show this QR code to earn & redeem rewards</p>
           </div>
         </div>
       </motion.div>

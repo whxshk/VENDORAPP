@@ -103,7 +103,10 @@ export default function Wallet() {
           <Input
             placeholder="Search merchants..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              if (e.target.value) setFilter("all");
+            }}
             className="pl-10 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400 border-gray-200 rounded-xl h-11 text-sm"
           />
         </div>
@@ -113,7 +116,7 @@ export default function Wallet() {
             {categories.map((cat) => (
               <button
                 key={cat}
-                onClick={() => setFilter(cat)}
+                onClick={() => { setFilter(cat); setSearch(""); }}
                 className={`px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
                   filter === cat
                     ? "bg-[#0A1931] text-white"

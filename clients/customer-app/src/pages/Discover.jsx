@@ -140,6 +140,8 @@ export default function Discover() {
           <div className="flex gap-1 bg-gray-100 dark:bg-gray-700 p-1 rounded-xl">
             <button
               onClick={() => setViewMode("grid")}
+              title="Grid view"
+              aria-label="Grid view"
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                 viewMode === "grid" ? "bg-white dark:bg-gray-600 shadow-sm" : "text-gray-500 dark:text-gray-400"
               }`}
@@ -148,6 +150,8 @@ export default function Discover() {
             </button>
             <button
               onClick={() => setViewMode("map")}
+              title="Map view"
+              aria-label="Map view"
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                 viewMode === "map" ? "bg-white dark:bg-gray-600 shadow-sm" : "text-gray-500 dark:text-gray-400"
               }`}

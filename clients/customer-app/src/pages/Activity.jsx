@@ -18,7 +18,7 @@ function entryToTx(entry, merchantMap) {
   const resolvedName =
     entry.merchantName ||
     (entry.tenantId && merchantMap.get(entry.tenantId)) ||
-    "SharkBand";
+    "Deleted Merchant";
 
   const isStamp = entry.stampIssued === true;
   const absAmount = Math.abs(entry.amount);
@@ -143,16 +143,21 @@ export default function Activity() {
 
   const renderGroup = (label, items) => {
     if (!items.length) return null;
-    const earned = items
-      .filter((t) => t.type === "earn")
-      .reduce((s, t) => s + (t.points_amount || 0), 0);
+    const earnItems = items.filter((t) => t.type === "earn");
+    const earnedPts = earnItems.reduce((s, t) => s + (t.points_amount || 0), 0);
+    const earnedStamps = earnItems.reduce((s, t) => s + (t.stamps_amount || 0), 0);
     const redeemed = items.filter((t) => t.type === "redeem").length;
     return (
       <div className="mb-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-base font-bold text-[#0A1931] dark:text-white">{label}</h3>
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-green-600 font-semibold">+{earned} pts</span>
+          <div className="flex items-center gap-2 text-sm flex-wrap justify-end">
+            {earnedStamps > 0 && (
+              <span className="text-green-600 font-semibold">+{earnedStamps} stamp{earnedStamps !== 1 ? "s" : ""}</span>
+            )}
+            {earnedPts > 0 && (
+              <span className="text-green-600 font-semibold">+{earnedPts} pts</span>
+            )}
             {redeemed > 0 && (
               <>
                 <span className="text-gray-300">|</span>
@@ -258,7 +263,7 @@ export default function Activity() {
           />
         ) : (
           <>
-            <MonthSummaryCard transactions={allTransactions} />
+            <MonthSummaryCard transactions={filtered} />
             <InsightsCard transactions={allTransactions} />
 
             {sortBy === "date" ? (

@@ -41,7 +41,8 @@ export function AuthRouter({ children, currentPageName }) {
     }
 
     // Authenticated and onboarded - redirect away from auth screens
-    if (user && hasCompletedOnboarding && isPublicRoute) {
+    // Exception: allow ForgotPassword even when logged in (user may want to change password)
+    if (user && hasCompletedOnboarding && isPublicRoute && currentPageName !== "ForgotPassword") {
       navigate(createPageUrl("Home"), { replace: true });
     }
   }, [user, loading, hasCompletedOnboarding, currentPageName, navigate]);
