@@ -58,9 +58,9 @@ export function TopBar() {
                 className="fixed inset-0 z-40"
                 onClick={() => setShowUserMenu(false)}
               />
-              <div className="animate-reveal-up absolute right-0 mt-2 w-56 bg-slate-800/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl shadow-black/50 z-50 overflow-hidden">
+              <div className="animate-reveal-up absolute right-0 mt-2 w-56 backdrop-blur-xl rounded-xl shadow-2xl shadow-black/20 z-50 overflow-hidden" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
                 <div className="p-2">
-                  <div className="px-4 py-3 text-sm text-slate-300 border-b border-white/10 mb-1">
+                  <div className="px-4 py-3 text-sm mb-1" style={{ color: 'var(--text-secondary)', borderBottom: '1px solid var(--border)' }}>
                     {user?.email}
                   </div>
                   <button

@@ -17,7 +17,7 @@ function CustomTooltip({ active, payload }: TooltipProps) {
   return (
     <div
       style={{
-        background: 'rgba(15,23,42,0.95)',
+        background: 'var(--bg-surface)',
         border: `1px solid ${item.payload.color}40`,
         borderRadius: '12px',
         padding: '10px 14px',
@@ -52,8 +52,8 @@ export function CustomerDonutChart({ returning, newCustomers }: CustomerDonutCha
   return (
     <div
       style={{
-        background: 'linear-gradient(160deg, rgba(99,102,241,0.07) 0%, #0d1424 45%, #0a0f1a 100%)',
-        border: '1px solid rgba(255,255,255,0.08)',
+        background: 'var(--card-bg)',
+        border: '1px solid var(--card-border)',
         borderRadius: '16px',
         padding: '24px',
         height: '100%',
@@ -63,7 +63,7 @@ export function CustomerDonutChart({ returning, newCustomers }: CustomerDonutCha
       }}
     >
       <div style={{ marginBottom: '16px' }}>
-        <h3 style={{ color: '#f1f5f9', fontSize: '14px', fontWeight: 700, margin: 0 }}>Customer Mix</h3>
+        <h3 style={{ color: 'var(--text-primary)', fontSize: '14px', fontWeight: 700, margin: 0 }}>Customer Mix</h3>
         <p style={{ color: '#475569', fontSize: '11px', marginTop: '2px' }}>Returning vs new · Today</p>
       </div>
 
@@ -126,7 +126,7 @@ export function CustomerDonutChart({ returning, newCustomers }: CustomerDonutCha
                   style={{
                     fontSize: '2.5rem',
                     fontWeight: 900,
-                    color: '#f8fafc',
+                    color: 'var(--text-primary)',
                     lineHeight: 1,
                     fontVariantNumeric: 'tabular-nums',
                     textShadow: '0 0 30px rgba(99,102,241,0.4)',
@@ -172,7 +172,7 @@ export function CustomerDonutChart({ returning, newCustomers }: CustomerDonutCha
                     </div>
                   </div>
                   {/* Mini progress bar */}
-                  <div style={{ height: '3px', borderRadius: '2px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                  <div style={{ height: '3px', borderRadius: '2px', background: 'var(--border)', overflow: 'hidden' }}>
                     <div
                       style={{
                         height: '100%',

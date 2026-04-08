@@ -21,7 +21,7 @@ function CustomTooltip({ active, payload, label }: TooltipProps) {
   return (
     <div
       style={{
-        background: 'rgba(15,23,42,0.97)',
+        background: 'var(--bg-surface)',
         border: '1px solid rgba(99,102,241,0.3)',
         borderRadius: '10px',
         padding: '10px 14px',
@@ -50,12 +50,12 @@ interface EarnVsRedeemChartProps {
 
 export function EarnVsRedeemChart({ data, totalTransactions }: EarnVsRedeemChartProps) {
   const cardStyle = {
-    background: 'linear-gradient(160deg, rgba(59,130,246,0.04) 0%, #0d1424 40%, #0a0f1a 100%)',
-    border: '1px solid rgba(255,255,255,0.08)',
+    background: 'var(--card-bg)',
+    border: '1px solid var(--card-border)',
     borderRadius: '16px',
     padding: '24px',
     height: '100%',
-    boxShadow: '0 4px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)',
+    boxShadow: '0 4px 24px rgba(0,0,0,0.15)',
   };
 
   if (data.length === 0) {
@@ -69,7 +69,7 @@ export function EarnVsRedeemChart({ data, totalTransactions }: EarnVsRedeemChart
   return (
     <div style={cardStyle}>
       <div style={{ marginBottom: '20px' }}>
-        <h3 style={{ color: '#f1f5f9', fontSize: '14px', fontWeight: 700, margin: 0 }}>Points Issued vs Redeemed</h3>
+        <h3 style={{ color: 'var(--text-primary)', fontSize: '14px', fontWeight: 700, margin: 0 }}>Points Issued vs Redeemed</h3>
         <p style={{ color: '#475569', fontSize: '11px', marginTop: '2px' }}>
           Activity by hour · {totalTransactions} total transaction{totalTransactions !== 1 ? 's' : ''}
         </p>
@@ -87,7 +87,7 @@ export function EarnVsRedeemChart({ data, totalTransactions }: EarnVsRedeemChart
               <stop offset="100%" stopColor="#dc2626" stopOpacity={0.85} />
             </linearGradient>
           </defs>
-          <CartesianGrid stroke="rgba(255,255,255,0.03)" vertical={false} />
+          <CartesianGrid stroke="var(--border)" vertical={false} />
           <XAxis
             dataKey="hour"
             tick={{ fill: '#475569', fontSize: 11, fontWeight: 600 }}
@@ -102,7 +102,7 @@ export function EarnVsRedeemChart({ data, totalTransactions }: EarnVsRedeemChart
             width={24}
             allowDecimals={false}
           />
-          <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.025)', radius: 4 }} />
+          <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--bg-surface-subtle)', radius: 4 }} />
           <Legend
             iconType="circle"
             iconSize={8}

@@ -21,7 +21,7 @@ function CustomTooltip({ active, payload, label }: TooltipProps) {
   return (
     <div
       style={{
-        background: 'rgba(15,23,42,0.97)',
+        background: 'var(--bg-surface)',
         border: '1px solid rgba(168,85,247,0.3)',
         borderRadius: '10px',
         padding: '10px 14px',
@@ -47,12 +47,12 @@ interface PeakHoursChartProps {
 
 export function PeakHoursChart({ data }: PeakHoursChartProps) {
   const cardStyle = {
-    background: 'linear-gradient(160deg, rgba(168,85,247,0.05) 0%, #0d1424 40%, #0a0f1a 100%)',
-    border: '1px solid rgba(255,255,255,0.08)',
+    background: 'var(--card-bg)',
+    border: '1px solid var(--card-border)',
     borderRadius: '16px',
     padding: '24px',
     height: '100%',
-    boxShadow: '0 4px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)',
+    boxShadow: '0 4px 24px rgba(0,0,0,0.15)',
   };
 
   if (data.length === 0) {
@@ -69,7 +69,7 @@ export function PeakHoursChart({ data }: PeakHoursChartProps) {
     <div style={cardStyle}>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '20px' }}>
         <div>
-          <h3 style={{ color: '#f1f5f9', fontSize: '14px', fontWeight: 700, margin: 0 }}>Peak Hours</h3>
+          <h3 style={{ color: 'var(--text-primary)', fontSize: '14px', fontWeight: 700, margin: 0 }}>Peak Hours</h3>
           <p style={{ color: '#475569', fontSize: '11px', marginTop: '2px' }}>Transaction density by time</p>
         </div>
         <div
@@ -95,7 +95,7 @@ export function PeakHoursChart({ data }: PeakHoursChartProps) {
               <stop offset="100%" stopColor="#9333ea" stopOpacity={0.02} />
             </linearGradient>
           </defs>
-          <CartesianGrid stroke="rgba(255,255,255,0.03)" vertical={false} />
+          <CartesianGrid stroke="var(--border)" vertical={false} />
           <XAxis
             dataKey="hour"
             tick={{ fill: '#475569', fontSize: 11, fontWeight: 600 }}

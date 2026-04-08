@@ -25,12 +25,12 @@ const ICON_COLORS = [
 
 export function TopRedeemedRewardsCard({ rewards }: TopRedeemedRewardsCardProps) {
   const cardStyle = {
-    background: 'linear-gradient(160deg, rgba(168,85,247,0.04) 0%, #0d1424 45%, #0a0f1a 100%)',
-    border: '1px solid rgba(255,255,255,0.08)',
+    background: 'var(--card-bg)',
+    border: '1px solid var(--card-border)',
     borderRadius: '16px',
     padding: '24px',
     height: '100%',
-    boxShadow: '0 4px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)',
+    boxShadow: '0 4px 24px rgba(0,0,0,0.15)',
     display: 'flex',
     flexDirection: 'column' as const,
   };
@@ -39,7 +39,7 @@ export function TopRedeemedRewardsCard({ rewards }: TopRedeemedRewardsCardProps)
 
   const header = (
     <div style={{ marginBottom: '20px' }}>
-      <h3 style={{ color: '#f1f5f9', fontSize: '14px', fontWeight: 700, margin: 0 }}>Top Redeemed Rewards</h3>
+      <h3 style={{ color: 'var(--text-primary)', fontSize: '14px', fontWeight: 700, margin: 0 }}>Top Redeemed Rewards</h3>
       <p style={{ color: '#475569', fontSize: '11px', marginTop: '2px' }}>
         {totalRedemptions > 0
           ? `${totalRedemptions} redemption${totalRedemptions !== 1 ? 's' : ''} · from recent activity`
@@ -61,9 +61,9 @@ export function TopRedeemedRewardsCard({ rewards }: TopRedeemedRewardsCardProps)
             justifyContent: 'center',
             gap: '12px',
             padding: '24px 16px',
-            background: 'rgba(255,255,255,0.015)',
+            background: 'var(--bg-surface-subtle)',
             borderRadius: '12px',
-            border: '1px dashed rgba(255,255,255,0.06)',
+            border: '1px dashed var(--border-strong)',
           }}
         >
           <div
@@ -124,7 +124,7 @@ export function TopRedeemedRewardsCard({ rewards }: TopRedeemedRewardsCardProps)
                 <div style={{ flex: 1, overflow: 'hidden' }}>
                   <p
                     style={{
-                      color: isFirst ? '#f1f5f9' : '#cbd5e1',
+                      color: isFirst ? 'var(--text-primary)' : 'var(--text-secondary)',
                       fontSize: isFirst ? '13px' : '12px',
                       fontWeight: isFirst ? 700 : 500,
                       margin: 0,
@@ -154,7 +154,7 @@ export function TopRedeemedRewardsCard({ rewards }: TopRedeemedRewardsCardProps)
                 </span>
               </div>
               {i < Math.min(rewards.length, 5) - 1 && (
-                <div style={{ height: '1px', background: 'rgba(255,255,255,0.04)' }} />
+                <div style={{ height: '1px', background: 'var(--border)' }} />
               )}
             </div>
           );
