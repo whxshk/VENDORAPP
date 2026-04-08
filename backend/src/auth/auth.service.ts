@@ -4,6 +4,7 @@ import {
   ConflictException,
   InternalServerErrorException,
   BadRequestException,
+  NotFoundException,
   Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -99,6 +100,10 @@ export class AuthService {
 
   private generateOtp(): string {
     return crypto.randomInt(100000, 1000000).toString();
+  }
+
+  private escapeRegex(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
   private async storeAndSendOtp(user: UserDocument, purpose: OtpPurpose): Promise<OtpChallengeResponse> {
@@ -356,13 +361,11 @@ export class AuthService {
   }
 
   async forgotPassword(email: string): Promise<{ message: string }> {
-    const genericResponse = {
-      message: 'If an account with that email exists, we sent a password reset link.',
-    };
-
-    const user = await this.userModel.findOne({ email, isActive: true }).exec();
+    const normalizedEmail = email.trim().toLowerCase();
+    const emailPattern = new RegExp(`^${this.escapeRegex(normalizedEmail)}$`, 'i');
+    const user = await this.userModel.findOne({ email: emailPattern, isActive: true }).exec();
     if (!user) {
-      return genericResponse;
+      throw new NotFoundException('No account found with this email address.');
     }
 
     const rawToken = crypto.randomBytes(32).toString('hex');
@@ -383,13 +386,18 @@ export class AuthService {
       ? `${normalizedBaseUrl}/?page=ResetPassword&token=${rawToken}`
       : `${normalizedBaseUrl}/reset-password?token=${rawToken}`;
 
-    this.emailService
-      .sendPasswordResetEmail(email, user.name || email, resetLink)
-      .catch((err) => {
-        this.logger.warn?.(`Failed to send password reset email to ${email}: ${err?.message}`);
-      });
+    try {
+      await this.emailService.sendPasswordResetEmail(user.email, user.name || user.email, resetLink);
+    } catch (err: any) {
+      await this.userModel.updateOne(
+        { _id: user._id },
+        { $unset: { passwordResetToken: '', passwordResetExpiry: '' } },
+      ).exec();
+      this.logger.error(`Failed to send password reset email to ${user.email}: ${err?.message}`);
+      throw new InternalServerErrorException('We could not send the password reset email. Please try again.');
+    }
 
-    return genericResponse;
+    return { message: `We sent a password reset link to ${user.email}.` };
   }
 
   async resetPassword(token: string, newPassword: string): Promise<{ message: string }> {

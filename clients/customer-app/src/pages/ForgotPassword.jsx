@@ -18,10 +18,14 @@ export default function ForgotPassword() {
     if (!email) return;
     setLoading(true);
     try {
-      await apiClient.post("/auth/forgot-password", { email });
+      await apiClient.post("/auth/forgot-password", { email: email.trim() });
       setSent(true);
-    } catch {
-      toast.error("Something went wrong. Please try again.");
+    } catch (error) {
+      const msg =
+        error?.response?.data?.message ||
+        error?.response?.data?.error?.message ||
+        "Something went wrong. Please try again.";
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -59,7 +63,7 @@ export default function ForgotPassword() {
             </div>
             <h2 className="text-lg font-semibold text-gray-800">Check your inbox</h2>
             <p className="text-gray-500 text-sm">
-              If an account exists for <strong>{email}</strong>, we've sent a password reset link. Check your spam folder if you don't see it.
+              We sent a password reset link to <strong>{email}</strong>. Check your spam folder if you don't see it.
             </p>
             <Button
               onClick={() => navigate(createPageUrl("PhoneInput"))}

@@ -78,7 +78,8 @@ export class AuthController {
   @Post('forgot-password')
   @HttpCode(200)
   @ApiOperation({ summary: 'Request a password reset email' })
-  @ApiResponse({ status: 200, description: 'Reset email sent (if account exists)' })
+  @ApiResponse({ status: 200, description: 'Reset email sent successfully' })
+  @ApiResponse({ status: 404, description: 'Email address not found' })
   async forgotPassword(@Body() body: { email: string }) {
     return this.authService.forgotPassword(body.email);
   }
