@@ -41,6 +41,11 @@ async function bootstrap() {
     'https://purple-ground-02e4fe00f.6.azurestaticapps.net',
     'https://app.sharkband.cloud',
     'https://merchant.sharkband.cloud',
+    'https://admin.sharkband.cloud',
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:5175',
+    'http://localhost:4173',
   ];
 
   const rawOrigin = process.env.CORS_ORIGIN || '*';
