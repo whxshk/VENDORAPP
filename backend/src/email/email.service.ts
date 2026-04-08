@@ -24,12 +24,8 @@ export class EmailService implements OnModuleInit, OnModuleDestroy {
     return !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
   }
 
-  private getTransporter(): nodemailer.Transporter {
-    if (this.transporter) {
-      return this.transporter;
-    }
-
-    this.transporter = nodemailer.createTransport({
+  private createTransporter(): nodemailer.Transporter {
+    return nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: Number(process.env.SMTP_PORT || '587'),
       secure: Number(process.env.SMTP_PORT) === 465,
@@ -44,7 +40,19 @@ export class EmailService implements OnModuleInit, OnModuleDestroy {
         pass: process.env.SMTP_PASS,
       },
     });
+  }
 
+  private getTransporter(): nodemailer.Transporter {
+    if (!this.transporter) {
+      this.transporter = this.createTransporter();
+    }
+
+    return this.transporter;
+  }
+
+  private resetTransporter(): nodemailer.Transporter {
+    this.transporter?.close();
+    this.transporter = this.createTransporter();
     return this.transporter;
   }
 
@@ -66,14 +74,20 @@ export class EmailService implements OnModuleInit, OnModuleDestroy {
     }
 
     const startedAt = Date.now();
-
-    await this.getTransporter().sendMail({
+    const mailOptions = {
       from: process.env.SMTP_FROM || process.env.SMTP_USER,
       to,
       subject,
       text,
       ...(html ? { html } : {}),
-    });
+    };
+
+    try {
+      await this.getTransporter().sendMail(mailOptions);
+    } catch (error: any) {
+      this.logger.warn(`Email "${subject}" failed on existing SMTP connection, retrying: ${error?.message}`);
+      await this.resetTransporter().sendMail(mailOptions);
+    }
 
     this.logger.log(`Email "${subject}" accepted for ${to} in ${Date.now() - startedAt}ms`);
   }

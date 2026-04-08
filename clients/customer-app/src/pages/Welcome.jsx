@@ -59,12 +59,9 @@ export default function Welcome() {
           transition={{ delay: 0.4 }}
           className="space-y-4 max-w-md mx-auto"
         >
-          {features.map((feature, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.5 + index * 0.1 }}
+          {features.map((feature) => (
+            <div
+              key={feature.title}
               className="bg-white/10 backdrop-blur-md rounded-2xl p-5 border border-white/10"
             >
               <div className="flex items-start gap-4">
@@ -79,7 +76,7 @@ export default function Welcome() {
                   <Check className="w-4 h-4 text-white" strokeWidth={3} />
                 </div>
               </div>
-            </motion.div>
+            </div>
           ))}
         </motion.div>
       </div>
