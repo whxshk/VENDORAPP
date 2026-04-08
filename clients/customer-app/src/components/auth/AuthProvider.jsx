@@ -44,9 +44,9 @@ export function AuthProvider({ children }) {
         customerId: profile?.customerId || authUser.customerId || null,
         created_date: profile?.created_date || null,
       });
-      const onboarded =
-        localStorage.getItem("hasCompletedOnboarding") === "true";
-      setHasCompletedOnboarding(onboarded);
+      // Returning authenticated users skip the welcome/onboarding screen
+      localStorage.setItem("hasCompletedOnboarding", "true");
+      setHasCompletedOnboarding(true);
     } catch {
       localStorage.removeItem("access_token");
       localStorage.removeItem("refresh_token");
