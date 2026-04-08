@@ -4,9 +4,31 @@ import * as nodemailer from 'nodemailer';
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
+  private transporter: nodemailer.Transporter | null = null;
 
   isConfigured(): boolean {
     return !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+  }
+
+  private getTransporter(): nodemailer.Transporter {
+    if (this.transporter) {
+      return this.transporter;
+    }
+
+    this.transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT || '587'),
+      secure: Number(process.env.SMTP_PORT) === 465,
+      pool: true,
+      maxConnections: 5,
+      maxMessages: 100,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+
+    return this.transporter;
   }
 
   private async send(to: string, subject: string, html: string, text: string): Promise<void> {
@@ -15,17 +37,7 @@ export class EmailService {
       return;
     }
 
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT || '587'),
-      secure: Number(process.env.SMTP_PORT) === 465,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
-
-    await transporter.sendMail({
+    await this.getTransporter().sendMail({
       from: process.env.SMTP_FROM || process.env.SMTP_USER,
       to,
       subject,
@@ -37,23 +49,26 @@ export class EmailService {
   async sendWelcomeEmail(to: string, name: string): Promise<void> {
     await this.send(
       to,
-      'Welcome to SharkBand! 🦈',
+      'Welcome to SharkBand!',
       `
         <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111;max-width:600px;margin:0 auto;">
           <div style="background:linear-gradient(135deg,#0A1931 0%,#0f2440 100%);padding:32px;text-align:center;border-radius:8px 8px 0 0;">
-            <h1 style="color:#f97316;margin:0;font-size:32px;">🦈 SharkBand</h1>
+            <h1 style="color:#f97316;margin:0;font-size:32px;">SharkBand</h1>
           </div>
           <div style="padding:32px;background:#f9fafb;border-radius:0 0 8px 8px;">
-            <h2 style="color:#111;">Welcome, ${name}!</h2>
-            <p>Thanks for joining SharkBand — your loyalty rewards wallet.</p>
-            <p>You can now earn and track loyalty points and stamps at your favourite SharkBand merchants.</p>
-            <p style="margin-top:24px;color:#6b7280;font-size:14px;">
-              Open the SharkBand app and scan your QR code at checkout to start earning rewards.
+            <p style="margin:0 0 16px 0;">Hi ${name},</p>
+            <p style="margin:0 0 16px 0;"><strong>Welcome to SharkBand!</strong></p>
+            <p style="margin:0 0 16px 0;">Tired of juggling loyalty apps and losing rewards? With SharkBand, you get one universal QR code that works across cafes, gyms, salons, and more.</p>
+            <p style="margin:0 0 16px 0;">Just scan your QR when you pay, your points and rewards are instantly saved in one place. No sign-ups, no hassle.</p>
+            <p style="margin:0 0 16px 0;">Start earning today. If you see the SharkBand QR, it works.</p>
+            <p style="margin:0 0 16px 0;">
+              <a href="https://sharkband.dev/" style="color:#2563eb;text-decoration:none;font-weight:bold;">Learn more: https://sharkband.dev/</a>
             </p>
+            <p style="margin:24px 0 0 0;">Best,<br />The SharkBand Team ❤️</p>
           </div>
         </div>
       `,
-      `Welcome to SharkBand, ${name}!\n\nThanks for joining. Open the app and scan your QR code at checkout to start earning rewards.`,
+      `Hi ${name},\n\nWelcome to SharkBand!\n\nTired of juggling loyalty apps and losing rewards? With SharkBand, you get one universal QR code that works across cafes, gyms, salons, and more.\n\nJust scan your QR when you pay, your points and rewards are instantly saved in one place. No sign-ups, no hassle.\n\nStart earning today. If you see the SharkBand QR, it works.\n\nLearn more: https://sharkband.dev/\n\nBest,\nThe SharkBand Team`,
     );
   }
 

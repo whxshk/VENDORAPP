@@ -124,7 +124,9 @@ export class AuthService {
       },
     ).exec();
 
-    await this.emailService.sendOtpEmail(user.email, user.name || user.email, code, purpose);
+    this.emailService.sendOtpEmail(user.email, user.name || user.email, code, purpose).catch((err) => {
+      this.logger.warn?.(`Failed to send ${purpose} OTP email to ${user.email}: ${err?.message}`);
+    });
 
     return {
       requiresOtp: true,
