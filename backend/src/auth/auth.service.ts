@@ -376,8 +376,8 @@ export class AuthService {
 
     const isCustomer = user.roles?.includes('CUSTOMER');
     const baseUrl = isCustomer
-      ? (process.env.CUSTOMER_APP_URL || 'https://app.sharkband.cloud')
-      : (process.env.FRONTEND_URL || 'https://merchant.sharkband.cloud');
+      ? (process.env.CUSTOMER_APP_URL || 'https://proud-forest-0fba2710f.1.azurestaticapps.net')
+      : (process.env.FRONTEND_URL || 'https://purple-ground-02e4fe00f.6.azurestaticapps.net');
     const resetPath = isCustomer ? '/ResetPassword' : '/reset-password';
     const resetLink = `${baseUrl}${resetPath}?token=${rawToken}`;
 

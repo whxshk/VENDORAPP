@@ -73,7 +73,7 @@ export class EmailService {
   }
 
   async sendMerchantWelcomeEmail(to: string, merchantName: string): Promise<void> {
-    const dashboardUrl = process.env.FRONTEND_URL || 'https://merchant.sharkband.cloud';
+    const dashboardUrl = process.env.FRONTEND_URL || 'https://purple-ground-02e4fe00f.6.azurestaticapps.net';
     await this.send(
       to,
       `Welcome to SharkBand — ${merchantName} is ready!`,

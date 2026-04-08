@@ -221,7 +221,7 @@ export class OnboardingService {
     const roleConfig = this.mapInviteRole(inviteDto.role);
     const scopes = inviteDto.scopes?.length ? inviteDto.scopes : roleConfig.scopes;
     const invites = ((tenant.config as any)?.pendingInvites || []) as any[];
-    const inviteLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/invite/${inviteToken}`;
+    const inviteLink = `${process.env.FRONTEND_URL || 'https://purple-ground-02e4fe00f.6.azurestaticapps.net'}/invite/${inviteToken}`;
     invites.push({
       email: inviteDto.email,
       role: roleConfig.role,

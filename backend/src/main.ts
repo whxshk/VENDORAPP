@@ -37,8 +37,6 @@ async function bootstrap() {
   });
 
   const knownOrigins = [
-    'https://merchant.sharkband.cloud',
-    'https://app.sharkband.cloud',
     'https://proud-forest-0fba2710f.1.azurestaticapps.net',
     'https://purple-ground-02e4fe00f.6.azurestaticapps.net',
   ];
