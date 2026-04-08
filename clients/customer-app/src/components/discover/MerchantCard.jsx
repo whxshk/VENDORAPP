@@ -165,11 +165,10 @@ export default function MerchantCard({ merchant, index, rewards = [], distance }
             }}
           >
             <h3
-              className="dark:text-white"
+              className="text-[#0A1931] dark:text-white"
               style={{
                 fontWeight: 600,
                 fontSize: 18,
-                color: "#0A1931",
                 lineHeight: 1.25,
                 margin: 0,
               }}
