@@ -256,7 +256,7 @@ export default function Profile() {
                   <p className="text-sm font-medium text-gray-800">{item.label}</p>
                   <p className="text-xs text-gray-400">{item.desc}</p>
                 </div>
-                <Switch defaultChecked />
+                <Switch />
               </div>
             ))}
             <p className="text-xs text-gray-400 pt-2">
@@ -284,7 +284,7 @@ export default function Profile() {
             </div>
             <div className="bg-orange-50 rounded-xl p-4">
               <p className="font-semibold text-orange-800 mb-1">Contact Support</p>
-              <p className="text-orange-700">Email: <span className="font-medium">support@sharkband.io</span></p>
+              <p className="text-orange-700">Email: <span className="font-medium">sharkband.dev@gmail.com</span></p>
               <p className="text-xs text-orange-600 mt-1">We aim to respond within 24 hours.</p>
             </div>
           </div>
@@ -321,7 +321,7 @@ export default function Profile() {
               <p>Use the "Delete Account" option below to permanently remove all your data from SharkBand.</p>
             </div>
             <div className="text-xs text-gray-400">
-              Privacy questions? Contact privacy@sharkband.io
+              Privacy questions? Contact sharkband.dev@gmail.com
             </div>
           </div>
         </DialogContent>

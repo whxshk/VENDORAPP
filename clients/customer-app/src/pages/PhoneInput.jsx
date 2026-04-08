@@ -41,7 +41,7 @@ function TermsDialog({ open, onClose, type }) {
             <h3 className="font-semibold text-gray-800">6. Changes</h3>
             <p>We may update these terms at any time. Continued use of the app constitutes acceptance of the updated terms.</p>
             <h3 className="font-semibold text-gray-800">7. Contact</h3>
-            <p>Questions? Email us at support@sharkband.io</p>
+            <p>Questions? Email us at sharkband.dev@gmail.com</p>
           </div>
         ) : (
           <div className="text-sm text-gray-600 space-y-4 leading-relaxed">
@@ -56,11 +56,11 @@ function TermsDialog({ open, onClose, type }) {
             <h3 className="font-semibold text-gray-800">4. Data Security</h3>
             <p>We use industry-standard encryption (TLS, bcrypt for passwords) to protect your data.</p>
             <h3 className="font-semibold text-gray-800">5. Your Rights</h3>
-            <p>You may request access to, correction of, or deletion of your personal data at any time by contacting support@sharkband.io or using the "Delete Account" option in the app.</p>
+            <p>You may request access to, correction of, or deletion of your personal data at any time by contacting sharkband.dev@gmail.com or using the "Delete Account" option in the app.</p>
             <h3 className="font-semibold text-gray-800">6. Cookies</h3>
             <p>We use local storage to keep you logged in. No third-party tracking cookies are used.</p>
             <h3 className="font-semibold text-gray-800">7. Contact</h3>
-            <p>Privacy questions? Email us at privacy@sharkband.io</p>
+            <p>Privacy questions? Email us at sharkband.dev@gmail.com</p>
           </div>
         )}
       </DialogContent>
