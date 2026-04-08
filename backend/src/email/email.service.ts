@@ -114,7 +114,7 @@ export class EmailService implements OnModuleInit, OnModuleDestroy {
   }
 
   async sendMerchantWelcomeEmail(to: string, merchantName: string): Promise<void> {
-    const dashboardUrl = process.env.FRONTEND_URL || 'https://purple-ground-02e4fe00f.6.azurestaticapps.net';
+    const dashboardUrl = process.env.FRONTEND_URL || 'https://merchant.sharkband.cloud';
     await this.send(
       to,
       `Welcome to SharkBand — ${merchantName} is ready!`,

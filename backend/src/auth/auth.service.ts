@@ -382,8 +382,8 @@ export class AuthService {
       user.tenantId === PLATFORM_TENANT_ID ||
       Boolean(user.customerId);
     const baseUrl = isCustomer
-      ? (process.env.CUSTOMER_APP_URL || 'https://proud-forest-0fba2710f.1.azurestaticapps.net')
-      : (process.env.FRONTEND_URL || 'https://purple-ground-02e4fe00f.6.azurestaticapps.net');
+      ? (process.env.CUSTOMER_APP_URL || 'https://app.sharkband.cloud')
+      : (process.env.FRONTEND_URL || 'https://merchant.sharkband.cloud');
     const normalizedBaseUrl = baseUrl.replace(/\/+$/, '');
     const resetLink = isCustomer
       ? `${normalizedBaseUrl}/?page=ResetPassword&token=${rawToken}`
