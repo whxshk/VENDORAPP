@@ -2,7 +2,6 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Wallet, Compass, QrCode, Clock, User } from "lucide-react";
-import { AuthProvider } from "@/components/auth/AuthProvider";
 import { AuthRouter } from "@/components/auth/AuthRouter";
 
 const navItems = [
@@ -18,9 +17,8 @@ export default function Layout({ children, currentPageName }) {
     ["Splash", "PhoneInput", "OTPVerification", "Welcome"].includes(currentPageName);
 
   return (
-    <AuthProvider>
-      <AuthRouter currentPageName={currentPageName}>
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
+    <AuthRouter currentPageName={currentPageName}>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
       <style>{`
         :root {
           --color-primary: #0A1931;
@@ -109,8 +107,7 @@ export default function Layout({ children, currentPageName }) {
           </div>
         </div>
       )}
-        </div>
-      </AuthRouter>
-    </AuthProvider>
+      </div>
+    </AuthRouter>
   );
 }
