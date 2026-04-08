@@ -1,10 +1,24 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 
 @Injectable()
-export class EmailService {
+export class EmailService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(EmailService.name);
   private transporter: nodemailer.Transporter | null = null;
+
+  onModuleInit(): void {
+    if (!this.isConfigured()) {
+      return;
+    }
+
+    // Warm the SMTP pool in the background so the first customer-facing email
+    // does not pay the full connection setup cost.
+    void this.verifyTransporter();
+  }
+
+  onModuleDestroy(): void {
+    this.transporter?.close();
+  }
 
   isConfigured(): boolean {
     return !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
@@ -22,6 +36,9 @@ export class EmailService {
       pool: true,
       maxConnections: 5,
       maxMessages: 100,
+      connectionTimeout: Number(process.env.SMTP_CONNECTION_TIMEOUT_MS || '5000'),
+      greetingTimeout: Number(process.env.SMTP_GREETING_TIMEOUT_MS || '5000'),
+      socketTimeout: Number(process.env.SMTP_SOCKET_TIMEOUT_MS || '10000'),
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
@@ -31,19 +48,34 @@ export class EmailService {
     return this.transporter;
   }
 
-  private async send(to: string, subject: string, html: string, text: string): Promise<void> {
+  private async verifyTransporter(): Promise<void> {
+    const startedAt = Date.now();
+
+    try {
+      await this.getTransporter().verify();
+      this.logger.log(`SMTP pool warmed in ${Date.now() - startedAt}ms`);
+    } catch (error: any) {
+      this.logger.warn(`SMTP warm-up failed after ${Date.now() - startedAt}ms: ${error?.message}`);
+    }
+  }
+
+  private async send(to: string, subject: string, html: string | undefined, text: string): Promise<void> {
     if (!this.isConfigured()) {
       this.logger.warn(`SMTP not configured — skipping email to ${to}: ${subject}`);
       return;
     }
 
+    const startedAt = Date.now();
+
     await this.getTransporter().sendMail({
       from: process.env.SMTP_FROM || process.env.SMTP_USER,
       to,
       subject,
-      html,
       text,
+      ...(html ? { html } : {}),
     });
+
+    this.logger.log(`Email "${subject}" accepted for ${to} in ${Date.now() - startedAt}ms`);
   }
 
   async sendWelcomeEmail(to: string, name: string): Promise<void> {
@@ -57,18 +89,13 @@ export class EmailService {
           </div>
           <div style="padding:32px;background:#f9fafb;border-radius:0 0 8px 8px;">
             <p style="margin:0 0 16px 0;">Hi ${name},</p>
-            <p style="margin:0 0 16px 0;"><strong>Welcome to SharkBand!</strong></p>
-            <p style="margin:0 0 16px 0;">Tired of juggling loyalty apps and losing rewards? With SharkBand, you get one universal QR code that works across cafés, gyms, salons, and more.</p>
-            <p style="margin:0 0 16px 0;">Just scan your QR when you pay, your points and rewards are instantly saved in one place. No sign-ups, no hassle.</p>
-            <p style="margin:0 0 16px 0;">Start earning today. If you see the SharkBand QR, it works.</p>
-            <p style="margin:0 0 16px 0;">
-              <a href="https://sharkband.dev/" style="color:#2563eb;text-decoration:none;font-weight:bold;">Learn more: https://sharkband.dev/</a>
-            </p>
-            <p style="margin:24px 0 0 0;">Best,<br />The SharkBand Team ❤️</p>
+            <p style="margin:0 0 16px 0;"><strong>Your SharkBand account is ready.</strong></p>
+            <p style="margin:0 0 16px 0;">You can now sign in and start using your loyalty wallet.</p>
+            <p style="margin:24px 0 0 0;">Best,<br />The SharkBand Team</p>
           </div>
         </div>
       `,
-      `Hi ${name},\n\nWelcome to SharkBand!\n\nTired of juggling loyalty apps and losing rewards? With SharkBand, you get one universal QR code that works across cafés, gyms, salons, and more.\n\nJust scan your QR when you pay, your points and rewards are instantly saved in one place. No sign-ups, no hassle.\n\nStart earning today. If you see the SharkBand QR, it works.\n\nLearn more: https://sharkband.dev/\n\nBest,\nThe SharkBand Team ❤️`,
+      `Hi ${name},\n\nYour SharkBand account is ready.\n\nYou can now sign in and start using your loyalty wallet.\n\nBest,\nThe SharkBand Team`,
     );
   }
 
@@ -102,27 +129,18 @@ export class EmailService {
   async sendPasswordResetEmail(to: string, name: string, resetLink: string): Promise<void> {
     await this.send(
       to,
-      'Reset your SharkBand password',
-      `
-        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111;max-width:600px;margin:0 auto;">
-          <div style="background:linear-gradient(135deg,#0a0f1a 0%,#1e3a5f 100%);padding:32px;text-align:center;border-radius:8px 8px 0 0;">
-            <h1 style="color:#60a5fa;margin:0;font-size:32px;">🦈 SharkBand</h1>
-          </div>
-          <div style="padding:32px;background:#f9fafb;border-radius:0 0 8px 8px;">
-            <h2 style="color:#111;">Password Reset Request</h2>
-            <p>Hi ${name},</p>
-            <p>We received a request to reset your SharkBand password. Click the button below to choose a new password.</p>
-            <p style="text-align:center;margin:32px 0;">
-              <a href="${resetLink}" style="display:inline-block;padding:12px 24px;background:#2563eb;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;">
-                Reset Password
-              </a>
-            </p>
-            <p style="color:#6b7280;font-size:14px;">This link expires in 1 hour. If you didn't request a reset, you can ignore this email.</p>
-            <p style="color:#9ca3af;font-size:12px;">If the button doesn't work, copy this link: ${resetLink}</p>
-          </div>
-        </div>
-      `,
-      `Hi ${name},\n\nReset your SharkBand password:\n${resetLink}\n\nThis link expires in 1 hour. If you didn't request this, ignore this email.`,
+      'SharkBand password reset',
+      undefined,
+      `Hi ${name},
+
+Use this link to reset your SharkBand password:
+${resetLink}
+
+This link expires in 1 hour.
+
+If you did not request a password reset, you can ignore this email.
+
+SharkBand`,
     );
   }
 

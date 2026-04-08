@@ -378,8 +378,10 @@ export class AuthService {
     const baseUrl = isCustomer
       ? (process.env.CUSTOMER_APP_URL || 'https://proud-forest-0fba2710f.1.azurestaticapps.net')
       : (process.env.FRONTEND_URL || 'https://purple-ground-02e4fe00f.6.azurestaticapps.net');
-    const resetPath = isCustomer ? '/ResetPassword' : '/reset-password';
-    const resetLink = `${baseUrl}${resetPath}?token=${rawToken}`;
+    const normalizedBaseUrl = baseUrl.replace(/\/+$/, '');
+    const resetLink = isCustomer
+      ? `${normalizedBaseUrl}/?page=ResetPassword&token=${rawToken}`
+      : `${normalizedBaseUrl}/reset-password?token=${rawToken}`;
 
     this.emailService
       .sendPasswordResetEmail(email, user.name || email, resetLink)
