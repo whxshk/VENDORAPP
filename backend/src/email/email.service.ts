@@ -58,7 +58,7 @@ export class EmailService {
           <div style="padding:32px;background:#f9fafb;border-radius:0 0 8px 8px;">
             <p style="margin:0 0 16px 0;">Hi ${name},</p>
             <p style="margin:0 0 16px 0;"><strong>Welcome to SharkBand!</strong></p>
-            <p style="margin:0 0 16px 0;">Tired of juggling loyalty apps and losing rewards? With SharkBand, you get one universal QR code that works across cafes, gyms, salons, and more.</p>
+            <p style="margin:0 0 16px 0;">Tired of juggling loyalty apps and losing rewards? With SharkBand, you get one universal QR code that works across cafés, gyms, salons, and more.</p>
             <p style="margin:0 0 16px 0;">Just scan your QR when you pay, your points and rewards are instantly saved in one place. No sign-ups, no hassle.</p>
             <p style="margin:0 0 16px 0;">Start earning today. If you see the SharkBand QR, it works.</p>
             <p style="margin:0 0 16px 0;">
@@ -68,7 +68,7 @@ export class EmailService {
           </div>
         </div>
       `,
-      `Hi ${name},\n\nWelcome to SharkBand!\n\nTired of juggling loyalty apps and losing rewards? With SharkBand, you get one universal QR code that works across cafes, gyms, salons, and more.\n\nJust scan your QR when you pay, your points and rewards are instantly saved in one place. No sign-ups, no hassle.\n\nStart earning today. If you see the SharkBand QR, it works.\n\nLearn more: https://sharkband.dev/\n\nBest,\nThe SharkBand Team`,
+      `Hi ${name},\n\nWelcome to SharkBand!\n\nTired of juggling loyalty apps and losing rewards? With SharkBand, you get one universal QR code that works across cafés, gyms, salons, and more.\n\nJust scan your QR when you pay, your points and rewards are instantly saved in one place. No sign-ups, no hassle.\n\nStart earning today. If you see the SharkBand QR, it works.\n\nLearn more: https://sharkband.dev/\n\nBest,\nThe SharkBand Team ❤️`,
     );
   }
 
