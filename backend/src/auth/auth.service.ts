@@ -389,16 +389,13 @@ export class AuthService {
       ? `${normalizedBaseUrl}/?page=ResetPassword&token=${rawToken}`
       : `${normalizedBaseUrl}/reset-password?token=${rawToken}`;
 
-    try {
-      await this.emailService.sendPasswordResetEmail(user.email, user.name || user.email, resetLink);
-    } catch (err: any) {
+    this.emailService.sendPasswordResetEmail(user.email, user.name || user.email, resetLink).catch(async (err: any) => {
       await this.userModel.updateOne(
         { _id: user._id },
         { $unset: { passwordResetToken: '', passwordResetExpiry: '' } },
-      ).exec();
+      ).exec().catch(() => {});
       this.logger.error(`Failed to send password reset email to ${user.email}: ${err?.message}`);
-      throw new InternalServerErrorException('We could not send the password reset email. Please try again.');
-    }
+    });
 
     return { message: `We sent a password reset link to ${user.email}.` };
   }
