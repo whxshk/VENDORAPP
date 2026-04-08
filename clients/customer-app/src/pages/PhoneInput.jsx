@@ -8,8 +8,6 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { toast } from "sonner";
 
-const PENDING_OTP_KEY = "pending_otp_auth";
-
 export default function PhoneInput() {
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -21,26 +19,9 @@ export default function PhoneInput() {
     if (!email || !password) return;
     setLoading(true);
     try {
-      const response = await login(email, password);
-      sessionStorage.setItem(
-        PENDING_OTP_KEY,
-        JSON.stringify({
-          email,
-          purpose: "login",
-          tenantId: "sharkband-platform",
-        }),
-      );
-      toast.success(response?.message || "Verification code sent.");
-      navigate(createPageUrl("OTPVerification"), {
-        replace: true,
-        state: {
-          pendingChallenge: {
-            email,
-            purpose: "login",
-            tenantId: "sharkband-platform",
-          },
-        },
-      });
+      await login(email, password);
+      toast.success("Welcome back!");
+      navigate(createPageUrl("Home"), { replace: true });
     } catch (error) {
       const msg =
         error?.response?.data?.message ||

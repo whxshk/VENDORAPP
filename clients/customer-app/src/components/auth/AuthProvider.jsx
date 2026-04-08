@@ -57,7 +57,11 @@ export function AuthProvider({ children }) {
   };
 
   const login = async (email, password) => {
-    const res = await authService.requestLoginOtp(email, password);
+    const res = await authService.login(email, password);
+    const { access_token, refresh_token } = res.data;
+    localStorage.setItem("access_token", access_token);
+    if (refresh_token) localStorage.setItem("refresh_token", refresh_token);
+    await checkAuth();
     return res.data;
   };
 
