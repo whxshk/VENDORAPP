@@ -55,6 +55,9 @@ npm run dev
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/api/v1/auth/login` | Login (email + password) |
+| POST | `/api/v1/auth/request-login-otp` | Send OTP after validating login credentials |
+| POST | `/api/v1/auth/request-register-otp` | Create customer account and send OTP |
+| POST | `/api/v1/auth/verify-otp` | Verify email OTP and issue tokens |
 | POST | `/api/v1/auth/refresh` | Refresh access token |
 | GET | `/api/v1/auth/me` | Get current user |
 | GET | `/api/v1/customers/me` | Get customer profile |
@@ -87,7 +90,16 @@ npm run dev
 - `JWT_REFRESH_TOKEN_SECRET` — Refresh token secret **(required)**
 - `PORT` — Server port (default: `3001`)
 - `CORS_ORIGIN` — Allowed CORS origin (default: `*`)
-- `SMTP_*` — Email config for staff invite emails
+- `SMTP_*` — Email config for staff invites and customer OTP emails
+
+Recommended Gmail SMTP values:
+- `SMTP_HOST=smtp.gmail.com`
+- `SMTP_PORT=587`
+- `SMTP_USER=sharkband.dev@gmail.com`
+- `SMTP_PASS=<Google App Password>`
+- `SMTP_FROM="SharkBand <sharkband.dev@gmail.com>"`
+
+Use a Google App Password here, not the normal Gmail account password.
 
 ### Customer App (`clients/customer-app/.env`)
 - `VITE_API_BASE_URL` — API base URL (default: `/api/v1`, proxied to `localhost:3001`)
