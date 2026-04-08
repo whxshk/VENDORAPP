@@ -45,7 +45,7 @@ export function TopBar() {
                 <User className="h-5 w-5 text-white" />
               )}
             </div>
-            <span className="text-sm font-semibold text-white hidden sm:block">
+            <span className="text-sm font-semibold hidden sm:block" style={{ color: 'var(--text-primary)' }}>
               {user?.email || 'User'}
             </span>
             <ChevronDown className="h-4 w-4 text-slate-400 hidden sm:block" />
