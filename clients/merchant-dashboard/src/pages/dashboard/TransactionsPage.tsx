@@ -198,7 +198,7 @@ export default function TransactionsPage() {
       cell: ({ row }) => (
         <button
           onClick={() => openAdjust(row.original.customerId, row.original.customerName)}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-white/8 transition-all border border-transparent hover:border-white/10"
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-white/10 transition-all border border-transparent hover:border-white/10"
           title="Adjust balance"
         >
           <SlidersHorizontal className="h-3.5 w-3.5" />
@@ -295,7 +295,8 @@ export default function TransactionsPage() {
               type="date"
               value={startDate}
               onChange={(e) => { setStartDate(e.target.value); setPage(1); }}
-              className="w-full h-9 rounded-lg border border-white/10 bg-slate-800/50 px-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40"
+              className="w-full h-9 rounded-lg px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40"
+              style={{ background: 'var(--input-bg)', borderColor: 'var(--input-border)', color: 'var(--text-primary)', border: '1px solid var(--input-border)' }}
             />
           </div>
           <div>
@@ -304,7 +305,8 @@ export default function TransactionsPage() {
               type="date"
               value={endDate}
               onChange={(e) => { setEndDate(e.target.value); setPage(1); }}
-              className="w-full h-9 rounded-lg border border-white/10 bg-slate-800/50 px-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40"
+              className="w-full h-9 rounded-lg px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40"
+              style={{ background: 'var(--input-bg)', borderColor: 'var(--input-border)', color: 'var(--text-primary)', border: '1px solid var(--input-border)' }}
             />
           </div>
           <div>

@@ -19,7 +19,7 @@
   --card-bg: #ffffff;
   --card-border: rgba(0, 0, 0, 0.07);
   --input-bg: #f1f5f9;
-  --input-border: rgba(0, 0, 0, 0.12);
+  --input-border: rgba(0, 0, 0, 0.22);
   --scrollbar-thumb: rgba(100, 116, 139, 0.35);
   --scrollbar-thumb-hover: rgba(100, 116, 139, 0.55);
   --ambient-1: rgba(59, 130, 246, 0.04);
@@ -161,13 +161,24 @@ html:not(.dark) th.text-white {
 
 /* Muted text darkens in light mode */
 html:not(.dark) .text-slate-400:not(button *) {
-  color: var(--text-secondary);
+  color: var(--text-secondary) !important;
 }
 html:not(.dark) .text-slate-300:not(button *) {
-  color: var(--text-secondary);
+  color: var(--text-secondary) !important;
 }
 html:not(.dark) .text-slate-500:not(button *) {
-  color: var(--text-muted);
+  color: var(--text-secondary) !important;
+}
+html:not(.dark) .text-slate-600:not(button *) {
+  color: var(--text-secondary) !important;
+}
+
+/* Light-mode: fix hover backgrounds that use white-opacity (invisible on light bg) */
+html:not(.dark) .hover\:bg-white\/10:hover { background-color: rgba(0, 0, 0, 0.05) !important; }
+
+/* Light-mode: fix hover:text-white on plain buttons (not gradient buttons) */
+html:not(.dark) button.hover\:text-white:hover:not([style*="gradient"]) {
+  color: var(--text-primary) !important;
 }
 
 /* ─── Input placeholder color ───────────────────────────────────────────────── */

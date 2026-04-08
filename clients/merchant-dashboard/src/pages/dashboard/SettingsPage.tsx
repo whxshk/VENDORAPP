@@ -310,7 +310,7 @@ export default function SettingsPage() {
                   <select
                     {...register('category')}
                     className="w-full px-3 py-2 rounded-lg text-sm border bg-slate-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    style={{ borderColor: 'var(--border)' }}
+                    style={{ borderColor: 'var(--input-border)' }}
                   >
                     {MERCHANT_CATEGORIES.map((cat) => (
                       <option key={cat.value} value={cat.value}>{cat.label}</option>

@@ -201,7 +201,8 @@ export default function ScanPage() {
             ) : (
               <div className="flex gap-2 items-start">
                 <textarea
-                  className="flex-1 min-h-[80px] px-3 py-2 rounded-lg bg-slate-800 border border-white/10 text-white placeholder-slate-500 text-sm resize-none"
+                  className="flex-1 min-h-[80px] px-3 py-2 rounded-lg bg-slate-800 text-white placeholder-slate-500 text-sm resize-none"
+                  style={{ border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: 'var(--text-primary)' }}
                   value={qrPayload}
                   onChange={(e) => { setQrPayload(e.target.value); setQrScanned(false); }}
                   placeholder="Paste QR code from the customer app, or use the camera"

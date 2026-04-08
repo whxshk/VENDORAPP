@@ -1,5 +1,6 @@
 import { ReactNode, useEffect, useRef, useState } from 'react';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { useTheme } from '../../context/ThemeContext';
 
 const THEMES = {
   blue: {
@@ -9,10 +10,12 @@ const THEMES = {
     ambientColor: 'rgba(59,130,246,0.08)',
     iconBg: 'rgba(59,130,246,0.12)',
     iconColor: '#93c5fd',
+    iconColorLight: '#1d4ed8',
     iconGlow: 'none',
     accentLine: 'linear-gradient(90deg, transparent, rgba(59,130,246,0.2), transparent)',
     trendBg: 'rgba(59,130,246,0.1)',
     trendColor: '#60a5fa',
+    trendColorLight: '#1e40af',
     trendBorder: 'rgba(59,130,246,0.18)',
     valueColor: 'var(--text-primary)',
   },
@@ -23,10 +26,12 @@ const THEMES = {
     ambientColor: 'rgba(99,102,241,0.08)',
     iconBg: 'rgba(99,102,241,0.12)',
     iconColor: '#a5b4fc',
+    iconColorLight: '#3730a3',
     iconGlow: 'none',
     accentLine: 'linear-gradient(90deg, transparent, rgba(99,102,241,0.2), transparent)',
     trendBg: 'rgba(99,102,241,0.1)',
     trendColor: '#818cf8',
+    trendColorLight: '#312e81',
     trendBorder: 'rgba(99,102,241,0.18)',
     valueColor: 'var(--text-primary)',
   },
@@ -37,10 +42,12 @@ const THEMES = {
     ambientColor: 'rgba(168,85,247,0.08)',
     iconBg: 'rgba(168,85,247,0.12)',
     iconColor: '#d8b4fe',
+    iconColorLight: '#7e22ce',
     iconGlow: 'none',
     accentLine: 'linear-gradient(90deg, transparent, rgba(168,85,247,0.2), transparent)',
     trendBg: 'rgba(168,85,247,0.1)',
     trendColor: '#c084fc',
+    trendColorLight: '#581c87',
     trendBorder: 'rgba(168,85,247,0.18)',
     valueColor: 'var(--text-primary)',
   },
@@ -51,10 +58,12 @@ const THEMES = {
     ambientColor: 'rgba(52,211,153,0.07)',
     iconBg: 'rgba(52,211,153,0.1)',
     iconColor: '#6ee7b7',
+    iconColorLight: '#047857',
     iconGlow: 'none',
     accentLine: 'linear-gradient(90deg, transparent, rgba(52,211,153,0.18), transparent)',
     trendBg: 'rgba(52,211,153,0.08)',
     trendColor: '#34d399',
+    trendColorLight: '#065f46',
     trendBorder: 'rgba(52,211,153,0.14)',
     valueColor: 'var(--text-primary)',
   },
@@ -65,10 +74,12 @@ const THEMES = {
     ambientColor: 'rgba(244,63,94,0.08)',
     iconBg: 'rgba(244,63,94,0.12)',
     iconColor: '#fda4af',
+    iconColorLight: '#be123c',
     iconGlow: 'none',
     accentLine: 'linear-gradient(90deg, transparent, rgba(244,63,94,0.2), transparent)',
     trendBg: 'rgba(244,63,94,0.1)',
     trendColor: '#fb7185',
+    trendColorLight: '#9f1239',
     trendBorder: 'rgba(244,63,94,0.18)',
     valueColor: 'var(--text-primary)',
   },
@@ -79,10 +90,12 @@ const THEMES = {
     ambientColor: 'rgba(245,158,11,0.08)',
     iconBg: 'rgba(245,158,11,0.12)',
     iconColor: '#fcd34d',
+    iconColorLight: '#b45309',
     iconGlow: 'none',
     accentLine: 'linear-gradient(90deg, transparent, rgba(245,158,11,0.2), transparent)',
     trendBg: 'rgba(245,158,11,0.1)',
     trendColor: '#f59e0b',
+    trendColorLight: '#78350f',
     trendBorder: 'rgba(245,158,11,0.18)',
     valueColor: 'var(--text-primary)',
   },
@@ -93,10 +106,12 @@ const THEMES = {
     ambientColor: 'rgba(100,116,139,0.08)',
     iconBg: 'rgba(100,116,139,0.12)',
     iconColor: '#94a3b8',
+    iconColorLight: '#475569',
     iconGlow: 'none',
     accentLine: 'linear-gradient(90deg, transparent, rgba(100,116,139,0.2), transparent)',
     trendBg: 'rgba(100,116,139,0.08)',
     trendColor: '#94a3b8',
+    trendColorLight: '#334155',
     trendBorder: 'rgba(100,116,139,0.15)',
     valueColor: 'var(--text-primary)',
   },
@@ -133,6 +148,10 @@ interface KPIStatCardProps {
 
 export function KPIStatCard({ title, value, description, icon, theme, trend, suffix }: KPIStatCardProps) {
   const t = THEMES[theme];
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
+  const iconColor = isDark ? t.iconColor : t.iconColorLight;
+  const trendColor = isDark ? t.trendColor : t.trendColorLight;
   const [visible, setVisible] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -175,7 +194,7 @@ export function KPIStatCard({ title, value, description, icon, theme, trend, suf
         <div className="flex items-start justify-between mb-5">
           <div
             className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: t.iconBg, color: t.iconColor, boxShadow: t.iconGlow }}
+            style={{ background: t.iconBg, color: iconColor, boxShadow: t.iconGlow }}
           >
             {icon}
           </div>
@@ -184,7 +203,7 @@ export function KPIStatCard({ title, value, description, icon, theme, trend, suf
               className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold tracking-wide"
               style={{
                 background: t.trendBg,
-                color: t.trendColor,
+                color: trendColor,
                 border: `1px solid ${t.trendBorder}`,
               }}
             >
