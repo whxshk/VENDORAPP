@@ -6,6 +6,7 @@ import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { RegisterDto } from './dto/register.dto';
+import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { Public } from '../common/decorators/public.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { UserPayload } from '../common/decorators/current-user.decorator';
@@ -29,12 +30,39 @@ export class AuthController {
   }
 
   @Public()
+  @Post('request-register-otp')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Create a customer account and email a verification code' })
+  @ApiResponse({ status: 200, description: 'Verification code sent successfully' })
+  async requestRegisterOtp(@Body() registerDto: RegisterDto) {
+    return this.authService.requestRegisterOtp(registerDto);
+  }
+
+  @Public()
   @Post('login')
   @ApiOperation({ summary: 'Login with email and password' })
   @ApiResponse({ status: 200, description: 'Login successful' })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   async login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
+  }
+
+  @Public()
+  @Post('request-login-otp')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Validate credentials and email a login verification code' })
+  @ApiResponse({ status: 200, description: 'Verification code sent successfully' })
+  async requestLoginOtp(@Body() loginDto: LoginDto) {
+    return this.authService.requestLoginOtp(loginDto);
+  }
+
+  @Public()
+  @Post('verify-otp')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Verify a 6-digit email code and issue auth tokens' })
+  @ApiResponse({ status: 200, description: 'OTP verified successfully' })
+  async verifyOtp(@Body() verifyOtpDto: VerifyOtpDto) {
+    return this.authService.verifyOtp(verifyOtpDto);
   }
 
   @Public()

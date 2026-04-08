@@ -37,6 +37,18 @@ export class User {
 
   @Prop({ type: Date })
   passwordResetExpiry?: Date;
+
+  @Prop({ type: String })
+  otpCodeHash?: string;
+
+  @Prop({ type: Date })
+  otpCodeExpiry?: Date;
+
+  @Prop({ type: String, enum: ['login', 'signup'] })
+  otpCodePurpose?: 'login' | 'signup';
+
+  @Prop({ type: Number, default: 0 })
+  otpCodeAttempts?: number;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

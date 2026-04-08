@@ -8,9 +8,11 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { toast } from "sonner";
 
+const PENDING_OTP_KEY = "pending_otp_auth";
+
 export default function Register() {
   const navigate = useNavigate();
-  const { register, completeOnboarding } = useAuth();
+  const { register } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -29,10 +31,24 @@ export default function Register() {
     }
     setLoading(true);
     try {
-      await register(email, password, name);
-      completeOnboarding();
-      toast.success("Account created! Welcome to SharkBand.");
-      navigate(createPageUrl("Home"), { replace: true });
+      const response = await register(email, password, name);
+      sessionStorage.setItem(
+        PENDING_OTP_KEY,
+        JSON.stringify({
+          email,
+          purpose: "signup",
+        }),
+      );
+      toast.success(response?.message || "Verification code sent.");
+      navigate(createPageUrl("OTPVerification"), {
+        replace: true,
+        state: {
+          pendingChallenge: {
+            email,
+            purpose: "signup",
+          },
+        },
+      });
     } catch (error) {
       const status = error?.response?.status;
       if (status === 409) {

@@ -57,16 +57,17 @@ export function AuthProvider({ children }) {
   };
 
   const login = async (email, password) => {
-    const res = await authService.login(email, password);
-    const { access_token, refresh_token } = res.data;
-    localStorage.setItem("access_token", access_token);
-    if (refresh_token) localStorage.setItem("refresh_token", refresh_token);
-    await checkAuth();
+    const res = await authService.requestLoginOtp(email, password);
     return res.data;
   };
 
   const register = async (email, password, name) => {
-    const res = await authService.register(email, password, name);
+    const res = await authService.requestRegisterOtp(email, password, name);
+    return res.data;
+  };
+
+  const verifyOtp = async (email, code, purpose, tenantId) => {
+    const res = await authService.verifyOtp(email, code, purpose, tenantId);
     const { access_token, refresh_token } = res.data;
     localStorage.setItem("access_token", access_token);
     if (refresh_token) localStorage.setItem("refresh_token", refresh_token);
@@ -95,6 +96,7 @@ export function AuthProvider({ children }) {
         hasCompletedOnboarding,
         login,
         register,
+        verifyOtp,
         completeOnboarding,
         logout,
         checkAuth,
