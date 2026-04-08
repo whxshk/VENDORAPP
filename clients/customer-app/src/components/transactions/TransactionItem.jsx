@@ -6,10 +6,10 @@ export default function TransactionItem({ transaction }) {
   const isEarn = transaction.type === "earn";
 
   return (
-    <div className="bg-white rounded-xl p-3 border border-gray-100 flex items-center gap-3 shadow-sm">
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-100 dark:border-gray-700 flex items-center gap-3 shadow-sm">
       {/* Icon */}
       <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-        isEarn ? "bg-green-50" : "bg-orange-50"
+        isEarn ? "bg-green-50 dark:bg-green-900/20" : "bg-orange-50 dark:bg-orange-900/20"
       }`}>
         {isEarn ? (
           <ArrowUpRight className="w-5 h-5 text-green-600" />
@@ -20,7 +20,7 @@ export default function TransactionItem({ transaction }) {
 
       {/* Details */}
       <div className="flex-1 min-w-0">
-        <p className="text-base font-bold text-[#0A1931] truncate">
+        <p className="text-base font-bold text-[#0A1931] dark:text-white truncate">
           {transaction.merchant_name}
         </p>
         <p className="text-sm text-gray-500 truncate">

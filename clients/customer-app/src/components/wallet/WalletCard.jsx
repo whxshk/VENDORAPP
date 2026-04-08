@@ -24,10 +24,10 @@ export default function WalletCard({ account, index }) {
       transition={{ delay: index * 0.05, duration: 0.3 }}
     >
       <Link to={createPageUrl("MerchantDetail") + `?merchantId=${account.merchant_id}&accountId=${account.id}`}>
-        <div className="bg-white rounded-2xl p-5 hover:shadow-lg transition-all duration-300 group" style={{ border: '0.75px solid #000000' }}>
+        <div className="bg-white dark:bg-gray-800 rounded-2xl p-5 hover:shadow-lg transition-all duration-300 group" style={{ border: '0.75px solid #000000' }}>
           <div className="flex items-center gap-4">
             {/* Logo / Avatar */}
-            <div className="w-14 h-14 rounded-xl overflow-hidden border border-gray-200 bg-gray-50 flex items-center justify-center flex-shrink-0 shadow-sm">
+            <div className="w-14 h-14 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 flex items-center justify-center flex-shrink-0 shadow-sm">
               {account.merchant_logo_url ? (
                 <img src={account.merchant_logo_url} alt="" className="w-full h-full object-cover" />
               ) : (
@@ -39,7 +39,7 @@ export default function WalletCard({ account, index }) {
 
             {/* Info */}
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-[#0A1931] text-[15px] truncate">{account.merchant_name}</h3>
+              <h3 className="font-semibold text-[#0A1931] dark:text-white text-[15px] truncate">{account.merchant_name}</h3>
               <p className="text-xs text-gray-400 mt-0.5 capitalize">{account.merchant_category?.replace(/_/g, " ")}</p>
               
               {account.loyalty_type === "stamps" ? (
@@ -50,7 +50,7 @@ export default function WalletCard({ account, index }) {
                   />
                   {account.points_balance > 0 && (
                     <div className="mt-1 flex items-baseline gap-1">
-                      <span className="text-xl font-bold text-[#0A1931]">{account.points_balance.toLocaleString()}</span>
+                      <span className="text-xl font-bold text-[#0A1931] dark:text-white">{account.points_balance.toLocaleString()}</span>
                       <span className="text-xs text-gray-400 font-medium">pts</span>
                     </div>
                   )}

@@ -117,10 +117,10 @@ export default function Discover() {
   }
 
   return (
-    <div className="min-h-full bg-gray-50">
-      <div className="bg-white px-6 pt-8 pb-5 border-b border-gray-100">
+    <div className="min-h-full bg-gray-50 dark:bg-gray-900">
+      <div className="bg-white dark:bg-gray-800 px-6 pt-8 pb-5 border-b border-gray-100 dark:border-gray-700">
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="text-2xl font-bold text-[#0A1931]">Discover</h1>
+          <h1 className="text-2xl font-bold text-[#0A1931] dark:text-white">Discover</h1>
           <p className="text-sm text-gray-400 mt-1">Find SharkBand merchants near you</p>
         </motion.div>
 
@@ -130,18 +130,18 @@ export default function Discover() {
             placeholder="Search by name or keyword..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-10 bg-gray-50 border-gray-200 rounded-xl h-11 text-sm"
+            className="pl-10 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400 border-gray-200 rounded-xl h-11 text-sm"
           />
         </div>
       </div>
 
       <div className="px-6 pt-4 pb-2">
         <div className="flex items-center gap-2 mb-3">
-          <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
+          <div className="flex gap-1 bg-gray-100 dark:bg-gray-700 p-1 rounded-xl">
             <button
               onClick={() => setViewMode("grid")}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                viewMode === "grid" ? "bg-white shadow-sm" : "text-gray-500"
+                viewMode === "grid" ? "bg-white dark:bg-gray-600 shadow-sm" : "text-gray-500 dark:text-gray-400"
               }`}
             >
               <Grid3X3 className="w-3.5 h-3.5" />
@@ -149,7 +149,7 @@ export default function Discover() {
             <button
               onClick={() => setViewMode("map")}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                viewMode === "map" ? "bg-white shadow-sm" : "text-gray-500"
+                viewMode === "map" ? "bg-white dark:bg-gray-600 shadow-sm" : "text-gray-500 dark:text-gray-400"
               }`}
             >
               <Map className="w-3.5 h-3.5" />
@@ -162,7 +162,7 @@ export default function Discover() {
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all ${
               nearMeFilter
                 ? "bg-orange-500 text-white shadow-md shadow-orange-500/20"
-                : "bg-white text-gray-500 border border-gray-200"
+                : "bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-300 border border-gray-200 dark:border-gray-600"
             } ${!userLocation ? "opacity-50" : ""}`}
           >
             <Navigation className="w-3.5 h-3.5" />
@@ -175,7 +175,7 @@ export default function Discover() {
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all ${
                 sortBy === "distance"
                   ? "bg-blue-500 text-white shadow-md shadow-blue-500/20"
-                  : "bg-white text-gray-500 border border-gray-200"
+                  : "bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-300 border border-gray-200 dark:border-gray-600"
               }`}
             >
               <ArrowUpDown className="w-3.5 h-3.5" />
@@ -192,7 +192,7 @@ export default function Discover() {
               className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium whitespace-nowrap transition-all ${
                 category === cat.key
                   ? "bg-[#0A1931] text-white shadow-md shadow-[#0A1931]/20"
-                  : "bg-white text-gray-500 border border-gray-200"
+                  : "bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-300 border border-gray-200 dark:border-gray-600"
               }`}
             >
               <span>{cat.emoji}</span>
@@ -211,7 +211,7 @@ export default function Discover() {
         {isLoading || (nearMeFilter && nearbyFetching && nearbyRaw.length === 0) ? (
           <div className="grid grid-cols-2 gap-3">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="bg-white rounded-2xl overflow-hidden animate-pulse">
+              <div key={i} className="bg-white dark:bg-gray-800 rounded-2xl overflow-hidden animate-pulse">
                 <div className="h-32 bg-gray-100" />
                 <div className="p-4">
                   <div className="h-4 bg-gray-100 rounded w-24" />

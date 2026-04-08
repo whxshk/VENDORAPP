@@ -78,11 +78,11 @@ export default function Profile() {
               <p className="text-[11px] text-gray-400 mt-1">Total Points</p>
             </div>
             <div className="text-center px-2">
-              <p className="text-2xl font-bold text-[#0A1931]">{memberships.length}</p>
+              <p className="text-2xl font-bold text-[#0A1931] dark:text-white">{memberships.length}</p>
               <p className="text-[11px] text-gray-400 mt-1">Cards</p>
             </div>
             <div className="text-center px-2">
-              <p className="text-2xl font-bold text-[#0A1931]">{totalVisits}</p>
+              <p className="text-2xl font-bold text-[#0A1931] dark:text-white">{totalVisits}</p>
               <p className="text-[11px] text-gray-400 mt-1">Visits</p>
             </div>
           </div>

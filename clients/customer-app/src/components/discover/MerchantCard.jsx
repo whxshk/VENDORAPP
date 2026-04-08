@@ -43,13 +43,12 @@ export default function MerchantCard({ merchant, index, rewards = [], distance }
           so it is NOT clipped here.
         */}
         <div
-          className="group"
+          className="group bg-white dark:bg-gray-800"
           style={{
             border: "0.75px solid #000000",
             borderRadius: 24,
             overflow: "hidden",
             boxShadow: "none",
-            background: "#fff",
           }}
         >
           {/* ── DARK TOP (cover image) ────────────────────────────────── */}
@@ -156,8 +155,8 @@ export default function MerchantCard({ merchant, index, rewards = [], distance }
 
           {/* ── WHITE BOTTOM (info) ───────────────────────────────────── */}
           <div
+            className="bg-white dark:bg-gray-800"
             style={{
-              background: "#fff",
               paddingTop: 44,   // 32px to clear half the logo + 12px breathing room
               paddingBottom: 20,
               paddingLeft: 16,
@@ -166,6 +165,7 @@ export default function MerchantCard({ merchant, index, rewards = [], distance }
             }}
           >
             <h3
+              className="dark:text-white"
               style={{
                 fontWeight: 600,
                 fontSize: 18,

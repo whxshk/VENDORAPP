@@ -66,7 +66,7 @@ export default function Wallet() {
 
   return (
     <div
-      className="min-h-full bg-gray-50"
+      className="min-h-full bg-gray-50 dark:bg-gray-900"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
@@ -79,7 +79,7 @@ export default function Wallet() {
             opacity: pullDistance / 100,
           }}
         >
-          <div className="bg-white rounded-full p-2 shadow-lg">
+          <div className="bg-white dark:bg-gray-800 rounded-full p-2 shadow-lg">
             <Loader2
               className={`w-5 h-5 text-[#0A1931] ${isPullRefreshing ? "animate-spin" : ""}`}
             />
@@ -88,9 +88,9 @@ export default function Wallet() {
       )}
 
       {/* Header */}
-      <div className="bg-white px-6 pt-8 pb-6 border-b border-gray-100">
+      <div className="bg-white dark:bg-gray-800 px-6 pt-8 pb-6 border-b border-gray-100 dark:border-gray-700">
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="text-2xl font-bold text-[#0A1931]">Wallet</h1>
+          <h1 className="text-2xl font-bold text-[#0A1931] dark:text-white">Wallet</h1>
           <p className="text-sm text-gray-400 mt-1">Your loyalty cards in one place</p>
         </motion.div>
 
@@ -104,7 +104,7 @@ export default function Wallet() {
             placeholder="Search merchants..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-10 bg-white border-gray-200 rounded-xl h-11 text-sm"
+            className="pl-10 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400 border-gray-200 rounded-xl h-11 text-sm"
           />
         </div>
 
@@ -117,7 +117,7 @@ export default function Wallet() {
                 className={`px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
                   filter === cat
                     ? "bg-[#0A1931] text-white"
-                    : "bg-white text-gray-500 border border-gray-200"
+                    : "bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-300 border border-gray-200 dark:border-gray-600"
                 }`}
               >
                 {cat === "all" ? "All" : cat.charAt(0).toUpperCase() + cat.slice(1)}
@@ -131,7 +131,7 @@ export default function Wallet() {
       <div className="px-6 pb-28 space-y-3">
         {isLoading ? (
           Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="bg-white rounded-2xl p-5 animate-pulse">
+            <div key={i} className="bg-white dark:bg-gray-800 rounded-2xl p-5 animate-pulse">
               <div className="flex items-center gap-4">
                 <div className="w-14 h-14 rounded-xl bg-gray-100" />
                 <div className="flex-1">

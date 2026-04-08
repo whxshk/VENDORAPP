@@ -36,20 +36,20 @@ export default function InsightsCard({ transactions }) {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.1 }}
-      className="bg-white rounded-xl p-4 border border-gray-200 mb-4"
+      className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700 mb-4"
     >
-      <h3 className="text-base font-bold text-[#0A1931] mb-3">📊 Your SharkBand Insights</h3>
+      <h3 className="text-base font-bold text-[#0A1931] dark:text-white mb-3">📊 Your SharkBand Insights</h3>
       
       <div className="space-y-2">
         {mostVisited && (
-          <div className="text-sm text-gray-700">
+          <div className="text-sm text-gray-700 dark:text-gray-300">
             <p>🏆 <span className="font-medium">Most visited:</span> {mostVisited[0]}</p>
             <p className="text-xs text-gray-500 ml-5">({mostVisited[1]} visit{mostVisited[1] !== 1 ? 's' : ''} this month)</p>
           </div>
         )}
         
         {favoriteCategory && (
-          <div className="text-sm text-gray-700">
+          <div className="text-sm text-gray-700 dark:text-gray-300">
             <p>☕ <span className="font-medium">Favorite category:</span> {favoriteCategory[0]}</p>
             <p className="text-xs text-gray-500 ml-5">({categoryPercentage}% of your activity)</p>
           </div>

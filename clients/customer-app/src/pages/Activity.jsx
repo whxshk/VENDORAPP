@@ -150,7 +150,7 @@ export default function Activity() {
     return (
       <div className="mb-4">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-base font-bold text-[#0A1931]">{label}</h3>
+          <h3 className="text-base font-bold text-[#0A1931] dark:text-white">{label}</h3>
           <div className="flex items-center gap-2 text-sm">
             <span className="text-green-600 font-semibold">+{earned} pts</span>
             {redeemed > 0 && (
@@ -172,7 +172,7 @@ export default function Activity() {
 
   return (
     <div
-      className="min-h-full bg-gray-50"
+      className="min-h-full bg-gray-50 dark:bg-gray-900"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
@@ -185,7 +185,7 @@ export default function Activity() {
             opacity: pullDistance / 100,
           }}
         >
-          <div className="bg-white rounded-full p-2 shadow-lg">
+          <div className="bg-white dark:bg-gray-800 rounded-full p-2 shadow-lg">
             <Loader2
               className={`w-5 h-5 text-[#0A1931] ${isPullRefreshing ? "animate-spin" : ""}`}
             />
@@ -193,9 +193,9 @@ export default function Activity() {
         </div>
       )}
 
-      <div className="bg-white px-6 pt-8 pb-5 border-b border-gray-100">
+      <div className="bg-white dark:bg-gray-800 px-6 pt-8 pb-5 border-b border-gray-100 dark:border-gray-700">
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="text-2xl font-bold text-[#0A1931]">Activity</h1>
+          <h1 className="text-2xl font-bold text-[#0A1931] dark:text-white">Activity</h1>
           <p className="text-sm text-gray-400 mt-1">Your transaction history</p>
         </motion.div>
 
@@ -212,7 +212,7 @@ export default function Activity() {
                 className={`px-4 py-2 rounded-xl text-xs font-medium transition-all ${
                   filter === f.key
                     ? "bg-[#0A1931] text-white shadow-md shadow-[#0A1931]/20"
-                    : "bg-gray-100 text-gray-500"
+                    : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300"
                 }`}
               >
                 {f.label}
@@ -226,7 +226,7 @@ export default function Activity() {
             </p>
             <button
               onClick={() => setSortBy(sortBy === "date" ? "merchant" : "date")}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-xs font-medium text-gray-600 transition-all"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-xs font-medium text-gray-600 dark:text-gray-300 transition-all"
             >
               <ArrowUpDown className="w-3 h-3" />
               {sortBy === "date" ? "By Date" : "By Merchant"}
@@ -240,7 +240,7 @@ export default function Activity() {
           Array.from({ length: 5 }).map((_, i) => (
             <div
               key={i}
-              className="bg-white rounded-xl p-3 border border-gray-100 mb-2 animate-pulse flex items-center gap-3"
+              className="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-100 dark:border-gray-700 mb-2 animate-pulse flex items-center gap-3"
             >
               <div className="w-10 h-10 rounded-full bg-gray-100" />
               <div className="flex-1">
