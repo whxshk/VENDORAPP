@@ -20,7 +20,7 @@ export default function Layout({ children, currentPageName }) {
   return (
     <AuthProvider>
       <AuthRouter currentPageName={currentPageName}>
-        <div className="min-h-screen bg-gray-50 flex flex-col">
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
       <style>{`
         :root {
           --color-primary: #0A1931;
@@ -30,18 +30,6 @@ export default function Layout({ children, currentPageName }) {
           --text-primary: #0A1931;
           --text-secondary: #6B7280;
           --border-color: #E5E7EB;
-        }
-        
-        @media (prefers-color-scheme: dark) {
-          :root {
-            --color-primary: #1E3A5F;
-            --color-accent: #F97316;
-            --bg-primary: #0F172A;
-            --bg-secondary: #1E293B;
-            --text-primary: #F1F5F9;
-            --text-secondary: #94A3B8;
-            --border-color: #334155;
-          }
         }
         
         body {
@@ -74,7 +62,7 @@ export default function Layout({ children, currentPageName }) {
       {!hideNav && (
         <div className="fixed bottom-0 left-0 right-0 z-50">
           <div className="max-w-lg mx-auto">
-            <div className="bg-white/90 backdrop-blur-xl border-t border-gray-100 px-2 pb-safe">
+            <div className="bg-white/90 dark:bg-gray-900/95 backdrop-blur-xl border-t border-gray-100 dark:border-gray-800 px-2 pb-safe">
               <div className="flex items-end justify-around h-16">
                 {navItems.map(item => {
                   const isActive = currentPageName === item.page;
@@ -101,17 +89,17 @@ export default function Layout({ children, currentPageName }) {
                     >
                       <item.icon
                         className={`w-5 h-5 transition-colors duration-200 ${
-                          isActive ? "text-[#0A1931]" : "text-gray-400"
+                          isActive ? "text-[#0A1931] dark:text-white" : "text-gray-400 dark:text-gray-500"
                         }`}
                         strokeWidth={isActive ? 2.2 : 1.8}
                       />
                       <span className={`text-[10px] mt-1 font-medium transition-colors duration-200 ${
-                        isActive ? "text-[#0A1931]" : "text-gray-400"
+                        isActive ? "text-[#0A1931] dark:text-white" : "text-gray-400 dark:text-gray-500"
                       }`}>
                         {item.label}
                       </span>
                       {isActive && (
-                        <div className="w-1 h-1 rounded-full bg-[#0A1931] mt-1" />
+                        <div className="w-1 h-1 rounded-full bg-[#0A1931] dark:bg-white mt-1" />
                       )}
                     </Link>
                   );

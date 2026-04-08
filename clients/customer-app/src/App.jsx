@@ -6,6 +6,7 @@ import NavigationTracker from '@/lib/NavigationTracker'
 import { pagesConfig } from './pages.config'
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
+import { ThemeProvider } from 'next-themes';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -17,6 +18,7 @@ const LayoutWrapper = ({ children, currentPageName }) => Layout ?
 
 function App() {
   return (
+    <ThemeProvider attribute="class" defaultTheme="light" storageKey="sharkband-theme">
     <QueryClientProvider client={queryClientInstance}>
       <Router>
         <NavigationTracker />
@@ -43,6 +45,7 @@ function App() {
       <Toaster />
       <SonnerToaster position="top-center" richColors />
     </QueryClientProvider>
+    </ThemeProvider>
   )
 }
 

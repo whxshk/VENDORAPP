@@ -3,10 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { motion } from "framer-motion";
-import { LogOut, HelpCircle, Bell, ChevronRight, Star, Trash2, Shield } from "lucide-react";
+import { LogOut, HelpCircle, Bell, ChevronRight, Star, Trash2, Shield, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { customerService } from "@/api/customerService";
+import { useTheme } from "next-themes";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +24,7 @@ import {
 export default function Profile() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { theme, setTheme } = useTheme();
 
   const { data: memberships = [] } = useQuery({
     queryKey: ["memberships", user?.userId],
@@ -47,7 +50,7 @@ export default function Profile() {
   };
 
   return (
-    <div className="min-h-full bg-gray-50 pb-28">
+    <div className="min-h-full bg-gray-50 dark:bg-gray-900 pb-28">
       <div className="bg-gradient-to-br from-[#0A1931] to-[#1a3355] px-6 pt-10 pb-16">
         <motion.div
           initial={{ opacity: 0, y: -10 }}
@@ -67,11 +70,11 @@ export default function Profile() {
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-white rounded-2xl p-5 shadow-lg shadow-black/5 border border-gray-100"
+          className="bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-lg shadow-black/5 border border-gray-100 dark:border-gray-700"
         >
-          <div className="grid grid-cols-3 divide-x divide-gray-100">
+          <div className="grid grid-cols-3 divide-x divide-gray-100 dark:divide-gray-700">
             <div className="text-center px-2">
-              <p className="text-2xl font-bold text-[#0A1931]">{totalPoints.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-[#0A1931] dark:text-white">{totalPoints.toLocaleString()}</p>
               <p className="text-[11px] text-gray-400 mt-1">Total Points</p>
             </div>
             <div className="text-center px-2">
@@ -87,13 +90,13 @@ export default function Profile() {
       </div>
 
       <div className="px-6 mt-5">
-        <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-2xl p-4 border border-orange-100">
+        <div className="bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 rounded-2xl p-4 border border-orange-100 dark:border-orange-800/30">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center">
               <Star className="w-5 h-5 text-white" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-[#0A1931]">SharkBand Member</p>
+              <p className="text-sm font-semibold text-[#0A1931] dark:text-white">SharkBand Member</p>
               <p className="text-xs text-gray-500">
                 Member since{" "}
                 {user?.created_date
@@ -115,18 +118,34 @@ export default function Profile() {
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.15 + i * 0.05 }}
-            className="w-full flex items-center gap-4 bg-white rounded-2xl p-4 border border-gray-100 hover:border-gray-200 transition-all text-left"
+            className="w-full flex items-center gap-4 bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-100 dark:border-gray-700 hover:border-gray-200 dark:hover:border-gray-600 transition-all text-left"
           >
-            <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center">
-              <item.icon className="w-5 h-5 text-gray-500" />
+            <div className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-700 flex items-center justify-center">
+              <item.icon className="w-5 h-5 text-gray-500 dark:text-gray-400" />
             </div>
             <div className="flex-1">
-              <p className="text-sm font-medium text-[#0A1931]">{item.label}</p>
-              <p className="text-xs text-gray-400">{item.description}</p>
+              <p className="text-sm font-medium text-[#0A1931] dark:text-white">{item.label}</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500">{item.description}</p>
             </div>
-            <ChevronRight className="w-4 h-4 text-gray-300" />
+            <ChevronRight className="w-4 h-4 text-gray-300 dark:text-gray-600" />
           </motion.button>
         ))}
+      </div>
+
+      <div className="px-6 mt-2">
+        <div className="w-full flex items-center gap-4 bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-100 dark:border-gray-700">
+          <div className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-700 flex items-center justify-center">
+            <Moon className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-[#0A1931] dark:text-white">Dark Mode</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500">Switch to dark theme</p>
+          </div>
+          <Switch
+            checked={theme === "dark"}
+            onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
+          />
+        </div>
       </div>
 
       <div className="px-6 mt-8">
