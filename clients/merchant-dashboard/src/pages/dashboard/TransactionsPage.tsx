@@ -180,11 +180,12 @@ export default function TransactionsPage() {
         const isStampRedeem = !tx.isAdjustment && tx.type === 'redeem' && (
           tx.rewardType === 'stamps' || (!tx.rewardType && isStampMerchant)
         );
-        const isStamp = isStampIssue || isStampRedeem;
-        const color = points > 0 ? (isStampIssue ? 'text-amber-400' : 'text-emerald-400') : (isStampRedeem ? 'text-amber-400' : 'text-red-400');
+        const isAdjustStamp = tx.isAdjustment === true && isStampMerchant;
+        const isStamp = isStampIssue || isStampRedeem || isAdjustStamp;
+        const color = points > 0 ? ((isStampIssue || isAdjustStamp) ? 'text-amber-400' : 'text-emerald-400') : ((isStampRedeem || isAdjustStamp) ? 'text-amber-400' : 'text-red-400');
         return (
           <span className={`text-sm font-bold tabular-nums ${color}`}>
-            {points > 0 ? '+' : ''}{Math.abs(points)}
+            {points > 0 ? '+' : points < 0 ? '-' : ''}{Math.abs(points)}
             {isStamp ? ` stamp${Math.abs(points) !== 1 ? 's' : ''}` : ' pts'}
           </span>
         );

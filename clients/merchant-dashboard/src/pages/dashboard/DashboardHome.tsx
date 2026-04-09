@@ -32,7 +32,7 @@ import { TopRedeemedRewardsCard } from '../../components/dashboard/charts/TopRed
 import { Select } from '../../components/ui/select';
 import {
   Users, Receipt, TrendingUp, Building2,
-  ArrowUpRight, ArrowDownRight, Stamp, ScanLine, Star,
+  ArrowUpRight, ArrowDownRight, Stamp, ScanLine, Star, SlidersHorizontal,
 } from 'lucide-react';
 import { formatDateTime, toNumber } from '../../lib/utils';
 
@@ -55,7 +55,17 @@ function LiveBadge() {
   );
 }
 
-function TypePill({ type, stampIssued, stampRedeem }: { type: string; stampIssued?: boolean; stampRedeem?: boolean }) {
+function TypePill({ type, stampIssued, stampRedeem, isAdjustment }: { type: string; stampIssued?: boolean; stampRedeem?: boolean; isAdjustment?: boolean }) {
+  if (isAdjustment) {
+    return (
+      <span
+        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold"
+        style={{ background: 'rgba(148,163,184,0.12)', color: '#94a3b8' }}
+      >
+        <SlidersHorizontal className="h-2.5 w-2.5" />Adjust
+      </span>
+    );
+  }
   if (stampIssued) {
     return (
       <span
@@ -408,9 +418,10 @@ export default function DashboardHome() {
                 {recentActivity.map((tx, index) => {
                   const pts = toNumber(tx.points);
                   const isStampIssue = tx.stampIssued === true;
-                  const isStampRedeem = tx.type === 'redeem' && (tx.rewardType === 'stamps' || (!tx.rewardType && loyaltyMode === 'stamps'));
-                  const isStamp = isStampIssue || isStampRedeem;
-                  const ptsColor = pts > 0 ? (isStampIssue ? 'text-amber-400' : 'text-emerald-400') : (isStampRedeem ? 'text-amber-400' : 'text-red-400');
+                  const isStampRedeem = !tx.isAdjustment && tx.type === 'redeem' && (tx.rewardType === 'stamps' || (!tx.rewardType && loyaltyMode === 'stamps'));
+                  const isAdjustStamp = tx.isAdjustment === true && (loyaltyMode === 'stamps' || loyaltyMode === 'both');
+                  const isStamp = isStampIssue || isStampRedeem || isAdjustStamp;
+                  const ptsColor = pts > 0 ? ((isStampIssue || isAdjustStamp) ? 'text-amber-400' : 'text-emerald-400') : ((isStampRedeem || isAdjustStamp) ? 'text-amber-400' : 'text-red-400');
                   return (
                     <tr
                       key={tx.id}
@@ -429,11 +440,11 @@ export default function DashboardHome() {
                         </div>
                       </td>
                       <td className="py-3 px-5">
-                        <TypePill type={tx.type} stampIssued={isStampIssue} stampRedeem={isStampRedeem} />
+                        <TypePill type={tx.type} stampIssued={isStampIssue} stampRedeem={isStampRedeem} isAdjustment={tx.isAdjustment} />
                       </td>
                       <td className="py-3 px-5 text-right">
                         <span className={`text-sm font-bold tabular-nums ${ptsColor}`}>
-                          {pts > 0 ? '+' : ''}{Math.abs(pts)}
+                          {pts > 0 ? '+' : pts < 0 ? '-' : ''}{Math.abs(pts)}
                           {isStamp ? ` stamp${Math.abs(pts) !== 1 ? 's' : ''}` : ' pts'}
                         </span>
                       </td>
