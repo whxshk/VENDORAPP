@@ -62,6 +62,10 @@ export async function getDashboardSummary(locationId?: string): Promise<Dashboar
     repeatCustomers: data.repeatCustomers || 0,
     totalTransactions: data.totalTransactions || 0,
     redemptionRate: data.redemptionRate || 0,
+    pointsIssued: data.pointsIssued || 0,
+    pointsRedeemed: data.pointsRedeemed || 0,
+    earnCount: data.earnCount || 0,
+    redeemCount: data.redeemCount || 0,
     recentActivity: data.recentActivity || [],
     alerts: data.alerts || [],
   };

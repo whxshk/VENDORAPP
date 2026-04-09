@@ -164,11 +164,14 @@ export default function DashboardHome() {
   const branches = merchant?.branches || [];
 
   // ── Derived analytics — computed from real recentActivity transactions ──────
-  const earnTxs = recentActivity.filter(tx => tx.type === 'earn' && !tx.stampIssued);
-  const redeemTxs = recentActivity.filter(tx => tx.type === 'redeem');
+  // Use aggregated totals from API (covers all transactions, not just recent 50)
+  const pointsIssued = toNumber(data.pointsIssued);
+  const pointsRedeemed = toNumber(data.pointsRedeemed);
+  const earnCount = toNumber(data.earnCount);
+  const redeemCount = toNumber(data.redeemCount);
 
-  const pointsIssued = earnTxs.reduce((s, tx) => s + Math.abs(toNumber(tx.points)), 0);
-  const pointsRedeemed = redeemTxs.reduce((s, tx) => s + Math.abs(toNumber(tx.points)), 0);
+  // For reward grouping and hourly charts, use recentActivity
+  const redeemTxs = recentActivity.filter(tx => tx.type === 'redeem');
 
   // Hourly buckets for Peak Hours chart — total transactions per hour
   const hourMap = new Map<number, number>();
@@ -189,7 +192,7 @@ export default function DashboardHome() {
   const hourRedeemMap = new Map<number, number>();
   recentActivity.forEach(tx => {
     const h = new Date(tx.timestamp).getHours();
-    if (tx.type === 'earn' && !tx.stampIssued) {
+    if (tx.type === 'earn') {
       hourEarnMap.set(h, (hourEarnMap.get(h) || 0) + 1);
     } else if (tx.type === 'redeem') {
       hourRedeemMap.set(h, (hourRedeemMap.get(h) || 0) + 1);
@@ -280,7 +283,7 @@ export default function DashboardHome() {
           description="From recent activity"
           icon={<ArrowUpRight className="h-5 w-5" />}
           theme="emerald"
-          trend={{ direction: 'up', label: `${earnTxs.length} txns` }}
+          trend={{ direction: 'up', label: `${earnCount} txns` }}
           index={1}
         />
         <KPIStatCard
@@ -289,7 +292,7 @@ export default function DashboardHome() {
           description="From recent activity"
           icon={<ArrowDownRight className="h-5 w-5" />}
           theme="rose"
-          trend={{ direction: pointsRedeemed > 0 ? 'up' : 'flat', label: `${redeemTxs.length} txns` }}
+          trend={{ direction: pointsRedeemed > 0 ? 'up' : 'flat', label: `${redeemCount} txns` }}
           index={2}
         />
         <KPIStatCard

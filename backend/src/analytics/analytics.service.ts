@@ -47,6 +47,10 @@ export class AnalyticsService {
           repeatCustomers: 0,
           totalTransactions: 0,
           redemptionRate: 0,
+          pointsIssued: 0,
+          pointsRedeemed: 0,
+          earnCount: 0,
+          redeemCount: 0,
           recentActivity: [],
           alerts: [],
         };
@@ -91,29 +95,41 @@ export class AnalyticsService {
     // Get total transactions
     const totalTransactions = await this.transactionModel.countDocuments(baseQuery).exec();
 
-    // Calculate redemption rate (redeems / issues)
-    const [issueCount, redeemCount] = await Promise.all([
-      this.transactionModel
-        .countDocuments({
-          ...baseQuery,
-          type: TransactionType.ISSUE,
-        })
-        .exec(),
-      this.transactionModel
-        .countDocuments({
-          ...baseQuery,
-          type: TransactionType.REDEEM,
-        })
-        .exec(),
-    ]);
+    // Aggregate counts and point totals per type in a single pass
+    const typeAggregation = await this.transactionModel
+      .aggregate([
+        { $match: baseQuery },
+        {
+          $group: {
+            _id: '$type',
+            count: { $sum: 1 },
+            totalAmount: { $sum: { $toDouble: '$amount' } },
+          },
+        },
+      ])
+      .exec();
+
+    let issueCount = 0;
+    let redeemCount = 0;
+    let pointsIssued = 0;
+    let pointsRedeemed = 0;
+    for (const row of typeAggregation) {
+      if (row._id === TransactionType.ISSUE) {
+        issueCount = row.count;
+        pointsIssued = Math.round(row.totalAmount);
+      } else if (row._id === TransactionType.REDEEM) {
+        redeemCount = row.count;
+        pointsRedeemed = Math.round(row.totalAmount);
+      }
+    }
 
     const redemptionRate = issueCount > 0 ? Number((redeemCount / issueCount).toFixed(4)) : 0;
 
-    // Get recent activity (last 10 transactions) with staff info
+    // Get recent activity (last 50 transactions) with staff info
     const recentTransactions = await this.transactionModel
       .find(baseQuery)
       .sort({ createdAt: -1 })
-      .limit(10)
+      .limit(50)
       .exec();
 
     // Get staff info from ScanEvent for transactions
@@ -207,6 +223,10 @@ export class AnalyticsService {
       repeatCustomers,
       totalTransactions,
       redemptionRate,
+      pointsIssued,
+      pointsRedeemed,
+      earnCount: issueCount,
+      redeemCount,
       recentActivity,
       alerts: [], // Empty alerts for now
     };

@@ -109,6 +109,10 @@ export interface DashboardSummary {
   repeatCustomers: number;
   totalTransactions: number;
   redemptionRate: number;
+  pointsIssued: number;
+  pointsRedeemed: number;
+  earnCount: number;
+  redeemCount: number;
   recentActivity: Transaction[];
   alerts: Alert[];
 }
