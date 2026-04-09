@@ -298,7 +298,7 @@ export default function DashboardHome() {
             value={stampsIssued}
             description="All-time stamps issued"
             icon={<Stamp className="h-5 w-5" />}
-            theme="amber"
+            theme="emerald"
             trend={{ direction: 'up', label: `${stampIssueCount} txns` }}
             index={showPoints ? 2 : 1}
           />
