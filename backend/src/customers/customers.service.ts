@@ -636,21 +636,51 @@ export class CustomersService {
           .exec();
         const stampRewardIdList = stampRewards.map((r) => r._id as string);
 
-        // Sum stamp redemptions via the Redemption collection
-        let stampsRedeemed = 0;
-        if (stampRewardIdList.length > 0) {
-          const stampRedemptionAgg = await this.redemptionModel.aggregate([
-            {
-              $match: {
-                tenantId: account.tenantId,
-                customerId,
-                rewardId: { $in: stampRewardIdList },
-                status: RedemptionStatus.COMPLETED,
+        // Sum stamp redemptions via the Redemption collection — grouped per reward
+        const perRewardRedemptionAgg = stampRewardIdList.length > 0
+          ? await this.redemptionModel.aggregate([
+              {
+                $match: {
+                  tenantId: account.tenantId,
+                  customerId,
+                  rewardId: { $in: stampRewardIdList },
+                  status: RedemptionStatus.COMPLETED,
+                },
               },
+              { $group: { _id: '$rewardId', total: { $sum: { $toDouble: '$pointsDeducted' } } } },
+            ]).exec()
+          : [];
+
+        const rewardRedemptionMap: Record<string, number> = {};
+        let stampsRedeemed = 0;
+        for (const item of perRewardRedemptionAgg) {
+          const v = Math.round(item.total);
+          if (item._id) rewardRedemptionMap[String(item._id)] = v;
+          stampsRedeemed += v;
+        }
+
+        // Per-reward stamp issued counts (stamps tagged with stampRewardId)
+        const perRewardIssuedAgg = await this.transactionModel.aggregate([
+          {
+            $match: {
+              tenantId: account.tenantId,
+              customerId,
+              type: TransactionType.ISSUE,
+              'metadata.stampIssued': true,
+              'metadata.stampRewardId': { $ne: null, $exists: true },
             },
-            { $group: { _id: null, total: { $sum: { $toDouble: '$pointsDeducted' } } } },
-          ]).exec();
-          stampsRedeemed = Math.round(stampRedemptionAgg[0]?.total ?? 0);
+          },
+          { $group: { _id: '$metadata.stampRewardId', total: { $sum: { $toDouble: '$amount' } } } },
+        ]).exec();
+
+        // Build reward_stamps: per-reward net stamp count (issued - redeemed), capped at 0
+        const reward_stamps: Record<string, number> = {};
+        for (const item of perRewardIssuedAgg) {
+          if (item._id) {
+            const issued = Math.round(item.total);
+            const redeemed = rewardRedemptionMap[String(item._id)] ?? 0;
+            reward_stamps[String(item._id)] = Math.max(0, issued - redeemed);
+          }
         }
 
         const stamps_count = Math.max(0, stampsIssued - stampsRedeemed);
@@ -666,6 +696,7 @@ export class CustomersService {
           points_balance,
           stamps_count,
           stamps_required: stampsRequired,
+          reward_stamps,
           total_visits: txCount,
           membership_status: account.membershipStatus,
         };

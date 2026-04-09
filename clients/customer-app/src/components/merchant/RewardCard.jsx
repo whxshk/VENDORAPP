@@ -43,9 +43,12 @@ export default function RewardCard({ reward, account, merchant }) {
   if (account) {
     if (isStampReward) {
       const cost = stampsCost || account.stamps_required || 10;
-      progress = Math.min(((account.stamps_count || 0) / cost) * 100, 100);
-      canRedeem = (account.stamps_count || 0) >= cost;
-      statusText = `${account.stamps_count || 0} / ${cost} stamps`;
+      const rewardStampCount = (account.reward_stamps && reward.id)
+        ? (account.reward_stamps[reward.id] ?? 0)
+        : 0;
+      progress = Math.min((rewardStampCount / cost) * 100, 100);
+      canRedeem = rewardStampCount >= cost;
+      statusText = `${rewardStampCount} / ${cost} stamps`;
     } else {
       progress = Math.min(((account.points_balance || 0) / (pointsCost || 1)) * 100, 100);
       canRedeem = (account.points_balance || 0) >= pointsCost;
@@ -97,7 +100,11 @@ export default function RewardCard({ reward, account, merchant }) {
         <div>
           {isStampReward ? (
             <StampFraction
-              current={account.stamps_count || 0}
+              current={
+                (account.reward_stamps && reward.id)
+                  ? (account.reward_stamps[reward.id] ?? 0)
+                  : 0
+              }
               total={stampsCost || account.stamps_required || 10}
             />
           ) : (

@@ -92,6 +92,7 @@ export default function MerchantDetail() {
         points_balance: membership.points_balance || 0,
         stamps_count: membership.stamps_count || 0,
         stamps_required: membership.stamps_required || merchant?.stamps_required || 10,
+        reward_stamps: membership.reward_stamps || {},
         total_visits: membership.total_visits || 0,
       }
     : null;
