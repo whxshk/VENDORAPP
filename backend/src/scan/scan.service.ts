@@ -293,6 +293,7 @@ export class ScanService {
             customerEmail: customerDetail.email,
             customerPhone: customerDetail.phone,
             rewardName: reward.name,
+            rewardType: (reward as any).rewardType || 'points',
           },
         },
       }).exec();

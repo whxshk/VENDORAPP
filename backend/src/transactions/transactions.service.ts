@@ -766,6 +766,7 @@ export class TransactionsService {
           points: tx.type === TransactionType.ISSUE ? numericPoints : -numericPoints,
           amount: tx.type === TransactionType.ISSUE ? issueAmount : undefined,
           stampIssued: txMeta?.stampIssued === true,
+        rewardType: txMeta?.rewardType as 'points' | 'stamps' | undefined,
           staffId: staffInfo.id,
           staffName: staffInfo.name,
           branchId,

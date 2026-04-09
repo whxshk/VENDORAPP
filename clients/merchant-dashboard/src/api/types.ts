@@ -22,6 +22,7 @@ export interface Transaction {
   points: number;
   amount?: number; // QAR amount for earn, stamp count for stamp transactions
   stampIssued?: boolean; // true when this was a stamp issuance (not points)
+  rewardType?: 'points' | 'stamps'; // set on REDEEM transactions
   rewardId?: string;
   rewardName?: string;
   staffId: string;

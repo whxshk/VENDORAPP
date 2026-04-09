@@ -55,7 +55,7 @@ function LiveBadge() {
   );
 }
 
-function TypePill({ type, stampIssued }: { type: string; stampIssued?: boolean }) {
+function TypePill({ type, stampIssued, stampRedeem }: { type: string; stampIssued?: boolean; stampRedeem?: boolean }) {
   if (stampIssued) {
     return (
       <span
@@ -63,6 +63,16 @@ function TypePill({ type, stampIssued }: { type: string; stampIssued?: boolean }
         style={{ background: 'rgba(251,191,36,0.12)', color: '#fbbf24' }}
       >
         <Stamp className="h-2.5 w-2.5" />Stamp
+      </span>
+    );
+  }
+  if (stampRedeem) {
+    return (
+      <span
+        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold"
+        style={{ background: 'rgba(251,191,36,0.12)', color: '#fbbf24' }}
+      >
+        <ArrowDownRight className="h-2.5 w-2.5" />Redeem
       </span>
     );
   }
@@ -397,8 +407,10 @@ export default function DashboardHome() {
               <tbody>
                 {recentActivity.map((tx, index) => {
                   const pts = toNumber(tx.points);
-                  const isStamp = tx.stampIssued === true;
-                  const ptsColor = pts > 0 ? (isStamp ? 'text-amber-400' : 'text-emerald-400') : 'text-red-400';
+                  const isStampIssue = tx.stampIssued === true;
+                  const isStampRedeem = tx.type === 'redeem' && (tx.rewardType === 'stamps' || (!tx.rewardType && loyaltyMode === 'stamps'));
+                  const isStamp = isStampIssue || isStampRedeem;
+                  const ptsColor = pts > 0 ? (isStampIssue ? 'text-amber-400' : 'text-emerald-400') : (isStampRedeem ? 'text-amber-400' : 'text-red-400');
                   return (
                     <tr
                       key={tx.id}
@@ -417,11 +429,11 @@ export default function DashboardHome() {
                         </div>
                       </td>
                       <td className="py-3 px-5">
-                        <TypePill type={tx.type} stampIssued={isStamp} />
+                        <TypePill type={tx.type} stampIssued={isStampIssue} stampRedeem={isStampRedeem} />
                       </td>
                       <td className="py-3 px-5 text-right">
                         <span className={`text-sm font-bold tabular-nums ${ptsColor}`}>
-                          {pts > 0 ? '+' : ''}{pts}
+                          {pts > 0 ? '+' : ''}{Math.abs(pts)}
                           {isStamp ? ` stamp${Math.abs(pts) !== 1 ? 's' : ''}` : ' pts'}
                         </span>
                       </td>

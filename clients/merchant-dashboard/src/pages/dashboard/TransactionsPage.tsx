@@ -133,6 +133,8 @@ export default function TransactionsPage() {
   });
 
   const { data: merchant } = useMerchantSettings();
+  // Infer if merchant uses stamps from transaction data (stampIssued on any earn tx)
+  const isStampMerchant = (transactionsData?.data || []).some((tx: Transaction) => tx.stampIssued === true);
   const locations = merchant?.branches || [];
   const totalTransactions = toNumber(transactionsData?.total);
   const pageCount = transactionsData ? Math.ceil(totalTransactions / 20) : 0;
@@ -161,12 +163,17 @@ export default function TransactionsPage() {
       accessorKey: 'points',
       header: 'Amount',
       cell: ({ row }) => {
-        const points = toNumber(row.getValue('points'));
-        const isStamp = (row.original as any).stampIssued === true;
-        const color = points > 0 ? (isStamp ? 'text-amber-400' : 'text-emerald-400') : 'text-red-400';
+        const tx = row.original as Transaction;
+        const points = toNumber(tx.points);
+        const isStampIssue = tx.stampIssued === true;
+        const isStampRedeem = tx.type === 'redeem' && (
+          tx.rewardType === 'stamps' || (!tx.rewardType && isStampMerchant)
+        );
+        const isStamp = isStampIssue || isStampRedeem;
+        const color = points > 0 ? (isStampIssue ? 'text-amber-400' : 'text-emerald-400') : (isStampRedeem ? 'text-amber-400' : 'text-red-400');
         return (
           <span className={`text-sm font-bold tabular-nums ${color}`}>
-            {points > 0 ? '+' : ''}{points}
+            {points > 0 ? '+' : ''}{Math.abs(points)}
             {isStamp ? ` stamp${Math.abs(points) !== 1 ? 's' : ''}` : ' pts'}
           </span>
         );

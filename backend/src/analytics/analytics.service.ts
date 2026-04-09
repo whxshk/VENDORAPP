@@ -243,6 +243,7 @@ export class AnalyticsService {
         points: tx.type === TransactionType.ISSUE ? numericPoints : -numericPoints,
         amount: tx.type === TransactionType.ISSUE ? issueAmount : undefined,
         stampIssued: txMeta?.stampIssued === true,
+        rewardType: txMeta?.rewardType as 'points' | 'stamps' | undefined,
         rewardId: txMeta?.rewardId || undefined,
         rewardName: txMeta?.rewardName || undefined,
         staffId: staffInfo.id,
