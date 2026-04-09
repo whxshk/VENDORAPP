@@ -42,12 +42,18 @@ export async function getDashboardSummary(locationId?: string): Promise<Dashboar
     // Simulate network delay
     await new Promise(resolve => setTimeout(resolve, 300));
     const summary = getMockDashboardSummary();
+    const mockEarnTxs = (summary.recentActivity || []).filter((tx: any) => tx.type === 'earn');
+    const mockRedeemTxs = (summary.recentActivity || []).filter((tx: any) => tx.type === 'redeem');
     // Ensure all required properties exist
     return {
       todaysCustomers: summary.todaysCustomers || 0,
       repeatCustomers: summary.repeatCustomers || 0,
       totalTransactions: summary.totalTransactions || 0,
       redemptionRate: summary.redemptionRate || 0,
+      pointsIssued: mockEarnTxs.reduce((s: number, tx: any) => s + Math.abs(Number(tx.points) || 0), 0),
+      pointsRedeemed: mockRedeemTxs.reduce((s: number, tx: any) => s + Math.abs(Number(tx.points) || 0), 0),
+      earnCount: mockEarnTxs.length,
+      redeemCount: mockRedeemTxs.length,
       recentActivity: summary.recentActivity || [],
       alerts: summary.alerts || [],
     };
