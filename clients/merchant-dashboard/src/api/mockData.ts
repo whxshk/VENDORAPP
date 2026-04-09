@@ -219,9 +219,24 @@ export function getMockDashboardSummary(): DashboardSummary {
   const totalTransactions = mockTransactions.length;
   const earnTransactions = mockTransactions.filter(t => t.type === 'earn' && t.status === 'completed');
   const redeemTransactions = mockTransactions.filter(t => t.type === 'redeem' && t.status === 'completed');
+  const stampTransactions = earnTransactions.filter(t => (t as any).stampIssued === true);
+  const pointTransactions = earnTransactions.filter(t => !(t as any).stampIssued);
   const totalEarned = earnTransactions.reduce((sum, t) => sum + Math.abs(t.points), 0);
   const totalRedeemed = redeemTransactions.reduce((sum, t) => sum + Math.abs(t.points), 0);
   const redemptionRate = totalEarned > 0 ? Math.round((totalRedeemed / totalEarned) * 100) : 0;
+  const mockLoyaltyMode: 'stamps' | 'points' | 'both' =
+    stampTransactions.length > 0 && pointTransactions.length > 0 ? 'both'
+    : stampTransactions.length > 0 ? 'stamps'
+    : 'points';
+  const rewardCountMap = new Map<string, number>();
+  redeemTransactions.forEach(t => {
+    const name = (t as any).rewardName;
+    if (name) rewardCountMap.set(name, (rewardCountMap.get(name) || 0) + 1);
+  });
+  const mockTopRewards = Array.from(rewardCountMap.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
   
   const alerts: Alert[] = [];
   if (todaysCustomers === 0) {
@@ -246,7 +261,15 @@ export function getMockDashboardSummary(): DashboardSummary {
     repeatCustomers,
     totalTransactions,
     redemptionRate,
-    recentActivity: mockTransactions.slice(0, 10),
+    loyaltyMode: mockLoyaltyMode,
+    stampsIssued: stampTransactions.reduce((s, t) => s + Math.abs(t.points), 0),
+    stampIssueCount: stampTransactions.length,
+    pointsIssued: pointTransactions.reduce((s, t) => s + Math.abs(t.points), 0),
+    pointsRedeemed: totalRedeemed,
+    earnCount: pointTransactions.length,
+    redeemCount: redeemTransactions.length,
+    topRewards: mockTopRewards,
+    recentActivity: mockTransactions.slice(0, 50),
     alerts,
   };
 }
