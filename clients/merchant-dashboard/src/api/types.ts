@@ -109,9 +109,12 @@ export interface DashboardSummary {
   repeatCustomers: number;
   totalTransactions: number;
   redemptionRate: number;
-  pointsIssued: number;
+  loyaltyMode: 'stamps' | 'points' | 'both';
+  stampsIssued: number;
+  stampIssueCount: number;
+  pointsIssued: number;   // non-stamp points issued
   pointsRedeemed: number;
-  earnCount: number;
+  earnCount: number;      // non-stamp issue count
   redeemCount: number;
   recentActivity: Transaction[];
   alerts: Alert[];

@@ -32,7 +32,7 @@ import { TopRedeemedRewardsCard } from '../../components/dashboard/charts/TopRed
 import { Select } from '../../components/ui/select';
 import {
   Users, Receipt, TrendingUp, Building2,
-  ArrowUpRight, ArrowDownRight, Stamp, ScanLine,
+  ArrowUpRight, ArrowDownRight, Stamp, ScanLine, Star,
 } from 'lucide-react';
 import { formatDateTime, toNumber } from '../../lib/utils';
 
@@ -165,6 +165,11 @@ export default function DashboardHome() {
 
   // ── Derived analytics — computed from real recentActivity transactions ──────
   // Use aggregated totals from API (covers all transactions, not just recent 50)
+  const loyaltyMode = data.loyaltyMode || 'points';
+  const showStamps = loyaltyMode === 'stamps' || loyaltyMode === 'both';
+  const showPoints = loyaltyMode === 'points' || loyaltyMode === 'both';
+  const stampsIssued = toNumber(data.stampsIssued);
+  const stampIssueCount = toNumber(data.stampIssueCount);
   const pointsIssued = toNumber(data.pointsIssued);
   const pointsRedeemed = toNumber(data.pointsRedeemed);
   const earnCount = toNumber(data.earnCount);
@@ -267,7 +272,7 @@ export default function DashboardHome() {
       <div style={{ height: '1px', background: 'var(--border)' }} />
 
       {/* ── 5 KPI Cards ─────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className={`grid gap-4 grid-cols-2 ${loyaltyMode === 'both' ? 'lg:grid-cols-3' : 'lg:grid-cols-5'}`}>
         <KPIStatCard
           title="Total Scans"
           value={totalTransactions}
@@ -277,24 +282,61 @@ export default function DashboardHome() {
           trend={{ direction: 'up', label: 'All time' }}
           index={0}
         />
-        <KPIStatCard
-          title="Points Issued"
-          value={pointsIssued}
-          description="From recent activity"
-          icon={<ArrowUpRight className="h-5 w-5" />}
-          theme="emerald"
-          trend={{ direction: 'up', label: `${earnCount} txns` }}
-          index={1}
-        />
-        <KPIStatCard
-          title="Points Redeemed"
-          value={pointsRedeemed}
-          description="From recent activity"
-          icon={<ArrowDownRight className="h-5 w-5" />}
-          theme="rose"
-          trend={{ direction: pointsRedeemed > 0 ? 'up' : 'flat', label: `${redeemCount} txns` }}
-          index={2}
-        />
+        {showPoints && (
+          <KPIStatCard
+            title="Points Issued"
+            value={pointsIssued}
+            description="All-time points earned"
+            icon={<ArrowUpRight className="h-5 w-5" />}
+            theme="emerald"
+            trend={{ direction: 'up', label: `${earnCount} txns` }}
+            index={1}
+          />
+        )}
+        {showStamps && (
+          <KPIStatCard
+            title="Stamps Issued"
+            value={stampsIssued}
+            description="All-time stamps issued"
+            icon={<Stamp className="h-5 w-5" />}
+            theme="amber"
+            trend={{ direction: 'up', label: `${stampIssueCount} txns` }}
+            index={showPoints ? 2 : 1}
+          />
+        )}
+        {showPoints && (
+          <KPIStatCard
+            title="Points Redeemed"
+            value={pointsRedeemed}
+            description="All-time points redeemed"
+            icon={<ArrowDownRight className="h-5 w-5" />}
+            theme="rose"
+            trend={{ direction: pointsRedeemed > 0 ? 'up' : 'flat', label: `${redeemCount} txns` }}
+            index={showStamps ? 3 : 2}
+          />
+        )}
+        {showStamps && !showPoints && (
+          <KPIStatCard
+            title="Stamps Redeemed"
+            value={pointsRedeemed}
+            description="All-time stamps redeemed"
+            icon={<Star className="h-5 w-5" />}
+            theme="rose"
+            trend={{ direction: pointsRedeemed > 0 ? 'up' : 'flat', label: `${redeemCount} txns` }}
+            index={2}
+          />
+        )}
+        {loyaltyMode === 'both' && (
+          <KPIStatCard
+            title="Rewards Redeemed"
+            value={pointsRedeemed}
+            description="All redemptions"
+            icon={<ArrowDownRight className="h-5 w-5" />}
+            theme="rose"
+            trend={{ direction: pointsRedeemed > 0 ? 'up' : 'flat', label: `${redeemCount} txns` }}
+            index={3}
+          />
+        )}
         <KPIStatCard
           title="Redemption Rate"
           value={`${redemptionPct}%`}
@@ -302,7 +344,7 @@ export default function DashboardHome() {
           icon={<TrendingUp className="h-5 w-5" />}
           theme="purple"
           trend={{ direction: redemptionRate > 0.1 ? 'up' : 'flat', label: 'Rate' }}
-          index={3}
+          index={loyaltyMode === 'both' ? 4 : 3}
         />
         <KPIStatCard
           title="Today's Customers"
@@ -311,7 +353,7 @@ export default function DashboardHome() {
           icon={<Users className="h-5 w-5" />}
           theme="amber"
           trend={{ direction: todaysCustomers > 0 ? 'up' : 'flat', label: 'Today' }}
-          index={4}
+          index={loyaltyMode === 'both' ? 5 : 4}
         />
       </div>
 

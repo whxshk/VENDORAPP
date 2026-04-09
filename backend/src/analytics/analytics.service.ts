@@ -47,6 +47,9 @@ export class AnalyticsService {
           repeatCustomers: 0,
           totalTransactions: 0,
           redemptionRate: 0,
+          loyaltyMode: 'points' as const,
+          stampsIssued: 0,
+          stampIssueCount: 0,
           pointsIssued: 0,
           pointsRedeemed: 0,
           earnCount: 0,
@@ -95,33 +98,50 @@ export class AnalyticsService {
     // Get total transactions
     const totalTransactions = await this.transactionModel.countDocuments(baseQuery).exec();
 
-    // Aggregate counts and point totals per type in a single pass
-    const typeAggregation = await this.transactionModel
+    // Split ISSUE transactions by stamp vs points; aggregate REDEEM separately
+    const issueAgg = await this.transactionModel
       .aggregate([
-        { $match: baseQuery },
+        { $match: { ...baseQuery, type: TransactionType.ISSUE } },
         {
           $group: {
-            _id: '$type',
+            _id: { $cond: [{ $eq: ['$metadata.stampIssued', true] }, 'stamp', 'points'] },
             count: { $sum: 1 },
-            totalAmount: { $sum: { $toDouble: '$amount' } },
+            total: { $sum: { $toDouble: '$amount' } },
           },
         },
       ])
       .exec();
 
-    let issueCount = 0;
-    let redeemCount = 0;
+    const redeemAgg = await this.transactionModel
+      .aggregate([
+        { $match: { ...baseQuery, type: TransactionType.REDEEM } },
+        { $group: { _id: null, count: { $sum: 1 }, total: { $sum: { $toDouble: '$amount' } } } },
+      ])
+      .exec();
+
+    let stampIssueCount = 0;
+    let stampsIssued = 0;
+    let pointIssueCount = 0;
     let pointsIssued = 0;
-    let pointsRedeemed = 0;
-    for (const row of typeAggregation) {
-      if (row._id === TransactionType.ISSUE) {
-        issueCount = row.count;
-        pointsIssued = Math.round(row.totalAmount);
-      } else if (row._id === TransactionType.REDEEM) {
-        redeemCount = row.count;
-        pointsRedeemed = Math.round(row.totalAmount);
+    for (const row of issueAgg) {
+      if (row._id === 'stamp') {
+        stampIssueCount = row.count;
+        stampsIssued = Math.round(row.total);
+      } else {
+        pointIssueCount = row.count;
+        pointsIssued = Math.round(row.total);
       }
     }
+    const issueCount = stampIssueCount + pointIssueCount;
+    const redeemRow = redeemAgg[0] ?? {};
+    const redeemCount: number = redeemRow.count ?? 0;
+    const pointsRedeemed = Math.round(redeemRow.total ?? 0);
+
+    // Determine loyalty mode from what transactions have actually occurred
+    const loyaltyMode: 'stamps' | 'points' | 'both' =
+      stampIssueCount > 0 && pointIssueCount > 0 ? 'both'
+      : stampIssueCount > 0 ? 'stamps'
+      : 'points';
 
     const redemptionRate = issueCount > 0 ? Number((redeemCount / issueCount).toFixed(4)) : 0;
 
@@ -222,10 +242,12 @@ export class AnalyticsService {
       todaysCustomers,
       repeatCustomers,
       totalTransactions,
-      redemptionRate,
+      loyaltyMode,
+      stampsIssued,
+      stampIssueCount,
       pointsIssued,
       pointsRedeemed,
-      earnCount: issueCount,
+      earnCount: pointIssueCount,
       redeemCount,
       recentActivity,
       alerts: [], // Empty alerts for now

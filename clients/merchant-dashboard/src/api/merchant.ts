@@ -43,6 +43,8 @@ export async function getDashboardSummary(locationId?: string): Promise<Dashboar
     await new Promise(resolve => setTimeout(resolve, 300));
     const summary = getMockDashboardSummary();
     const mockEarnTxs = (summary.recentActivity || []).filter((tx: any) => tx.type === 'earn');
+    const mockStampTxs = mockEarnTxs.filter((tx: any) => tx.stampIssued === true);
+    const mockPointTxs = mockEarnTxs.filter((tx: any) => !tx.stampIssued);
     const mockRedeemTxs = (summary.recentActivity || []).filter((tx: any) => tx.type === 'redeem');
     // Ensure all required properties exist
     return {
@@ -50,9 +52,12 @@ export async function getDashboardSummary(locationId?: string): Promise<Dashboar
       repeatCustomers: summary.repeatCustomers || 0,
       totalTransactions: summary.totalTransactions || 0,
       redemptionRate: summary.redemptionRate || 0,
-      pointsIssued: mockEarnTxs.reduce((s: number, tx: any) => s + Math.abs(Number(tx.points) || 0), 0),
+      loyaltyMode: (mockStampTxs.length > 0 && mockPointTxs.length > 0 ? 'both' : mockStampTxs.length > 0 ? 'stamps' : 'points') as 'stamps' | 'points' | 'both',
+      stampsIssued: mockStampTxs.reduce((s: number, tx: any) => s + Math.abs(Number(tx.points) || 0), 0),
+      stampIssueCount: mockStampTxs.length,
+      pointsIssued: mockPointTxs.reduce((s: number, tx: any) => s + Math.abs(Number(tx.points) || 0), 0),
       pointsRedeemed: mockRedeemTxs.reduce((s: number, tx: any) => s + Math.abs(Number(tx.points) || 0), 0),
-      earnCount: mockEarnTxs.length,
+      earnCount: mockPointTxs.length,
       redeemCount: mockRedeemTxs.length,
       recentActivity: summary.recentActivity || [],
       alerts: summary.alerts || [],
@@ -68,6 +73,9 @@ export async function getDashboardSummary(locationId?: string): Promise<Dashboar
     repeatCustomers: data.repeatCustomers || 0,
     totalTransactions: data.totalTransactions || 0,
     redemptionRate: data.redemptionRate || 0,
+    loyaltyMode: (data.loyaltyMode || 'points') as 'stamps' | 'points' | 'both',
+    stampsIssued: data.stampsIssued || 0,
+    stampIssueCount: data.stampIssueCount || 0,
     pointsIssued: data.pointsIssued || 0,
     pointsRedeemed: data.pointsRedeemed || 0,
     earnCount: data.earnCount || 0,
