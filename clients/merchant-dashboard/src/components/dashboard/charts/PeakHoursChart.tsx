@@ -1,13 +1,21 @@
 /**
- * Peak Hours area chart.
- * DATA: 100% real. Uses hourlyData computed from real transaction timestamps.
+ * Peak Hours chart — transaction density for the current 8-hour window.
+ *
+ * Three rotating windows (based on current time):
+ *   8 am – 4 pm   (active 08:00–15:59)
+ *   4 pm – 2 am   (active 16:00–01:59)
+ *   2 am – 8 am   (active 02:00–07:59)
+ *
+ * Receives a 24-element array (one entry per hour, 0-23) from DashboardHome.
+ * Slices to the current window, fills zeros for hours with no transactions,
+ * and renders a smooth spline area chart with vertical grid lines.
  */
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface HourBucket {
-  hour: string;
+  hour: number;   // 0–23
+  label: string;  // '9am', '3pm', etc.
   count: number;
-  sortKey: number;
 }
 
 interface TooltipProps {
@@ -41,8 +49,16 @@ function CustomTooltip({ active, payload, label }: TooltipProps) {
   );
 }
 
+/** Returns the ordered hour-numbers for the current time window */
+function getCurrentWindow(): number[] {
+  const h = new Date().getHours();
+  if (h >= 8 && h < 16) return [8, 9, 10, 11, 12, 13, 14, 15];
+  if (h >= 16 || h < 2)  return [16, 17, 18, 19, 20, 21, 22, 23, 0, 1];
+  return [2, 3, 4, 5, 6, 7];
+}
+
 interface PeakHoursChartProps {
-  data: HourBucket[];
+  data: HourBucket[]; // 24 elements, index = hour
 }
 
 export function PeakHoursChart({ data }: PeakHoursChartProps) {
@@ -55,15 +71,29 @@ export function PeakHoursChart({ data }: PeakHoursChartProps) {
     boxShadow: '0 4px 24px rgba(0,0,0,0.15)',
   };
 
-  if (data.length === 0) {
+  const windowHours = getCurrentWindow();
+
+  // Build the window data, ensuring zeros for hours with no activity
+  const windowData = windowHours.map(h => {
+    const bucket = data.find(d => d.hour === h);
+    const label = `${h % 12 || 12}${h < 12 ? 'am' : 'pm'}`;
+    return { label, count: bucket?.count ?? 0 };
+  });
+
+  const totalInWindow = windowData.reduce((s, d) => s + d.count, 0);
+  const peakBucket = windowData.reduce((max, d) => (d.count > max.count ? d : max), windowData[0]);
+
+  // Y-axis: always start at 0; max is at least 4 so ticks look reasonable
+  const maxCount = Math.max(...windowData.map(d => d.count), 4);
+  const yMax = Math.ceil(maxCount / 2) * 2; // round up to nearest even
+
+  if (totalInWindow === 0) {
     return (
       <div style={{ ...cardStyle, minHeight: '300px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <p style={{ color: '#334155', fontSize: '13px' }}>No activity data yet</p>
+        <p style={{ color: '#334155', fontSize: '13px' }}>No activity in this window yet</p>
       </div>
     );
   }
-
-  const peakBucket = data.reduce((max, d) => (d.count > max.count ? d : max), data[0]);
 
   return (
     <div style={cardStyle}>
@@ -82,43 +112,51 @@ export function PeakHoursChart({ data }: PeakHoursChartProps) {
           }}
         >
           <p style={{ color: '#c084fc', fontSize: '11px', fontWeight: 800, margin: 0 }}>
-            Peak: {peakBucket.hour}
+            Peak: {peakBucket.label}
           </p>
         </div>
       </div>
 
       <ResponsiveContainer width="100%" height={230}>
-        <AreaChart data={data}>
+        <AreaChart data={windowData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id="peakAreaGrad" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#9333ea" stopOpacity={0.55} />
-              <stop offset="100%" stopColor="#9333ea" stopOpacity={0.02} />
+              <stop offset="100%" stopColor="#9333ea" stopOpacity={0.03} />
             </linearGradient>
           </defs>
-          <CartesianGrid stroke="var(--border)" vertical={false} />
+          <CartesianGrid
+            stroke="rgba(100,116,139,0.15)"
+            vertical={true}
+            horizontal={true}
+          />
           <XAxis
-            dataKey="hour"
+            dataKey="label"
             tick={{ fill: '#475569', fontSize: 11, fontWeight: 600 }}
             axisLine={false}
             tickLine={false}
             dy={8}
           />
           <YAxis
+            domain={[0, yMax]}
+            tickCount={yMax + 1}
+            allowDecimals={false}
+            tickFormatter={(v: number) => (Number.isInteger(v) ? String(v) : '')}
             tick={{ fill: '#334155', fontSize: 10 }}
             axisLine={false}
             tickLine={false}
             width={24}
-            allowDecimals={false}
           />
           <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(168,85,247,0.3)', strokeWidth: 1 }} />
           <Area
-            type="monotone"
+            type="natural"
             dataKey="count"
             stroke="#a855f7"
             strokeWidth={2.5}
             fill="url(#peakAreaGrad)"
             dot={{ fill: '#a855f7', strokeWidth: 0, r: 4 }}
             activeDot={{ fill: '#d8b4fe', stroke: '#a855f7', strokeWidth: 2, r: 6 }}
+            isAnimationActive={false}
           />
         </AreaChart>
       </ResponsiveContainer>

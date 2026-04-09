@@ -71,7 +71,7 @@ export function EarnVsRedeemChart({ data, totalTransactions }: EarnVsRedeemChart
       <div style={{ marginBottom: '20px' }}>
         <h3 style={{ color: 'var(--text-primary)', fontSize: '14px', fontWeight: 700, margin: 0 }}>Points Issued vs Redeemed</h3>
         <p style={{ color: '#475569', fontSize: '11px', marginTop: '2px' }}>
-          Activity by hour · {totalTransactions} total transaction{totalTransactions !== 1 ? 's' : ''}
+          Today · {totalTransactions} transaction{totalTransactions !== 1 ? 's' : ''}
         </p>
       </div>
 

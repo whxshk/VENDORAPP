@@ -116,6 +116,7 @@ export interface DashboardSummary {
   pointsRedeemed: number;
   earnCount: number;      // non-stamp issue count
   redeemCount: number;
+  topRewards: { name: string; count: number }[];
   recentActivity: Transaction[];
   alerts: Alert[];
 }

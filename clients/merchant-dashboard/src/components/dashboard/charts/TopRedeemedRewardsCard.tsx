@@ -42,8 +42,8 @@ export function TopRedeemedRewardsCard({ rewards }: TopRedeemedRewardsCardProps)
       <h3 style={{ color: 'var(--text-primary)', fontSize: '14px', fontWeight: 700, margin: 0 }}>Top Redeemed Rewards</h3>
       <p style={{ color: '#475569', fontSize: '11px', marginTop: '2px' }}>
         {totalRedemptions > 0
-          ? `${totalRedemptions} redemption${totalRedemptions !== 1 ? 's' : ''} · from recent activity`
-          : 'From recent activity'}
+          ? `${totalRedemptions} redemption${totalRedemptions !== 1 ? 's' : ''} · all-time`
+          : 'All-time'}
       </p>
     </div>
   );

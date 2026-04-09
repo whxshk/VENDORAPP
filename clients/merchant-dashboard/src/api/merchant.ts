@@ -59,6 +59,12 @@ export async function getDashboardSummary(locationId?: string): Promise<Dashboar
       pointsRedeemed: mockRedeemTxs.reduce((s: number, tx: any) => s + Math.abs(Number(tx.points) || 0), 0),
       earnCount: mockPointTxs.length,
       redeemCount: mockRedeemTxs.length,
+      topRewards: (() => {
+        const m = new Map<string, number>();
+        (summary.recentActivity || []).filter((tx: any) => tx.type === 'redeem' && tx.rewardName)
+          .forEach((tx: any) => m.set(tx.rewardName, (m.get(tx.rewardName) || 0) + 1));
+        return Array.from(m.entries()).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 5);
+      })(),
       recentActivity: summary.recentActivity || [],
       alerts: summary.alerts || [],
     };
@@ -80,6 +86,7 @@ export async function getDashboardSummary(locationId?: string): Promise<Dashboar
     pointsRedeemed: data.pointsRedeemed || 0,
     earnCount: data.earnCount || 0,
     redeemCount: data.redeemCount || 0,
+    topRewards: data.topRewards || [],
     recentActivity: data.recentActivity || [],
     alerts: data.alerts || [],
   };

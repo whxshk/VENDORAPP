@@ -54,6 +54,7 @@ export class AnalyticsService {
           pointsRedeemed: 0,
           earnCount: 0,
           redeemCount: 0,
+          topRewards: [],
           recentActivity: [],
           alerts: [],
         };
@@ -80,20 +81,23 @@ export class AnalyticsService {
     const uniqueCustomerIds = [...new Set(todaysTransactions.map((tx) => tx.customerId))];
     const todaysCustomers = uniqueCustomerIds.length;
 
-    // Get repeat customers (customers with more than 1 transaction)
-    const customersWithTransactions = await this.transactionModel
-      .aggregate([
-        { $match: baseQuery },
-        {
-          $group: {
-            _id: '$customerId',
-            count: { $sum: 1 },
+    // Returning customers today = today's visitors who have a prior transaction
+    let repeatCustomers = 0;
+    if (uniqueCustomerIds.length > 0) {
+      const priorVisitors = await this.transactionModel
+        .aggregate([
+          {
+            $match: {
+              ...baseQuery,
+              customerId: { $in: uniqueCustomerIds },
+              createdAt: { $lt: today },
+            },
           },
-        },
-      ])
-      .exec();
-
-    const repeatCustomers = customersWithTransactions.filter((c) => c.count > 1).length;
+          { $group: { _id: '$customerId' } },
+        ])
+        .exec();
+      repeatCustomers = priorVisitors.length;
+    }
 
     // Get total transactions
     const totalTransactions = await this.transactionModel.countDocuments(baseQuery).exec();
@@ -145,7 +149,19 @@ export class AnalyticsService {
 
     const redemptionRate = issueCount > 0 ? Number((redeemCount / issueCount).toFixed(4)) : 0;
 
-    // Get recent activity (last 50 transactions) with staff info
+    // Top redeemed rewards — aggregate across all REDEEM transactions
+    const rewardsAgg = await this.transactionModel
+      .aggregate([
+        { $match: { ...baseQuery, type: TransactionType.REDEEM } },
+        { $group: { _id: '$metadata.rewardName', count: { $sum: 1 } } },
+        { $match: { _id: { $nin: [null, ''] } } },
+        { $sort: { count: -1 } },
+        { $limit: 5 },
+      ])
+      .exec();
+    const topRewards = rewardsAgg.map((r) => ({ name: r._id as string, count: r.count as number }));
+
+        // Get recent activity (last 50 transactions) with staff info
     const recentTransactions = await this.transactionModel
       .find(baseQuery)
       .sort({ createdAt: -1 })
@@ -249,6 +265,7 @@ export class AnalyticsService {
       pointsRedeemed,
       earnCount: pointIssueCount,
       redeemCount,
+      topRewards,
       recentActivity,
       alerts: [], // Empty alerts for now
     };

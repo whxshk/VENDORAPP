@@ -175,36 +175,32 @@ export default function DashboardHome() {
   const earnCount = toNumber(data.earnCount);
   const redeemCount = toNumber(data.redeemCount);
 
-  // For reward grouping and hourly charts, use recentActivity
-  const redeemTxs = recentActivity.filter(tx => tx.type === 'redeem');
+  // ── Today's activity (for charts that show today only) ───────────────────
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayActivity = recentActivity.filter(tx => new Date(tx.timestamp) >= todayStart);
 
-  // Hourly buckets for Peak Hours chart — total transactions per hour
-  const hourMap = new Map<number, number>();
-  recentActivity.forEach(tx => {
-    const h = new Date(tx.timestamp).getHours();
-    hourMap.set(h, (hourMap.get(h) || 0) + 1);
+  // 24-hour bucket array for Peak Hours (today only, every hour 0–23 present)
+  const hourCounts = new Array(24).fill(0) as number[];
+  todayActivity.forEach(tx => {
+    hourCounts[new Date(tx.timestamp).getHours()]++;
   });
-  const hourlyData = Array.from(hourMap.entries())
-    .sort(([a], [b]) => a - b)
-    .map(([h, count]) => ({
-      hour: `${h % 12 || 12}${h < 12 ? 'am' : 'pm'}`,
-      count,
-      sortKey: h,
-    }));
+  const allHoursData = hourCounts.map((count, h) => ({
+    hour: h,
+    label: `${h % 12 || 12}${h < 12 ? 'am' : 'pm'}`,
+    count,
+  }));
 
-  // Per-hour earn vs redeem — for grouped bar chart
+  // Today's earn vs redeem by hour — for grouped bar chart
   const hourEarnMap = new Map<number, number>();
   const hourRedeemMap = new Map<number, number>();
-  recentActivity.forEach(tx => {
+  todayActivity.forEach(tx => {
     const h = new Date(tx.timestamp).getHours();
-    if (tx.type === 'earn') {
-      hourEarnMap.set(h, (hourEarnMap.get(h) || 0) + 1);
-    } else if (tx.type === 'redeem') {
-      hourRedeemMap.set(h, (hourRedeemMap.get(h) || 0) + 1);
-    }
+    if (tx.type === 'earn') hourEarnMap.set(h, (hourEarnMap.get(h) || 0) + 1);
+    else if (tx.type === 'redeem') hourRedeemMap.set(h, (hourRedeemMap.get(h) || 0) + 1);
   });
-  const allHours = new Set([...hourEarnMap.keys(), ...hourRedeemMap.keys()]);
-  const earnRedeemData = Array.from(allHours)
+  const todayHours = new Set([...hourEarnMap.keys(), ...hourRedeemMap.keys()]);
+  const earnRedeemData = Array.from(todayHours)
     .sort((a, b) => a - b)
     .map(h => ({
       hour: `${h % 12 || 12}${h < 12 ? 'am' : 'pm'}`,
@@ -212,18 +208,11 @@ export default function DashboardHome() {
       redeem: hourRedeemMap.get(h) || 0,
     }));
 
-  // Customer breakdown — new vs returning
+  // Customer breakdown — newCustomers is today's visitors who haven't visited before
   const newCustomers = Math.max(0, todaysCustomers - repeatCustomers);
 
-  // Top redeemed rewards — grouped by rewardName from real redeem transactions
-  const rewardMap = new Map<string, number>();
-  redeemTxs.forEach(tx => {
-    const name = tx.rewardName;
-    if (name) rewardMap.set(name, (rewardMap.get(name) || 0) + 1);
-  });
-  const topRewards = Array.from(rewardMap.entries())
-    .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => b.count - a.count);
+  // Top redeemed rewards — from API aggregate (all-time, not just recent 50)
+  const topRewards = data.topRewards || [];
 
   const redemptionPct = Math.round(redemptionRate * 100);
 
@@ -366,9 +355,9 @@ export default function DashboardHome() {
       {/* Row 1: Earn vs Redeem (2/3) + Peak Hours (1/3) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2">
-          <EarnVsRedeemChart data={earnRedeemData} totalTransactions={recentActivity.length} />
+          <EarnVsRedeemChart data={earnRedeemData} totalTransactions={todayActivity.length} />
         </div>
-        <PeakHoursChart data={hourlyData} />
+        <PeakHoursChart data={allHoursData} />
       </div>
 
       {/* Row 2: Customer Breakdown + Top Redeemed Rewards */}
