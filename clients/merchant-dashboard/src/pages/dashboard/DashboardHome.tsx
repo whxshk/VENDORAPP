@@ -181,7 +181,7 @@ export default function DashboardHome() {
   const stampsIssued = toNumber(data.stampsIssued);
   const stampIssueCount = toNumber(data.stampIssueCount);
   const pointsIssued = toNumber(data.pointsIssued);
-  const pointsRedeemed = toNumber(data.pointsRedeemed);
+  const pointsRedeemed = Math.abs(toNumber(data.pointsRedeemed));
   const earnCount = toNumber(data.earnCount);
   const redeemCount = toNumber(data.redeemCount);
 
