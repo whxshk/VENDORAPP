@@ -194,7 +194,4 @@ export class LedgerService {
     };
   }
 
-  async deleteByTransactionId(tenantId: string, transactionId: string): Promise<void> {
-    await this.ledgerModel.deleteMany({ tenantId, transactionId }).exec();
-  }
 }

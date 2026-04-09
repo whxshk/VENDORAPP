@@ -9,6 +9,7 @@ import {
 import { Device, DeviceDocument } from '../database/schemas/Device.schema';
 import { ScanEvent, ScanEventDocument } from '../database/schemas/ScanEvent.schema';
 import { User, UserDocument } from '../database/schemas/User.schema';
+import { Reward, RewardDocument } from '../database/schemas/Reward.schema';
 import { getCustomerInfoById } from '../common/customer-data';
 
 @Injectable()
@@ -18,6 +19,7 @@ export class AnalyticsService {
     @InjectModel(Device.name) private deviceModel: Model<DeviceDocument>,
     @InjectModel(ScanEvent.name) private scanEventModel: Model<ScanEventDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(Reward.name) private rewardModel: Model<RewardDocument>,
   ) {}
 
   async getDashboard(tenantId: string, locationId?: string) {
@@ -141,9 +143,17 @@ export class AnalyticsService {
     const redeemCount: number = redeemRow.count ?? 0;
     const pointsRedeemed = Math.round(redeemRow.total ?? 0);
 
-    // Determine loyalty mode from what transactions have actually occurred
+    // Determine loyalty mode from what reward types the merchant has configured
+    // (not from transaction history, which can be polluted by accidental transactions)
+    const activeRewards = await this.rewardModel
+      .find({ tenantId, isActive: true })
+      .select('rewardType')
+      .exec();
+    const hasStampRewards = activeRewards.some((r: any) => r.rewardType === 'stamps');
+    const hasPointRewards = activeRewards.some((r: any) => !r.rewardType || r.rewardType === 'points');
     const loyaltyMode: 'stamps' | 'points' | 'both' =
-      stampIssueCount > 0 && pointIssueCount > 0 ? 'both'
+      hasStampRewards && hasPointRewards ? 'both'
+      : hasStampRewards ? 'stamps'
       : stampIssueCount > 0 ? 'stamps'
       : 'points';
 

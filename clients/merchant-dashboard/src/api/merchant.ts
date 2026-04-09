@@ -128,14 +128,6 @@ export async function listCustomers(params?: ListCustomersParams): Promise<{ dat
   return response.data;
 }
 
-export async function voidTransaction(id: string): Promise<{ voided: boolean; transactionId: string }> {
-  if (shouldUseMockData()) {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    return { voided: true, transactionId: id };
-  }
-  const response = await apiClient.delete(`/transactions/${id}`);
-  return response.data;
-}
 
 export async function adjustCustomerBalance(
   id: string,

@@ -778,15 +778,4 @@ export class TransactionsService {
       total,
     };
   }
-  async voidTransaction(tenantId: string, transactionId: string): Promise<{ voided: boolean; transactionId: string }> {
-    const tx = await this.transactionModel.findOne({ _id: transactionId, tenantId }).exec();
-    if (!tx) {
-      throw new NotFoundException(`Transaction ${transactionId} not found`);
-    }
-    // Remove the ledger entry (this reverses the balance automatically)
-    await this.ledgerService.deleteByTransactionId(tenantId, transactionId);
-    // Remove the transaction record
-    await this.transactionModel.deleteOne({ _id: transactionId, tenantId }).exec();
-    return { voided: true, transactionId };
-  }
 }

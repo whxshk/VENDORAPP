@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Param, Body, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiHeader } from '@nestjs/swagger';
 import { TransactionsService } from './transactions.service';
 import { IssuePointsDto } from './dto/issue-points.dto';
@@ -86,13 +86,4 @@ export class TransactionsController {
     );
   }
 
-  @Delete(':id')
-  @RequireScope('merchant:*')
-  @ApiOperation({ summary: 'Void a transaction (delete record and reverse balance)' })
-  async voidTransaction(
-    @Param('id') id: string,
-    @TenantContext() tenantId: string,
-  ) {
-    return this.transactionsService.voidTransaction(tenantId, id);
-  }
 }
