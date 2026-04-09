@@ -233,7 +233,26 @@ export default function MerchantDetail() {
               <>
                 <div className="space-y-3">
                   {rewards
-                    .sort((a, b) => (a.pointsCost || a.points_cost || 0) - (b.pointsCost || b.points_cost || 0))
+                    .slice()
+                    .sort((a, b) => {
+                      const getProgress = (r) => {
+                        const isStamp = (r.rewardType || "") === "stamps";
+                        if (isStamp) {
+                          const cost = r.stampsCost || r.stamps_cost || account?.stamps_required || 10;
+                          const count = (account?.reward_stamps && r.id) ? (account.reward_stamps[r.id] ?? 0) : 0;
+                          return cost > 0 ? count / cost : 0;
+                        } else {
+                          const cost = r.pointsCost || r.points_cost || 0;
+                          return cost > 0 ? (account?.points_balance || 0) / cost : 0;
+                        }
+                      };
+                      const pa = getProgress(a);
+                      const pb = getProgress(b);
+                      const ra = pa >= 1 ? 1 : 0;
+                      const rb = pb >= 1 ? 1 : 0;
+                      if (ra !== rb) return rb - ra; // redeemable first
+                      return pb - pa; // then descending progress
+                    })
                     .map((reward) => (
                       <RewardCard
                         key={reward.id}

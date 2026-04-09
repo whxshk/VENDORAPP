@@ -198,12 +198,13 @@ export default function PhoneInput() {
             Forgot your password?
           </button>
 
-          <button
+          <Button
             onClick={() => navigate(createPageUrl("Register"))}
-            className="w-full text-sm text-center text-orange-500 hover:text-orange-600 transition-colors font-medium mt-1"
+            variant="outline"
+            className="w-full h-12 border-2 border-orange-500 text-orange-500 hover:bg-orange-50 rounded-xl text-base font-semibold mt-1"
           >
-            Don't have an account? Create one
-          </button>
+            Create Account
+          </Button>
         </motion.div>
 
         <motion.p

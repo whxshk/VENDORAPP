@@ -13,8 +13,7 @@ const navItems = [
 ];
 
 export default function Layout({ children, currentPageName }) {
-  const hideNav = currentPageName === "MerchantDetail" ||
-    ["Splash", "PhoneInput", "OTPVerification", "Welcome", "Register", "ForgotPassword"].includes(currentPageName);
+  const hideNav = ["Splash", "PhoneInput", "OTPVerification", "Welcome", "Register", "ForgotPassword"].includes(currentPageName);
 
   return (
     <AuthRouter currentPageName={currentPageName}>
