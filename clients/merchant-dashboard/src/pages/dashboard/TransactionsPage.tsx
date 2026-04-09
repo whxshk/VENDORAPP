@@ -7,7 +7,7 @@ import {
   ColumnDef,
   flexRender,
 } from '@tanstack/react-table';
-import { useTransactions } from '../../hooks/useTransactions';
+import { useTransactions, useVoidTransaction } from '../../hooks/useTransactions';
 import { useAdjustBalance } from '../../hooks/useCustomers';
 import { useMerchantSettings } from '../../hooks/useMerchant';
 import { Card, CardContent } from '../../components/ui/card';
@@ -16,7 +16,7 @@ import { Input } from '../../components/ui/input';
 import { Select } from '../../components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '../../components/ui/dialog';
 import { PageHeader } from '../../components/dashboard/PageHeader';
-import { Download, X, MapPin, ChevronLeft, ChevronRight, ArrowUpRight, ArrowDownRight, Stamp, SlidersHorizontal, CheckCircle2, XCircle } from 'lucide-react';
+import { Download, X, MapPin, ChevronLeft, ChevronRight, ArrowUpRight, ArrowDownRight, Stamp, SlidersHorizontal, CheckCircle2, XCircle, Trash2, AlertTriangle } from 'lucide-react';
 import { formatDateTime, toNumber } from '../../lib/utils';
 import type { Transaction } from '../../api/types';
 
@@ -92,6 +92,12 @@ export default function TransactionsPage() {
   const [adjustError, setAdjustError] = useState<string | null>(null);
   const [isAdjustOpen, setIsAdjustOpen] = useState(false);
   const adjustBalanceMutation = useAdjustBalance();
+
+  // Void transaction state
+  const [voidTxId, setVoidTxId] = useState<string | null>(null);
+  const [voidTxDesc, setVoidTxDesc] = useState('');
+  const [isVoidOpen, setIsVoidOpen] = useState(false);
+  const voidMutation = useVoidTransaction();
 
   const openAdjust = (customerId: string, customerName: string) => {
     setAdjustCustomerId(customerId);
@@ -210,6 +216,27 @@ export default function TransactionsPage() {
         >
           <SlidersHorizontal className="h-3.5 w-3.5" />
           <span className="hidden sm:inline">Adjust</span>
+        </button>
+      ),
+    },
+    {
+      id: 'void',
+      header: '',
+      cell: ({ row }) => (
+        <button
+          onClick={() => {
+            const tx = row.original;
+            const pts = toNumber(tx.points);
+            const sign = pts > 0 ? '+' : '';
+            setVoidTxId(tx.id);
+            setVoidTxDesc(`${sign}${pts} pts — ${tx.customerName}`);
+            setIsVoidOpen(true);
+          }}
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all border border-transparent hover:border-red-500/20"
+          title="Void transaction"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">Void</span>
         </button>
       ),
     },
@@ -519,6 +546,66 @@ export default function TransactionsPage() {
             >
               {adjustBalanceMutation.isPending ? 'Applying…' : 'Apply Adjustment'}
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Void Transaction Dialog */}
+      <Dialog open={isVoidOpen} onOpenChange={(open) => { setIsVoidOpen(open); if (!open) voidMutation.reset(); }}>
+        <DialogContent className="max-w-sm w-full">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-red-400" />
+              Void Transaction
+            </DialogTitle>
+            <DialogClose onClose={() => setIsVoidOpen(false)} />
+          </DialogHeader>
+          <div className="mt-4 space-y-4">
+            <p className="text-sm text-slate-400">
+              This will permanently delete the transaction and reverse the balance adjustment for:
+            </p>
+            <div
+              className="rounded-lg px-4 py-3 text-sm font-mono text-white"
+              style={{ background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)' }}
+            >
+              {voidTxDesc}
+            </div>
+            <p className="text-xs text-slate-500">This action cannot be undone.</p>
+            {voidMutation.isError && (
+              <div className="flex items-center gap-2 text-xs text-red-400">
+                <XCircle className="h-3.5 w-3.5 shrink-0" />
+                {(voidMutation.error as any)?.response?.data?.message || 'Failed to void transaction'}
+              </div>
+            )}
+            {voidMutation.isSuccess && (
+              <div className="flex items-center gap-2 text-xs text-emerald-400">
+                <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />Transaction voided successfully.
+              </div>
+            )}
+            {!voidMutation.isSuccess && (
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setIsVoidOpen(false)}
+                  disabled={voidMutation.isPending}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1 bg-red-600 hover:bg-red-500 border-red-600"
+                  onClick={() => {
+                    if (!voidTxId) return;
+                    voidMutation.mutate(voidTxId, {
+                      onSuccess: () => setTimeout(() => setIsVoidOpen(false), 1200),
+                    });
+                  }}
+                  disabled={voidMutation.isPending}
+                >
+                  {voidMutation.isPending ? 'Voiding…' : 'Void Transaction'}
+                </Button>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
