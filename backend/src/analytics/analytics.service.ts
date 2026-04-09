@@ -254,6 +254,7 @@ export class AnalyticsService {
         amount: tx.type === TransactionType.ISSUE ? issueAmount : undefined,
         stampIssued: txMeta?.stampIssued === true,
         rewardType: txMeta?.rewardType as 'points' | 'stamps' | undefined,
+        isAdjustment: txMeta?.isAdjustment === true,
         rewardId: txMeta?.rewardId || undefined,
         rewardName: txMeta?.rewardName || undefined,
         staffId: staffInfo.id,

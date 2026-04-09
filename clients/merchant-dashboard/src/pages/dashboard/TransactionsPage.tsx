@@ -20,7 +20,17 @@ import { Download, X, MapPin, ChevronLeft, ChevronRight, ArrowUpRight, ArrowDown
 import { formatDateTime, toNumber } from '../../lib/utils';
 import type { Transaction } from '../../api/types';
 
-function TypePill({ type, stampIssued }: { type: string; stampIssued?: boolean }) {
+function TypePill({ type, stampIssued, isAdjustment }: { type: string; stampIssued?: boolean; isAdjustment?: boolean }) {
+  if (isAdjustment) {
+    return (
+      <span
+        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold"
+        style={{ background: 'rgba(148,163,184,0.12)', color: '#94a3b8' }}
+      >
+        <SlidersHorizontal className="h-3 w-3" />Adjust
+      </span>
+    );
+  }
   if (stampIssued) {
     return (
       <span
@@ -156,7 +166,8 @@ export default function TransactionsPage() {
       header: 'Type',
       cell: ({ row }) => {
         const isStamp = (row.original as any).stampIssued === true;
-        return <TypePill type={row.getValue('type')} stampIssued={isStamp} />;
+        const isAdj = (row.original as Transaction).isAdjustment === true;
+        return <TypePill type={row.getValue('type')} stampIssued={isStamp} isAdjustment={isAdj} />;
       },
     },
     {
@@ -166,7 +177,7 @@ export default function TransactionsPage() {
         const tx = row.original as Transaction;
         const points = toNumber(tx.points);
         const isStampIssue = tx.stampIssued === true;
-        const isStampRedeem = tx.type === 'redeem' && (
+        const isStampRedeem = !tx.isAdjustment && tx.type === 'redeem' && (
           tx.rewardType === 'stamps' || (!tx.rewardType && isStampMerchant)
         );
         const isStamp = isStampIssue || isStampRedeem;
