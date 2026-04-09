@@ -21,7 +21,7 @@ type Action = 'GIVE_POINTS' | 'ADD_STAMP' | 'REDEEM';
 export default function ScanPage() {
   const [qrPayload, setQrPayload] = useState('');
   const [qrScanned, setQrScanned] = useState(false);
-  const [action, setAction] = useState<Action>('GIVE_POINTS');
+  const [action, setAction] = useState<Action | null>(null);
   const [purchaseAmount, setPurchaseAmount] = useState('');
   const [rewardId, setRewardId] = useState('');
   const [stampRewardId, setStampRewardId] = useState('');
@@ -32,6 +32,18 @@ export default function ScanPage() {
 
   const { addError } = useErrorHandlerContext();
   const { data: rewards } = useRewards();
+
+  // Derive loyalty capabilities from active reward configuration
+  const hasPointRewards = (rewards ?? []).some((r: any) => !r.rewardType || r.rewardType === 'points');
+  const hasStampRewards = (rewards ?? []).some((r: any) => r.rewardType === 'stamps');
+
+  // Auto-select the first available action once rewards load
+  useEffect(() => {
+    if (action !== null || !rewards) return;
+    if (hasStampRewards) setAction('ADD_STAMP');
+    else setAction('GIVE_POINTS');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rewards]);
   const { data: merchant } = useMerchantSettings();
   const { data: recentTransactions, refetch: refetchTransactions } = useTransactions({ limit: 10 });
   const queryClient = useQueryClient();
@@ -134,6 +146,7 @@ export default function ScanPage() {
 
   const isDisabled =
     !qrPayload.trim() ||
+    !action ||
     scanMutation.isPending ||
     (action === 'GIVE_POINTS' && !purchaseAmount) ||
     (action === 'REDEEM' && !rewardId);
@@ -143,7 +156,9 @@ export default function ScanPage() {
       ? 'Confirm & Issue Stamp'
       : action === 'GIVE_POINTS'
       ? 'Confirm & Issue Points'
-      : 'Confirm Redemption';
+      : action === 'REDEEM'
+      ? 'Confirm Redemption'
+      : 'Processing…';
 
   return (
     <div className="space-y-8">
@@ -220,54 +235,62 @@ export default function ScanPage() {
             )}
           </div>
 
-          {/* Step 2: Action — always show all three */}
+          {/* Step 2: Action — shown based on merchant's active reward configuration */}
           <div>
             <label className="text-sm font-semibold text-white mb-2 block">
               Step 2 — What is this for?
             </label>
-            <div className="grid grid-cols-3 gap-2">
-              {/* Give Points */}
-              <button
-                onClick={() => { setAction('GIVE_POINTS'); setRewardId(''); setScanResult(null); }}
-                className={cn(
-                  'flex flex-col items-center gap-2 py-4 px-2 rounded-xl border-2 transition-all',
-                  action === 'GIVE_POINTS'
-                    ? 'bg-emerald-500/15 border-emerald-500/60 text-emerald-400'
-                    : 'bg-slate-800/40 border-white/10 text-slate-400 hover:border-white/20'
+            {!rewards ? (
+              <p className="text-xs text-slate-500 py-2">Loading reward configuration…</p>
+            ) : (
+              <div className={`grid gap-2 ${hasPointRewards && hasStampRewards ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                {/* Give Points — only if merchant has point rewards */}
+                {hasPointRewards && (
+                  <button
+                    onClick={() => { setAction('GIVE_POINTS'); setRewardId(''); setScanResult(null); }}
+                    className={cn(
+                      'flex flex-col items-center gap-2 py-4 px-2 rounded-xl border-2 transition-all',
+                      action === 'GIVE_POINTS'
+                        ? 'bg-emerald-500/15 border-emerald-500/60 text-emerald-400'
+                        : 'bg-slate-800/40 border-white/10 text-slate-400 hover:border-white/20'
+                    )}
+                  >
+                    <Coins className="h-5 w-5" />
+                    <span className="text-xs font-semibold text-center">Give Points</span>
+                  </button>
                 )}
-              >
-                <Coins className="h-5 w-5" />
-                <span className="text-xs font-semibold text-center">Give Points</span>
-              </button>
 
-              {/* Add Stamp */}
-              <button
-                onClick={() => { setAction('ADD_STAMP'); setRewardId(''); setStampRewardId(''); setScanResult(null); }}
-                className={cn(
-                  'flex flex-col items-center gap-2 py-4 px-2 rounded-xl border-2 transition-all',
-                  action === 'ADD_STAMP'
-                    ? 'bg-orange-500/15 border-orange-500/60 text-orange-400'
-                    : 'bg-slate-800/40 border-white/10 text-slate-400 hover:border-white/20'
+                {/* Add Stamp — only if merchant has stamp rewards */}
+                {hasStampRewards && (
+                  <button
+                    onClick={() => { setAction('ADD_STAMP'); setRewardId(''); setStampRewardId(''); setScanResult(null); }}
+                    className={cn(
+                      'flex flex-col items-center gap-2 py-4 px-2 rounded-xl border-2 transition-all',
+                      action === 'ADD_STAMP'
+                        ? 'bg-orange-500/15 border-orange-500/60 text-orange-400'
+                        : 'bg-slate-800/40 border-white/10 text-slate-400 hover:border-white/20'
+                    )}
+                  >
+                    <Stamp className="h-5 w-5" />
+                    <span className="text-xs font-semibold text-center">Add Stamp</span>
+                  </button>
                 )}
-              >
-                <Stamp className="h-5 w-5" />
-                <span className="text-xs font-semibold text-center">Add Stamp</span>
-              </button>
 
-              {/* Redeem Reward */}
-              <button
-                onClick={() => { setAction('REDEEM'); setPurchaseAmount(''); setScanResult(null); }}
-                className={cn(
-                  'flex flex-col items-center gap-2 py-4 px-2 rounded-xl border-2 transition-all',
-                  action === 'REDEEM'
-                    ? 'bg-purple-500/15 border-purple-500/60 text-purple-400'
-                    : 'bg-slate-800/40 border-white/10 text-slate-400 hover:border-white/20'
-                )}
-              >
-                <Gift className="h-5 w-5" />
-                <span className="text-xs font-semibold text-center">Redeem Reward</span>
-              </button>
-            </div>
+                {/* Redeem Reward — always shown */}
+                <button
+                  onClick={() => { setAction('REDEEM'); setPurchaseAmount(''); setScanResult(null); }}
+                  className={cn(
+                    'flex flex-col items-center gap-2 py-4 px-2 rounded-xl border-2 transition-all',
+                    action === 'REDEEM'
+                      ? 'bg-purple-500/15 border-purple-500/60 text-purple-400'
+                      : 'bg-slate-800/40 border-white/10 text-slate-400 hover:border-white/20'
+                  )}
+                >
+                  <Gift className="h-5 w-5" />
+                  <span className="text-xs font-semibold text-center">Redeem Reward</span>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Step 3a: Give Points — requires purchase amount */}

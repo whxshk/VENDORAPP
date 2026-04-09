@@ -273,12 +273,12 @@ export default function DashboardHome() {
       {/* ── 5 KPI Cards ─────────────────────────────────────────────────────── */}
       <div className={`grid gap-4 grid-cols-2 ${loyaltyMode === 'both' ? 'lg:grid-cols-3' : 'lg:grid-cols-5'}`}>
         <KPIStatCard
-          title="Total Scans"
-          value={totalTransactions}
-          description="All-time transactions"
-          icon={<Receipt className="h-5 w-5" />}
-          theme="slate"
-          trend={{ direction: 'up', label: 'All time' }}
+          title="Today's Customers"
+          value={todaysCustomers}
+          description="Unique visitors today"
+          icon={<Users className="h-5 w-5" />}
+          theme="amber"
+          trend={{ direction: todaysCustomers > 0 ? 'up' : 'flat', label: 'Today' }}
           index={0}
         />
         {showPoints && (
@@ -346,12 +346,12 @@ export default function DashboardHome() {
           index={loyaltyMode === 'both' ? 4 : 3}
         />
         <KPIStatCard
-          title="Today's Customers"
-          value={todaysCustomers}
-          description="Unique visitors today"
-          icon={<Users className="h-5 w-5" />}
-          theme="amber"
-          trend={{ direction: todaysCustomers > 0 ? 'up' : 'flat', label: 'Today' }}
+          title="Total Scans"
+          value={totalTransactions}
+          description="All-time transactions"
+          icon={<Receipt className="h-5 w-5" />}
+          theme="slate"
+          trend={{ direction: 'up', label: 'All time' }}
           index={loyaltyMode === 'both' ? 5 : 4}
         />
       </div>

@@ -269,6 +269,7 @@ export class AnalyticsService {
       todaysCustomers,
       repeatCustomers,
       totalTransactions,
+      redemptionRate,
       loyaltyMode,
       stampsIssued,
       stampIssueCount,
