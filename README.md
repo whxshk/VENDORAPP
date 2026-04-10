@@ -1,16 +1,16 @@
-# SharkBand — Waddy Phase 3
+# SharkBand — Waddy
 
-Universal loyalty platform with a NestJS backend and React/Vite customer app.
+Universal loyalty platform with a NestJS backend, a customer PWA, a merchant dashboard, and an admin dashboard.
 
 ## Project Structure
 
 ```
-Waddy-Phase-3/
+Waddy/
 ├── backend/                  # NestJS API (port 3001)
 └── clients/
     ├── customer-app/         # React/Vite customer PWA (port 5174)
     ├── merchant-dashboard/   # React/Vite merchant dashboard (port 5173)
-    └── vendor-app/           # Vendor app
+    └── admin-dashboard/      # React/Vite admin dashboard (in development)
 ```
 
 ## Quick Start
@@ -48,6 +48,14 @@ cd clients/merchant-dashboard
 npm install
 npm run dev
 # App runs at http://localhost:5173
+```
+
+### 4. Admin Dashboard
+
+```bash
+cd clients/admin-dashboard
+npm install
+npm run dev
 ```
 
 ## API Endpoints (Customer-Facing)
