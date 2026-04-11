@@ -26,17 +26,17 @@ export function AuthProvider({ children }) {
       return;
     }
     try {
-      const meRes = await authService.me();
-      const authUser = meRes.data;
+      const [meResult, profileResult] = await Promise.allSettled([
+        authService.me(),
+        customerService.getProfile(),
+      ]);
 
-      // Try the richer customer profile (includes name, customerId)
-      let profile = null;
-      try {
-        const profileRes = await customerService.getProfile();
-        profile = profileRes.data;
-      } catch {
-        // Endpoint may not exist; fall back to auth/me data
+      if (meResult.status !== "fulfilled") {
+        throw meResult.reason;
       }
+
+      const authUser = meResult.value.data;
+      const profile = profileResult.status === "fulfilled" ? profileResult.value.data : null;
 
       setUser({
         ...authUser,

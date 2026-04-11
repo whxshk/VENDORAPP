@@ -106,6 +106,26 @@ export class AuthService {
     return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
+  private async findActiveUserByEmail(email: string, tenantId?: string): Promise<UserDocument | null> {
+    const trimmedEmail = email.trim();
+    const normalizedEmail = trimmedEmail.toLowerCase();
+    const baseQuery: any = { isActive: true };
+    if (tenantId) {
+      baseQuery.tenantId = tenantId;
+    }
+
+    const exactCandidates = [...new Set([trimmedEmail, normalizedEmail])];
+    for (const candidate of exactCandidates) {
+      const user = await this.userModel.findOne({ ...baseQuery, email: candidate }).exec();
+      if (user) {
+        return user;
+      }
+    }
+
+    const emailPattern = new RegExp(`^${this.escapeRegex(trimmedEmail)}$`, 'i');
+    return this.userModel.findOne({ ...baseQuery, email: emailPattern }).exec();
+  }
+
   private async storeAndSendOtp(user: UserDocument, purpose: OtpPurpose): Promise<OtpChallengeResponse> {
     if (!this.emailService.isConfigured()) {
       throw new BadRequestException(
@@ -216,12 +236,7 @@ export class AuthService {
   async login(loginDto: LoginDto): Promise<AuthResponse> {
     const { email, password, tenantId } = loginDto;
 
-    const query: any = { email, isActive: true };
-    if (tenantId) {
-      query.tenantId = tenantId;
-    }
-
-    const user = await this.userModel.findOne(query).exec();
+    const user = await this.findActiveUserByEmail(email, tenantId);
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -239,12 +254,7 @@ export class AuthService {
   async requestLoginOtp(loginDto: LoginDto): Promise<OtpChallengeResponse> {
     const { email, password, tenantId } = loginDto;
 
-    const query: any = { email, isActive: true };
-    if (tenantId) {
-      query.tenantId = tenantId;
-    }
-
-    const user = await this.userModel.findOne(query).exec();
+    const user = await this.findActiveUserByEmail(email, tenantId);
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -301,15 +311,7 @@ export class AuthService {
   }
 
   async verifyOtp(verifyOtpDto: VerifyOtpDto): Promise<AuthResponse> {
-    const query: any = {
-      email: verifyOtpDto.email,
-      isActive: true,
-    };
-    if (verifyOtpDto.tenantId) {
-      query.tenantId = verifyOtpDto.tenantId;
-    }
-
-    const user = await this.userModel.findOne(query).exec();
+    const user = await this.findActiveUserByEmail(verifyOtpDto.email, verifyOtpDto.tenantId);
     if (!user) {
       throw new BadRequestException('Verification code is invalid or has expired.');
     }
@@ -361,9 +363,7 @@ export class AuthService {
   }
 
   async forgotPassword(email: string): Promise<{ message: string }> {
-    const normalizedEmail = email.trim().toLowerCase();
-    const emailPattern = new RegExp(`^${this.escapeRegex(normalizedEmail)}$`, 'i');
-    const user = await this.userModel.findOne({ email: emailPattern, isActive: true }).exec();
+    const user = await this.findActiveUserByEmail(email);
     if (!user) {
       throw new NotFoundException('No account found with this email address.');
     }

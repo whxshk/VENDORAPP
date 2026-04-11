@@ -6,23 +6,52 @@ import { useAuthStore } from '../store/authStore';
 import { Input } from '../components/ui/input';
 import { PlacesAutocompleteInput } from '../components/ui/PlacesAutocompleteInput';
 import { Button } from '../components/ui/button';
-import { isDemoMode } from '../config/env';
+import { getAdminDashboardUrl, getAdminOtpEmail, isDemoMode } from '../config/env';
 import { cn } from '../lib/utils';
 
 type Mode = 'login' | 'signup';
+const ADMIN_ROLES = new Set(['PLATFORM_ADMIN', 'SUPER_ADMIN']);
+const ADMIN_TOKEN_KEY = 'admin_access_token';
+const PLATFORM_TENANT_ID = 'sharkband-platform';
+const ADMIN_OTP_EMAIL = getAdminOtpEmail().trim().toLowerCase();
+
+function isPlatformAdmin(user: any): boolean {
+  return (
+    user?.roles?.some((role: string) => ADMIN_ROLES.has(role)) ||
+    user?.scopes?.some((scope: string) => scope === 'platform:*' || scope.startsWith('admin:'))
+  );
+}
+
+function isAdminOtpUser(email: string): boolean {
+  return email.trim().toLowerCase() === ADMIN_OTP_EMAIL;
+}
+
+function redirectToAdminDashboard(accessToken: string, clearMerchantSession: () => void) {
+  const adminDashboardUrl = getAdminDashboardUrl();
+  if (!adminDashboardUrl) {
+    throw new Error('Admin dashboard URL is not configured. Set VITE_ADMIN_DASHBOARD_URL before using admin login.');
+  }
+
+  clearMerchantSession();
+  localStorage.setItem(ADMIN_TOKEN_KEY, accessToken);
+  window.location.assign(adminDashboardUrl);
+}
 
 export default function Login() {
   const [mode, setMode] = useState<Mode>('login');
   const [mounted, setMounted] = useState(false);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { setTokens, setUser } = useAuthStore();
+  const { setTokens, setUser, logout } = useAuthStore();
 
   // Login state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
+  const [adminOtpCode, setAdminOtpCode] = useState('');
+  const [adminOtpStep, setAdminOtpStep] = useState(false);
+  const [adminOtpMessage, setAdminOtpMessage] = useState('');
 
   // Signup state
   const [signupBusinessName, setSignupBusinessName] = useState('');
@@ -43,7 +72,16 @@ export default function Login() {
   const switchMode = (next: Mode) => {
     setLoginError('');
     setSignupError('');
+    setAdminOtpCode('');
+    setAdminOtpStep(false);
+    setAdminOtpMessage('');
     setMode(next);
+  };
+
+  const resetAdminOtpFlow = () => {
+    setAdminOtpCode('');
+    setAdminOtpStep(false);
+    setAdminOtpMessage('');
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -60,6 +98,22 @@ export default function Login() {
         setUser({ email: email || 'admin@demo.com', id: 'demo-user' });
         navigate('/dashboard');
       } else {
+        if (isAdminOtpUser(email)) {
+          try {
+            const otpResponse = await authApi.requestLoginOtp(email, password, PLATFORM_TENANT_ID);
+            resetAdminOtpFlow();
+            setAdminOtpStep(true);
+            setAdminOtpMessage(otpResponse.data?.message || `We sent a 6-digit verification code to ${email}.`);
+            return;
+          } catch (err: any) {
+            const status = err?.response?.status;
+            const shouldFallBackToMerchantLogin = status === 400 || status === 401;
+            if (!shouldFallBackToMerchantLogin) {
+              throw err;
+            }
+          }
+        }
+
         const response = await authApi.login(email, password);
         const { access_token, refresh_token } = response.data;
 
@@ -67,7 +121,15 @@ export default function Login() {
 
         const userResponse = await authApi.me();
         const userData = userResponse.data;
+
+        if (isPlatformAdmin(userData)) {
+          setLoginError('This account must complete OTP verification before accessing the admin dashboard.');
+          logout();
+          return;
+        }
+
         setUser(userData);
+        resetAdminOtpFlow();
 
         const isMerchantAdmin = userData.roles?.includes('MERCHANT_ADMIN');
         if (isMerchantAdmin && userData.hasCompletedOnboarding === false) {
@@ -89,6 +151,47 @@ export default function Login() {
           ?? err?.response?.data?.message
           ?? err?.message
           ?? 'Login failed. Please try again.';
+        setLoginError(msg);
+      }
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  const handleAdminOtpVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError('');
+    setLoginLoading(true);
+
+    try {
+      const response = await authApi.verifyOtp(email, adminOtpCode, 'login', PLATFORM_TENANT_ID);
+      const { access_token } = response.data;
+
+      const userResponse = await authApi.meWithToken(access_token);
+      const userData = userResponse.data;
+
+      if (!isPlatformAdmin(userData) || !isAdminOtpUser(userData.email || email)) {
+        localStorage.removeItem(ADMIN_TOKEN_KEY);
+        throw new Error('Access denied. This OTP flow is restricted to the approved platform admin account.');
+      }
+
+      redirectToAdminDashboard(access_token, logout);
+    } catch (err: any) {
+      localStorage.removeItem(ADMIN_TOKEN_KEY);
+      const status = err?.response?.status;
+      if (!err?.response) {
+        setLoginError(err?.message || 'Could not verify the code. Please try again.');
+      } else if (status === 400 || status === 401) {
+        setLoginError(
+          err?.response?.data?.error?.message
+            ?? err?.response?.data?.message
+            ?? 'The verification code is invalid or expired.',
+        );
+      } else {
+        const msg = err?.response?.data?.error?.message
+          ?? err?.response?.data?.message
+          ?? err?.message
+          ?? 'Could not verify the code. Please try again.';
         setLoginError(msg);
       }
     } finally {
@@ -225,7 +328,7 @@ export default function Login() {
         >
           {/* ── LOGIN FORM ── */}
           {mode === 'login' && (
-            <form onSubmit={handleLogin} className="space-y-6">
+            <form onSubmit={adminOtpStep ? handleAdminOtpVerify : handleLogin} className="space-y-6">
               <div>
                 <label className="block text-sm font-semibold text-white mb-2" htmlFor="email">
                   Email
@@ -237,24 +340,46 @@ export default function Login() {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   placeholder="Enter your email"
-                  disabled={loginLoading}
+                  disabled={loginLoading || adminOtpStep}
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-white mb-2" htmlFor="password">
-                  Password
-                </label>
-                <Input
-                  type="password"
-                  id="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  placeholder="Enter your password"
-                  disabled={loginLoading}
-                />
-              </div>
+              {!adminOtpStep ? (
+                <div>
+                  <label className="block text-sm font-semibold text-white mb-2" htmlFor="password">
+                    Password
+                  </label>
+                  <Input
+                    type="password"
+                    id="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    placeholder="Enter your password"
+                    disabled={loginLoading}
+                  />
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/30 text-blue-100 text-sm animate-fade-in-down">
+                    {adminOtpMessage || `We sent a 6-digit verification code to ${email}.`}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-white mb-2" htmlFor="admin-otp">
+                      Verification Code
+                    </label>
+                    <Input
+                      type="text"
+                      id="admin-otp"
+                      value={adminOtpCode}
+                      onChange={(e) => setAdminOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      required
+                      placeholder="Enter 6-digit code"
+                      disabled={loginLoading}
+                    />
+                  </div>
+                </div>
+              )}
 
               {loginError && (
                 <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm animate-fade-in-down">
@@ -268,8 +393,21 @@ export default function Login() {
               )}
 
               <Button type="submit" className="w-full" size="lg" disabled={loginLoading}>
-                {loginLoading ? 'Logging in...' : 'Login'}
+                {loginLoading ? (adminOtpStep ? 'Verifying code...' : 'Logging in...') : (adminOtpStep ? 'Verify Code' : 'Login')}
               </Button>
+
+              {adminOtpStep && (
+                <p className="text-center text-sm text-slate-400">
+                  <button
+                    type="button"
+                    onClick={resetAdminOtpFlow}
+                    className="text-slate-400 hover:text-slate-300 transition-colors"
+                    disabled={loginLoading}
+                  >
+                    Back to password login
+                  </button>
+                </p>
+              )}
 
               <p className="text-center text-sm text-slate-400">
                 <button

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { scanApply, type ScanApplyParams } from '../../api/merchant';
@@ -42,11 +42,18 @@ export default function ScanPage() {
     if (action !== null || !rewards) return;
     if (hasStampRewards) setAction('ADD_STAMP');
     else setAction('GIVE_POINTS');
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rewards]);
+  }, [action, rewards, hasStampRewards]);
   const { data: merchant } = useMerchantSettings();
   const { data: recentTransactions, refetch: refetchTransactions } = useTransactions({ limit: 10 });
   const queryClient = useQueryClient();
+
+  const closeCamera = useCallback(() => {
+    if (scannerRef.current) {
+      scannerRef.current.stop().catch(() => {});
+      scannerRef.current = null;
+    }
+    setCameraOpen(false);
+  }, []);
 
   // Camera: start scanner when modal opens
   useEffect(() => {
@@ -74,16 +81,7 @@ export default function ScanPage() {
         scannerRef.current = null;
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cameraOpen]);
-
-  const closeCamera = () => {
-    if (scannerRef.current) {
-      scannerRef.current.stop().catch(() => {});
-      scannerRef.current = null;
-    }
-    setCameraOpen(false);
-  };
+  }, [cameraOpen, closeCamera]);
 
   const scanMutation = useMutation({
     mutationFn: (params: ScanApplyParams) => scanApply(params),

@@ -1,9 +1,8 @@
 import axios from 'axios';
-
-const API_BASE = 'https://sharkband-api.azurewebsites.net/api/v1';
+import { config } from '../config/env';
 
 export const apiClient = axios.create({
-  baseURL: API_BASE,
+  baseURL: config.apiBaseUrl,
   headers: { 'Content-Type': 'application/json' },
 });
 

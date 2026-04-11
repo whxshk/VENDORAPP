@@ -126,9 +126,15 @@ export const apiClient = new ApiClient().instance;
 export const authApi = {
   login: (email: string, password: string, tenantId?: string) =>
     apiClient.post('/auth/login', { email, password, tenantId }),
+  requestLoginOtp: (email: string, password: string, tenantId?: string) =>
+    apiClient.post('/auth/request-login-otp', { email, password, tenantId }),
+  verifyOtp: (email: string, code: string, purpose: 'login' | 'signup', tenantId?: string) =>
+    apiClient.post('/auth/verify-otp', { email, code, purpose, tenantId }),
   refresh: (refreshToken: string) =>
     apiClient.post('/auth/refresh', { refresh_token: refreshToken }),
   me: () => apiClient.get('/auth/me'),
+  meWithToken: (token: string) =>
+    axios.get(`${API_BASE_URL}/auth/me`, { headers: { Authorization: `Bearer ${token}` } }),
   forgotPassword: (email: string) =>
     apiClient.post('/auth/forgot-password', { email }),
   resetPassword: (token: string, password: string) =>

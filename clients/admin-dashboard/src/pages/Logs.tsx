@@ -1,7 +1,7 @@
-import { useState, useMemo } from 'react';
-import { Download, FileText, AlertTriangle, Info, Bug, RefreshCw } from 'lucide-react';
-import { MOCK_LOGS } from '../api/mock/data';
-import { Button, Badge, Card, SectionHeader } from '../components/ui';
+import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Download, AlertTriangle, Info, Bug, RefreshCw } from 'lucide-react';
+import { listLogs, type SystemLogEntry } from '../api/logs';
+import { Button, Card, SectionHeader, Spinner } from '../components/ui';
 import { format } from 'date-fns';
 
 type LogLevel = 'info' | 'warn' | 'error';
@@ -13,29 +13,38 @@ const LEVEL_STYLES: Record<LogLevel, { color: string; bg: string; icon: typeof I
 };
 
 export default function Logs() {
+  const [logs, setLogs] = useState<SystemLogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
   const [levelFilter, setLevelFilter] = useState<LogLevel | 'all'>('all');
   const [sourceFilter, setSourceFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const sources = useMemo(() => ['all', ...Array.from(new Set(MOCK_LOGS.map((l) => l.source))).sort()], []);
+  useEffect(() => {
+    setLoading(true);
+    listLogs()
+      .then((result) => setLogs(result))
+      .finally(() => setLoading(false));
+  }, [refreshKey]);
+
+  const sources = useMemo(() => ['all', ...Array.from(new Set(logs.map((l) => l.source))).sort()], [logs]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    return MOCK_LOGS.filter((l) => {
+    return logs.filter((l) => {
       const matchLevel = levelFilter === 'all' || l.level === levelFilter;
       const matchSource = sourceFilter === 'all' || l.source === sourceFilter;
       const matchSearch = !q || l.message.toLowerCase().includes(q) || l.source.toLowerCase().includes(q);
       return matchLevel && matchSource && matchSearch;
     });
-  }, [levelFilter, sourceFilter, search, refreshKey]);
+  }, [levelFilter, sourceFilter, search, logs]);
 
   const counts = useMemo(() => ({
-    info: MOCK_LOGS.filter((l) => l.level === 'info').length,
-    warn: MOCK_LOGS.filter((l) => l.level === 'warn').length,
-    error: MOCK_LOGS.filter((l) => l.level === 'error').length,
-  }), []);
+    info: logs.filter((l) => l.level === 'info').length,
+    warn: logs.filter((l) => l.level === 'warn').length,
+    error: logs.filter((l) => l.level === 'error').length,
+  }), [logs]);
 
   const exportCSV = () => {
     const rows = [
@@ -126,59 +135,64 @@ export default function Logs() {
 
       {/* Log table */}
       <Card>
-        <div className="overflow-x-auto">
-          <table className="w-full font-mono text-xs">
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                {['Timestamp', 'Level', 'Source', 'Message'].map((h) => (
-                  <th key={h} className="text-left py-3 px-5 text-[10px] font-bold text-slate-600 uppercase tracking-wider font-sans">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((log) => {
-                const s = LEVEL_STYLES[log.level as LogLevel];
-                const Icon = s.icon;
-                const isExpanded = expandedId === log.id;
-                return (
-                  <>
-                    <tr
-                      key={log.id}
-                      style={{ borderBottom: '1px solid var(--border)' }}
-                      className={`transition-colors cursor-pointer ${log.level === 'error' ? 'bg-red-500/3 hover:bg-red-500/8' : 'hover:bg-white/3'}`}
-                      onClick={() => setExpandedId(isExpanded ? null : log.id)}
-                    >
-                      <td className="py-2.5 px-5 text-slate-600 whitespace-nowrap">
-                        {format(new Date(log.timestamp), 'MMM d HH:mm:ss')}
-                      </td>
-                      <td className="py-2.5 px-5">
-                        <span
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold font-sans"
-                          style={{ background: s.bg, color: s.color }}
+        {loading ? (
+          <div className="flex justify-center py-16"><Spinner /></div>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full font-mono text-xs">
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                    {['Timestamp', 'Level', 'Source', 'Message'].map((h) => (
+                      <th key={h} className="text-left py-3 px-5 text-[10px] font-bold text-slate-600 uppercase tracking-wider font-sans">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((log) => {
+                    const s = LEVEL_STYLES[log.level as LogLevel];
+                    const Icon = s.icon;
+                    const isExpanded = expandedId === log.id;
+                    return (
+                      <Fragment key={log.id}>
+                        <tr
+                          style={{ borderBottom: '1px solid var(--border)' }}
+                          className={`transition-colors cursor-pointer ${log.level === 'error' ? 'bg-red-500/3 hover:bg-red-500/8' : 'hover:bg-white/3'}`}
+                          onClick={() => setExpandedId(isExpanded ? null : log.id)}
                         >
-                          <Icon className="h-2.5 w-2.5" />
-                          {s.label}
-                        </span>
-                      </td>
-                      <td className="py-2.5 px-5 text-admin-400 whitespace-nowrap">{log.source}</td>
-                      <td className="py-2.5 px-5 text-slate-300">{log.message}</td>
-                    </tr>
-                    {isExpanded && log.metadata && (
-                      <tr key={`${log.id}-meta`} style={{ borderBottom: '1px solid var(--border)' }}>
-                        <td colSpan={4} className="px-5 py-3 bg-red-500/5">
-                          <pre className="text-[10px] text-red-400 whitespace-pre-wrap">{JSON.stringify(log.metadata, null, 2)}</pre>
-                        </td>
-                      </tr>
-                    )}
-                  </>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-        <div className="px-5 py-3 text-xs text-slate-600 font-sans" style={{ borderTop: '1px solid var(--border)' }}>
-          Showing {filtered.length} of {MOCK_LOGS.length} log entries · Click a row to expand metadata
-        </div>
+                          <td className="py-2.5 px-5 text-slate-600 whitespace-nowrap">
+                            {format(new Date(log.timestamp), 'MMM d HH:mm:ss')}
+                          </td>
+                          <td className="py-2.5 px-5">
+                            <span
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold font-sans"
+                              style={{ background: s.bg, color: s.color }}
+                            >
+                              <Icon className="h-2.5 w-2.5" />
+                              {s.label}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-5 text-admin-400 whitespace-nowrap">{log.source}</td>
+                          <td className="py-2.5 px-5 text-slate-300">{log.message}</td>
+                        </tr>
+                        {isExpanded && log.metadata && (
+                          <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                            <td colSpan={4} className="px-5 py-3 bg-red-500/5">
+                              <pre className="text-[10px] text-red-400 whitespace-pre-wrap">{JSON.stringify(log.metadata, null, 2)}</pre>
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="px-5 py-3 text-xs text-slate-600 font-sans" style={{ borderTop: '1px solid var(--border)' }}>
+              Showing {filtered.length} of {logs.length} log entries · Click a row to expand metadata
+            </div>
+          </>
+        )}
       </Card>
     </div>
   );

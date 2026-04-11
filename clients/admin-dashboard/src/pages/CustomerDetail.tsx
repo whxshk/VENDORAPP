@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowUpRight, ArrowDownRight, Wrench, SlidersHorizontal, XCircle, CheckCircle2 } from 'lucide-react';
-import { getCustomer, getCustomerAuditTrail, adjustCustomerPoints, type Customer } from '../api/customers';
-import { Button, Badge, Card, Modal, SectionHeader, StatCard, Spinner, Input } from '../components/ui';
-import { useAuthStore } from '../store/authStore';
+import { ArrowLeft, ArrowUpRight, ArrowDownRight, Wrench, CheckCircle2 } from 'lucide-react';
+import { getCustomer, getCustomerAuditTrail, type CustomerDetail as Customer } from '../api/customers';
+import { Button, Badge, Card, SectionHeader, StatCard, Spinner } from '../components/ui';
 import { format } from 'date-fns';
 
 type AuditTx = Awaited<ReturnType<typeof getCustomerAuditTrail>>[number];
@@ -17,7 +16,6 @@ const TX_TYPE_STYLES = {
 export default function CustomerDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuthStore();
 
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [trail, setTrail] = useState<AuditTx[]>([]);
@@ -26,12 +24,6 @@ export default function CustomerDetail() {
   const [filterMerchant, setFilterMerchant] = useState('all');
   const [filterType, setFilterType] = useState('all');
 
-  const [showAdjust, setShowAdjust] = useState(false);
-  const [adjustDelta, setAdjustDelta] = useState('');
-  const [adjustReason, setAdjustReason] = useState('');
-  const [adjustLoading, setAdjustLoading] = useState(false);
-  const [adjustResult, setAdjustResult] = useState<{ ok: boolean; msg: string } | null>(null);
-
   useEffect(() => {
     if (!id) return;
     Promise.all([getCustomer(id), getCustomerAuditTrail(id)])
@@ -39,24 +31,6 @@ export default function CustomerDetail() {
       .catch(() => navigate('/customers'))
       .finally(() => setLoading(false));
   }, [id]);
-
-  const handleAdjust = async () => {
-    const delta = parseFloat(adjustDelta);
-    if (isNaN(delta) || delta === 0) { setAdjustResult({ ok: false, msg: 'Enter a non-zero number' }); return; }
-    if (!adjustReason.trim()) { setAdjustResult({ ok: false, msg: 'Reason is required' }); return; }
-    setAdjustLoading(true);
-    try {
-      const { newBalance } = await adjustCustomerPoints(id!, delta, adjustReason, user?.userId || 'admin');
-      setAdjustResult({ ok: true, msg: `Done. New balance: ${newBalance.toLocaleString()} pts` });
-      setCustomer((c) => c ? { ...c, totalPoints: newBalance } : c);
-      setAdjustDelta('');
-      setAdjustReason('');
-    } catch {
-      setAdjustResult({ ok: false, msg: 'Adjustment failed.' });
-    } finally {
-      setAdjustLoading(false);
-    }
-  };
 
   if (loading) return <div className="flex justify-center pt-20"><Spinner size="lg" /></div>;
   if (!customer) return null;
@@ -81,14 +55,9 @@ export default function CustomerDetail() {
           title={customer.name}
           subtitle={customer.email}
           action={
-            <div className="flex items-center gap-2">
-              <Badge variant={customer.isActive ? 'green' : 'red'}>
-                {customer.isActive ? 'Active' : 'Suspended'}
-              </Badge>
-              <Button variant="secondary" size="sm" onClick={() => { setShowAdjust(true); setAdjustResult(null); }}>
-                <SlidersHorizontal className="h-3.5 w-3.5" /> Adjust Points
-              </Button>
-            </div>
+            <Badge variant={customer.isActive ? 'green' : 'red'}>
+              {customer.isActive ? 'Active' : 'Suspended'}
+            </Badge>
           }
         />
       </div>
@@ -196,53 +165,6 @@ export default function CustomerDetail() {
         </div>
       </Card>
 
-      {/* Adjust Modal */}
-      <Modal open={showAdjust} onClose={() => setShowAdjust(false)} title={`Adjust Points — ${customer.name}`}>
-        <div className="space-y-4">
-          <div className="p-3 rounded-xl text-center" style={{ background: 'var(--bg-surface-3)' }}>
-            <p className="text-xs text-slate-500">Current Balance</p>
-            <p className="text-2xl font-black text-emerald-400">{customer.totalPoints.toLocaleString()} pts</p>
-          </div>
-
-          <Input
-            label="Adjustment Amount"
-            type="number"
-            placeholder="+50 or -100"
-            value={adjustDelta}
-            onChange={(e) => { setAdjustDelta(e.target.value); setAdjustResult(null); }}
-          />
-          <Input
-            label="Reason (required)"
-            placeholder="e.g. Compensation for missed scan"
-            value={adjustReason}
-            onChange={(e) => { setAdjustReason(e.target.value); setAdjustResult(null); }}
-          />
-
-          {adjustResult && (
-            <div className={`flex items-center gap-2 text-xs p-3 rounded-lg ${adjustResult.ok ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
-              {adjustResult.ok ? <CheckCircle2 className="h-4 w-4 flex-shrink-0" /> : <XCircle className="h-4 w-4 flex-shrink-0" />}
-              {adjustResult.msg}
-            </div>
-          )}
-
-          <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 text-xs text-amber-400">
-            ⚠️ Manual adjustments are permanently logged. Ensure the reason is accurate.
-          </div>
-
-          <div className="flex gap-3">
-            <Button variant="outline" onClick={() => setShowAdjust(false)} className="flex-1">Cancel</Button>
-            <Button
-              variant="primary"
-              loading={adjustLoading}
-              disabled={!adjustDelta || !adjustReason.trim()}
-              onClick={handleAdjust}
-              className="flex-1"
-            >
-              Apply Adjustment
-            </Button>
-          </div>
-        </div>
-      </Modal>
     </div>
   );
 }

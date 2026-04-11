@@ -4,11 +4,13 @@ import { getEnvironment, isDemoMode } from '../../config/env';
 import { Badge } from '../ui/badge';
 import { ChevronDown, LogOut, User } from 'lucide-react';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export function TopBar() {
   const { logout, user } = useAuthStore();
   const { data: merchant, isLoading: merchantLoading } = useMerchantSettings();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const navigate = useNavigate();
   const environment = getEnvironment();
   const demoMode = isDemoMode();
   const envBadgeVariant =
@@ -33,23 +35,31 @@ export function TopBar() {
         </div>
 
         {/* Right: User menu */}
-        <div className="relative">
+        <div className="relative flex items-center gap-2">
           <button
-            onClick={() => setShowUserMenu(!showUserMenu)}
-            className="flex items-center gap-3 px-4 py-2 rounded-xl hover:bg-white/5 transition-all duration-200 border border-transparent hover:border-white/10"
+            type="button"
+            onClick={() => navigate('/dashboard/settings')}
+            className="h-10 w-10 rounded-full overflow-hidden bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/30 shrink-0 hover:scale-[1.02] transition-transform cursor-pointer border border-white/10"
+            title={merchantLoading ? 'Merchant details' : `Open ${merchant?.name || 'merchant'} details`}
+            aria-label="Open merchant details"
           >
-            <div className="h-10 w-10 rounded-full overflow-hidden bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/30 shrink-0">
-              {merchant?.logoUrl ? (
-                <img src={merchant.logoUrl} alt="logo" className="h-full w-full object-cover" />
-              ) : (
-                <User className="h-5 w-5 text-white" />
-              )}
-            </div>
-            <span className="text-sm font-semibold hidden sm:block" style={{ color: 'var(--text-primary)' }}>
-              {user?.email || 'User'}
-            </span>
-            <ChevronDown className="h-4 w-4 text-slate-400 hidden sm:block" />
+            {merchant?.logoUrl ? (
+              <img src={merchant.logoUrl} alt="logo" className="h-full w-full object-cover" />
+            ) : (
+              <User className="h-5 w-5 text-white" />
+            )}
           </button>
+
+          <div className="relative">
+            <button
+              onClick={() => setShowUserMenu(!showUserMenu)}
+              className="flex items-center gap-3 px-4 py-2 rounded-xl hover:bg-white/5 transition-all duration-200 border border-transparent hover:border-white/10"
+            >
+              <span className="text-sm font-semibold hidden sm:block" style={{ color: 'var(--text-primary)' }}>
+                {user?.email || 'User'}
+              </span>
+              <ChevronDown className="h-4 w-4 text-slate-400 hidden sm:block" />
+            </button>
 
           {/* Dropdown menu */}
           {showUserMenu && (
@@ -77,6 +87,7 @@ export function TopBar() {
               </div>
             </>
           )}
+          </div>
         </div>
       </div>
     </header>

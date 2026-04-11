@@ -1,51 +1,12 @@
 import React from "react";
 import { useAuth } from "./AuthProvider";
-import { useNavigate, useLocation } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 
 const publicRoutes = ["Splash", "PhoneInput", "OTPVerification", "Welcome", "Register", "ForgotPassword", "ResetPassword"];
 
 export function AuthRouter({ children, currentPageName }) {
   const { user, loading, hasCompletedOnboarding } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  React.useEffect(() => {
-    if (loading) return;
-
-    const isPublicRoute = publicRoutes.includes(currentPageName);
-
-    // Not authenticated
-    if (!user) {
-      // First time user - start with splash
-      if (!sessionStorage.getItem("hasSeenSplash")) {
-        sessionStorage.setItem("hasSeenSplash", "true");
-        if (currentPageName !== "Splash" && !isPublicRoute) {
-          navigate(createPageUrl("Splash"), { replace: true });
-        }
-      } else {
-        // Returning user who logged out - skip splash
-        if (!isPublicRoute) {
-          navigate(createPageUrl("PhoneInput"), { replace: true });
-        }
-      }
-      return;
-    }
-
-    // Authenticated but hasn't completed onboarding
-    if (user && !hasCompletedOnboarding) {
-      if (currentPageName !== "Welcome") {
-        navigate(createPageUrl("Welcome"), { replace: true });
-      }
-      return;
-    }
-
-    // Authenticated and onboarded - redirect away from auth screens
-    // Exception: allow ForgotPassword even when logged in (user may want to change password)
-    if (user && hasCompletedOnboarding && isPublicRoute && currentPageName !== "ForgotPassword") {
-      navigate(createPageUrl("Home"), { replace: true });
-    }
-  }, [user, loading, hasCompletedOnboarding, currentPageName, navigate]);
 
   if (loading) {
     return (
@@ -62,6 +23,29 @@ export function AuthRouter({ children, currentPageName }) {
         </div>
       </div>
     );
+  }
+
+  const isPublicRoute = publicRoutes.includes(currentPageName);
+
+  if (!user) {
+    const hasSeenSplash = sessionStorage.getItem("hasSeenSplash");
+
+    if (!hasSeenSplash) {
+      sessionStorage.setItem("hasSeenSplash", "true");
+      if (currentPageName !== "Splash" && !isPublicRoute) {
+        return <Navigate to={createPageUrl("Splash")} replace />;
+      }
+    } else if (!isPublicRoute) {
+      return <Navigate to={createPageUrl("PhoneInput")} replace />;
+    }
+  }
+
+  if (user && !hasCompletedOnboarding && currentPageName !== "Welcome") {
+    return <Navigate to={createPageUrl("Welcome")} replace />;
+  }
+
+  if (user && hasCompletedOnboarding && isPublicRoute && currentPageName !== "ForgotPassword") {
+    return <Navigate to={createPageUrl("Home")} replace />;
   }
 
   return children;

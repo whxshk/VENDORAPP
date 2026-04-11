@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, MoreVertical, Power, Eye, Store, Building2, MapPin } from 'lucide-react';
-import { listMerchants, createMerchant, updateMerchantStatus, type Merchant } from '../api/merchants';
+import { Search, MoreVertical, Power, Eye, Store, MapPin } from 'lucide-react';
+import { listMerchants, updateMerchantStatus, type Merchant } from '../api/merchants';
 import {
-  Button, Badge, Card, Input, Modal, SectionHeader, Spinner, EmptyState,
+  Button, Badge, Card, SectionHeader, Spinner, EmptyState,
 } from '../components/ui';
 
 const CATEGORY_ICONS: Record<string, string> = {
@@ -19,64 +19,6 @@ function StatusBadge({ isActive }: { isActive: boolean }) {
   );
 }
 
-function CreateMerchantModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
-  const [form, setForm] = useState({ name: '', email: '', category: 'cafe', address: '', phone: '' });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.name || !form.email) { setError('Name and email are required.'); return; }
-    setLoading(true);
-    try {
-      await createMerchant(form);
-      onCreated();
-      onClose();
-    } catch (err: any) {
-      setError(err?.message || 'Failed to create merchant');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const field = (key: keyof typeof form, label: string, type = 'text', options?: string[]) => (
-    <div className="space-y-1.5">
-      <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">{label}</label>
-      {options ? (
-        <select
-          value={form[key]}
-          onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
-          className="w-full h-10 px-3 rounded-lg text-sm bg-white/5 border border-white/10 text-slate-200 focus:outline-none focus:ring-2 focus:ring-admin-500/50"
-        >
-          {options.map((o) => <option key={o} value={o}>{o.charAt(0).toUpperCase() + o.slice(1)}</option>)}
-        </select>
-      ) : (
-        <input
-          type={type}
-          value={form[key]}
-          onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
-          className="w-full h-10 px-3 rounded-lg text-sm bg-white/5 border border-white/10 text-slate-200 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-admin-500/50"
-        />
-      )}
-    </div>
-  );
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {field('name', 'Business Name')}
-      {field('email', 'Contact Email', 'email')}
-      {field('category', 'Category', 'text', ['cafe', 'restaurant', 'fitness', 'beauty', 'retail', 'grocery', 'entertainment', 'other'])}
-      {field('address', 'Address')}
-      {field('phone', 'Phone')}
-      {error && <p className="text-xs text-red-400">{error}</p>}
-      <div className="flex gap-3 pt-2">
-        <Button type="button" variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
-        <Button type="submit" variant="primary" loading={loading} className="flex-1">Create Merchant</Button>
-      </div>
-    </form>
-  );
-}
-
 export default function Merchants() {
   const navigate = useNavigate();
   const [merchants, setMerchants] = useState<Merchant[]>([]);
@@ -85,7 +27,6 @@ export default function Merchants() {
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'suspended'>('all');
   const [filterCategory, setFilterCategory] = useState('all');
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const [showCreate, setShowCreate] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const load = async () => {
@@ -120,11 +61,6 @@ export default function Merchants() {
       <SectionHeader
         title="Merchant Management"
         subtitle={`${merchants.length} merchants on the platform`}
-        action={
-          <Button variant="primary" size="sm" onClick={() => setShowCreate(true)}>
-            <Plus className="h-4 w-4" /> New Merchant
-          </Button>
-        }
       />
 
       {/* Filters */}
@@ -186,16 +122,21 @@ export default function Merchants() {
                     className="hover:bg-white/3 transition-colors"
                   >
                     <td className="py-3.5 px-5">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/merchants/${m.id}`)}
+                        className="flex items-center gap-3 text-left rounded-xl hover:bg-white/5 p-1 -m-1 transition-colors cursor-pointer"
+                        title={`Open ${m.name}`}
+                      >
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg flex-shrink-0 overflow-hidden"
                           style={{ background: 'var(--bg-surface-3)' }}>
-                          {m.logoUrl ? <img src={m.logoUrl} alt="" className="w-full h-full object-cover rounded-xl" /> : (CATEGORY_ICONS[m.category] || '🏪')}
+                          {m.logoUrl ? <img src={m.logoUrl} alt={`${m.name} logo`} className="w-full h-full object-cover rounded-xl" /> : (CATEGORY_ICONS[m.category] || '🏪')}
                         </div>
                         <div>
                           <p className="text-sm font-semibold text-slate-200">{m.name}</p>
                           <p className="text-xs text-slate-600">{m.id}</p>
                         </div>
-                      </div>
+                      </button>
                     </td>
                     <td className="py-3.5 px-5">
                       <span className="text-xs text-slate-400 capitalize">{m.category}</span>
@@ -242,13 +183,6 @@ export default function Merchants() {
                                 <Eye className="h-3.5 w-3.5 text-slate-500" /> View Details
                               </button>
                               <button
-                                onClick={() => { navigate(`/merchants/${m.id}?edit=1`); setOpenMenuId(null); }}
-                                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs text-slate-300 hover:bg-white/5 transition-colors"
-                              >
-                                <Building2 className="h-3.5 w-3.5 text-slate-500" /> Edit Settings
-                              </button>
-                              <div style={{ borderTop: '1px solid var(--border)' }} />
-                              <button
                                 onClick={() => handleToggleStatus(m)}
                                 className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs transition-colors ${m.isActive ? 'text-red-400 hover:bg-red-500/10' : 'text-emerald-400 hover:bg-emerald-500/10'}`}
                               >
@@ -274,9 +208,6 @@ export default function Merchants() {
         )}
       </Card>
 
-      <Modal open={showCreate} onClose={() => setShowCreate(false)} title="Onboard New Merchant">
-        <CreateMerchantModal onClose={() => setShowCreate(false)} onCreated={load} />
-      </Modal>
     </div>
   );
 }
