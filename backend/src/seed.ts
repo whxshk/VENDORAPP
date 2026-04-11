@@ -96,6 +96,19 @@ async function main() {
   }).save();
   console.log('✅ Created merchant user: merchant@test.com / password');
 
+  // Platform admin user (required for the admin dashboard)
+  await new UserModel({
+    _id: uuidv4(),
+    tenantId: PLATFORM_TENANT_ID,
+    name: 'Platform Admin',
+    email: 'admin@sharkband.io',
+    hashedPassword,
+    roles: ['PLATFORM_ADMIN'],
+    scopes: ['platform:*'],
+    isActive: true,
+  }).save();
+  console.log('✅ Created platform admin user: admin@sharkband.io / password');
+
   // Customer doc
   const customer = await new CustomerModel({
     _id: TEST_CUSTOMER_ID,
@@ -204,6 +217,7 @@ async function main() {
 
   console.log('\n✅ Seed complete!');
   console.log('\n🔑 Test Credentials:');
+  console.log('  Platform admin:  admin@sharkband.io / password');
   console.log('  Points merchant: merchant@test.com / password');
   console.log('  Stamps merchant: stamps@test.com / password');
   console.log('  Customer:        customer@test.com / password');
