@@ -43,6 +43,13 @@ export default function ScanPage() {
     if (hasStampRewards) setAction('ADD_STAMP');
     else setAction('GIVE_POINTS');
   }, [action, rewards, hasStampRewards]);
+
+  // Auto-select stamp reward when there is exactly one option
+  useEffect(() => {
+    if (!rewards || stampRewardId) return;
+    const stampRewards = rewards.filter((r: any) => r.rewardType === 'stamps');
+    if (stampRewards.length === 1) setStampRewardId(stampRewards[0].id);
+  }, [rewards, stampRewardId]);
   const { data: merchant } = useMerchantSettings();
   const { data: recentTransactions, refetch: refetchTransactions } = useTransactions({ limit: 10 });
   const queryClient = useQueryClient();
@@ -147,6 +154,7 @@ export default function ScanPage() {
     !action ||
     scanMutation.isPending ||
     (action === 'GIVE_POINTS' && !purchaseAmount) ||
+    (action === 'ADD_STAMP' && !stampRewardId) ||
     (action === 'REDEEM' && !rewardId);
 
   const confirmLabel =
