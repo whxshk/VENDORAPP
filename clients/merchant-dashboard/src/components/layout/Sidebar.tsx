@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { cn } from '../../lib/utils';
+import { useAuthStore } from '../../store/authStore';
+import { hasMerchantFullAccess } from '../../lib/permissions';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -27,8 +29,14 @@ const navigation = [
 
 export function Sidebar() {
   const location = useLocation();
+  const { user } = useAuthStore();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const canManageMerchant = hasMerchantFullAccess(user);
+  const visibleNavigation = navigation.filter((item) => {
+    if (item.href === '/dashboard/scan') return true;
+    return canManageMerchant;
+  });
 
   useEffect(() => {
     setMounted(true);
@@ -104,7 +112,7 @@ export function Sidebar() {
 
           {/* Navigation with staggered animations */}
           <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-            {navigation.map((item, index) => {
+            {visibleNavigation.map((item, index) => {
               const isActive = location.pathname === item.href;
               const Icon = item.icon;
 

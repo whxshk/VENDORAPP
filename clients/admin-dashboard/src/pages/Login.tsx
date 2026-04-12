@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ShieldCheck, Eye, EyeOff } from 'lucide-react';
-import { login, getMe, isAdminUser } from '../api/auth';
+import { requestLoginOtp, verifyOtp, getMe, isAdminUser } from '../api/auth';
 import { useAuthStore } from '../store/authStore';
 import { Button, Input } from '../components/ui';
 
@@ -12,6 +12,9 @@ export default function Login() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [otpStep, setOtpStep] = useState(false);
+  const [otpMessage, setOtpMessage] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -24,7 +27,29 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const { access_token } = await login(email, password);
+      const response = await requestLoginOtp(email, password);
+      setOtpStep(true);
+      setOtpCode('');
+      setOtpMessage(response?.message || `We sent a 6-digit verification code to ${email}.`);
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error?.message ||
+        err?.message ||
+        'Could not send the verification code.';
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      const { access_token } = await verifyOtp(email, otpCode);
       localStorage.setItem('admin_access_token', access_token);
 
       const me = await getMe();
@@ -41,7 +66,7 @@ export default function Login() {
         err?.response?.data?.message ||
         err?.response?.data?.error?.message ||
         err?.message ||
-        'Login failed. Please check your credentials.';
+        'Verification failed. Please check the code and try again.';
       setError(msg);
     } finally {
       setLoading(false);
@@ -80,7 +105,7 @@ export default function Login() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={otpStep ? handleVerifyOtp : handleSubmit} className="space-y-4">
             <Input
               label="Email address"
               type="email"
@@ -89,28 +114,46 @@ export default function Login() {
               placeholder="admin@sharkband.io"
               autoFocus
               required
+              disabled={otpStep || loading}
             />
 
-            <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">Password</label>
-              <div className="relative">
-                <input
-                  type={showPw ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  required
-                  className="w-full h-10 px-3 pr-10 rounded-lg text-sm bg-white/5 border border-white/10 text-slate-200 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-admin-500/50 focus:border-admin-500/40 transition-all duration-200"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPw((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
-                >
-                  {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
+            {!otpStep ? (
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">Password</label>
+                <div className="relative">
+                  <input
+                    type={showPw ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    required
+                    className="w-full h-10 px-3 pr-10 rounded-lg text-sm bg-white/5 border border-white/10 text-slate-200 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-admin-500/50 focus:border-admin-500/40 transition-all duration-200"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPw((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                  >
+                    {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/30 text-xs text-blue-200">
+                  {otpMessage}
+                </div>
+                <Input
+                  label="Verification code"
+                  type="text"
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="Enter 6-digit code"
+                  required
+                  disabled={loading}
+                />
+              </div>
+            )}
 
             {error && (
               <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-xs text-red-400">
@@ -119,8 +162,50 @@ export default function Login() {
             )}
 
             <Button type="submit" variant="primary" size="lg" loading={loading} className="w-full mt-2">
-              {loading ? 'Verifying…' : 'Sign In to Admin'}
+              {loading ? (otpStep ? 'Verifying code…' : 'Sending code…') : (otpStep ? 'Verify Code' : 'Send Verification Code')}
             </Button>
+
+            {otpStep && (
+              <div className="flex items-center justify-center gap-4 text-xs text-slate-500">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOtpStep(false);
+                    setOtpCode('');
+                    setOtpMessage('');
+                    setError('');
+                  }}
+                  className="hover:text-slate-300 transition-colors"
+                  disabled={loading}
+                >
+                  Back
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError('');
+                    setLoading(true);
+                    requestLoginOtp(email, password)
+                      .then((response) => {
+                        setOtpMessage(response?.message || `We sent a 6-digit verification code to ${email}.`);
+                      })
+                      .catch((err: any) => {
+                        const msg =
+                          err?.response?.data?.message ||
+                          err?.response?.data?.error?.message ||
+                          err?.message ||
+                          'Could not resend the verification code.';
+                        setError(msg);
+                      })
+                      .finally(() => setLoading(false));
+                  }}
+                  className="text-admin-400 hover:text-admin-300 transition-colors"
+                  disabled={loading}
+                >
+                  Resend code
+                </button>
+              </div>
+            )}
           </form>
         </div>
 

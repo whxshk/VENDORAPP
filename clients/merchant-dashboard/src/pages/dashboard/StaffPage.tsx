@@ -204,7 +204,7 @@ export default function StaffPage() {
       <div className="space-y-8">
         <div>
           <h1 className="text-3xl font-bold text-white mb-2">Staff</h1>
-          <p className="text-slate-400">Manage your team members</p>
+          <p className="text-slate-400">Manage your team members and create cashier credentials for scan-only access.</p>
         </div>
         <div className="text-center py-12 text-slate-400">Loading staff...</div>
       </div>
@@ -215,7 +215,7 @@ export default function StaffPage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold text-white mb-2">Staff</h1>
-        <p className="text-slate-400">Manage your team members</p>
+        <p className="text-slate-400">Manage your team members and create cashier credentials for scan-only access.</p>
       </div>
 
       <Card>
@@ -381,12 +381,15 @@ export default function StaffPage() {
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create Staff Member</DialogTitle>
+            <DialogTitle>Create Staff Credentials</DialogTitle>
             <DialogClose onClose={() => {
               setIsCreateOpen(false);
               resetCreate();
             }} />
           </DialogHeader>
+          <p className="text-sm text-slate-400 mt-4">
+            Cashier accounts can sign in and only access scanning, point issuance, and reward redemption.
+          </p>
           <form onSubmit={handleSubmitCreate(onSubmitCreate)} className="space-y-5 mt-6">
             <div>
               <label className="text-sm font-semibold text-white mb-2 block">

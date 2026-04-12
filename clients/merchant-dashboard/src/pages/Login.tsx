@@ -8,9 +8,11 @@ import { PlacesAutocompleteInput } from '../components/ui/PlacesAutocompleteInpu
 import { Button } from '../components/ui/button';
 import { getAdminDashboardUrl, getAdminOtpEmail, isDemoMode } from '../config/env';
 import { cn } from '../lib/utils';
+import { isScanOnlyUser } from '../lib/permissions';
 
 type Mode = 'login' | 'signup';
 const ADMIN_ROLES = new Set(['PLATFORM_ADMIN', 'SUPER_ADMIN']);
+const MERCHANT_ROLES = new Set(['MERCHANT_ADMIN', 'MANAGER', 'CASHIER', 'STAFF', 'JANITOR']);
 const ADMIN_TOKEN_KEY = 'admin_access_token';
 const PLATFORM_TENANT_ID = 'sharkband-platform';
 const ADMIN_OTP_EMAIL = getAdminOtpEmail().trim().toLowerCase();
@@ -24,6 +26,13 @@ function isPlatformAdmin(user: any): boolean {
 
 function isAdminOtpUser(email: string): boolean {
   return email.trim().toLowerCase() === ADMIN_OTP_EMAIL;
+}
+
+function isMerchantDashboardUser(user: any): boolean {
+  return (
+    user?.roles?.some((role: string) => MERCHANT_ROLES.has(role)) ||
+    user?.scopes?.some((scope: string) => scope === 'merchant:*' || scope === 'scan:*' || scope.startsWith('merchant:') || scope.startsWith('scan:'))
+  );
 }
 
 function redirectToAdminDashboard(accessToken: string, clearMerchantSession: () => void) {
@@ -84,6 +93,20 @@ export default function Login() {
     setAdminOtpMessage('');
   };
 
+  const requestOtpCode = async () => {
+    const otpResponse = await authApi.requestLoginOtp(
+      email,
+      password,
+      isAdminOtpUser(email) ? PLATFORM_TENANT_ID : undefined,
+    );
+
+    resetAdminOtpFlow();
+    setAdminOtpStep(true);
+    setAdminOtpMessage(
+      otpResponse.data?.message || `We sent a 6-digit verification code to ${email}.`,
+    );
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
@@ -98,45 +121,8 @@ export default function Login() {
         setUser({ email: email || 'admin@demo.com', id: 'demo-user' });
         navigate('/dashboard');
       } else {
-        if (isAdminOtpUser(email)) {
-          try {
-            const otpResponse = await authApi.requestLoginOtp(email, password, PLATFORM_TENANT_ID);
-            resetAdminOtpFlow();
-            setAdminOtpStep(true);
-            setAdminOtpMessage(otpResponse.data?.message || `We sent a 6-digit verification code to ${email}.`);
-            return;
-          } catch (err: any) {
-            const status = err?.response?.status;
-            const shouldFallBackToMerchantLogin = status === 400 || status === 401;
-            if (!shouldFallBackToMerchantLogin) {
-              throw err;
-            }
-          }
-        }
-
-        const response = await authApi.login(email, password);
-        const { access_token, refresh_token } = response.data;
-
-        setTokens(access_token, refresh_token);
-
-        const userResponse = await authApi.me();
-        const userData = userResponse.data;
-
-        if (isPlatformAdmin(userData)) {
-          setLoginError('This account must complete OTP verification before accessing the admin dashboard.');
-          logout();
-          return;
-        }
-
-        setUser(userData);
-        resetAdminOtpFlow();
-
-        const isMerchantAdmin = userData.roles?.includes('MERCHANT_ADMIN');
-        if (isMerchantAdmin && userData.hasCompletedOnboarding === false) {
-          navigate('/onboarding');
-        } else {
-          navigate('/dashboard');
-        }
+        await requestOtpCode();
+        return;
       }
     } catch (err: any) {
       const status = err?.response?.status;
@@ -164,20 +150,47 @@ export default function Login() {
     setLoginLoading(true);
 
     try {
-      const response = await authApi.verifyOtp(email, adminOtpCode, 'login', PLATFORM_TENANT_ID);
-      const { access_token } = response.data;
+      const response = await authApi.verifyOtp(
+        email,
+        adminOtpCode,
+        'login',
+        isAdminOtpUser(email) ? PLATFORM_TENANT_ID : undefined,
+      );
+      const { access_token, refresh_token } = response.data;
 
       const userResponse = await authApi.meWithToken(access_token);
       const userData = userResponse.data;
 
-      if (!isPlatformAdmin(userData) || !isAdminOtpUser(userData.email || email)) {
-        localStorage.removeItem(ADMIN_TOKEN_KEY);
-        throw new Error('Access denied. This OTP flow is restricted to the approved platform admin account.');
+      if (isPlatformAdmin(userData)) {
+        if (!isAdminOtpUser(userData.email || email)) {
+          localStorage.removeItem(ADMIN_TOKEN_KEY);
+          throw new Error('Access denied. This OTP flow is restricted to the approved platform admin account.');
+        }
+
+        redirectToAdminDashboard(access_token, logout);
+        return;
       }
 
-      redirectToAdminDashboard(access_token, logout);
+      if (!isMerchantDashboardUser(userData)) {
+        logout();
+        throw new Error('This account is not allowed to access the merchant dashboard.');
+      }
+
+      setTokens(access_token, refresh_token);
+      setUser(userData);
+      resetAdminOtpFlow();
+
+      const isMerchantAdmin = userData.roles?.includes('MERCHANT_ADMIN');
+      if (isScanOnlyUser(userData)) {
+        navigate('/dashboard/scan');
+      } else if (isMerchantAdmin && userData.hasCompletedOnboarding === false) {
+        navigate('/onboarding');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err: any) {
       localStorage.removeItem(ADMIN_TOKEN_KEY);
+      logout();
       const status = err?.response?.status;
       if (!err?.response) {
         setLoginError(err?.message || 'Could not verify the code. Please try again.');
@@ -393,11 +406,11 @@ export default function Login() {
               )}
 
               <Button type="submit" className="w-full" size="lg" disabled={loginLoading}>
-                {loginLoading ? (adminOtpStep ? 'Verifying code...' : 'Logging in...') : (adminOtpStep ? 'Verify Code' : 'Login')}
+                {loginLoading ? (adminOtpStep ? 'Verifying code...' : 'Sending code...') : (adminOtpStep ? 'Verify Code' : 'Send Verification Code')}
               </Button>
 
               {adminOtpStep && (
-                <p className="text-center text-sm text-slate-400">
+                <div className="flex items-center justify-center gap-4 text-sm text-slate-400">
                   <button
                     type="button"
                     onClick={resetAdminOtpFlow}
@@ -406,7 +419,27 @@ export default function Login() {
                   >
                     Back to password login
                   </button>
-                </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLoginError('');
+                      setLoginLoading(true);
+                      requestOtpCode()
+                        .catch((err: any) => {
+                          const msg = err?.response?.data?.error?.message
+                            ?? err?.response?.data?.message
+                            ?? err?.message
+                            ?? 'Could not resend the code. Please try again.';
+                          setLoginError(msg);
+                        })
+                        .finally(() => setLoginLoading(false));
+                    }}
+                    className="text-blue-400 hover:text-blue-300 transition-colors"
+                    disabled={loginLoading}
+                  >
+                    Resend code
+                  </button>
+                </div>
               )}
 
               <p className="text-center text-sm text-slate-400">

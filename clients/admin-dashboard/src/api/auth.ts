@@ -18,8 +18,24 @@ export function isAdminUser(user: AuthUser): boolean {
   );
 }
 
-export async function login(email: string, password: string): Promise<{ access_token: string }> {
-  const res = await apiClient.post('/auth/login', { email, password });
+const PLATFORM_TENANT_ID = 'sharkband-platform';
+
+export async function requestLoginOtp(email: string, password: string) {
+  const res = await apiClient.post('/auth/request-login-otp', {
+    email,
+    password,
+    tenantId: PLATFORM_TENANT_ID,
+  });
+  return res.data;
+}
+
+export async function verifyOtp(email: string, code: string): Promise<{ access_token: string }> {
+  const res = await apiClient.post('/auth/verify-otp', {
+    email,
+    code,
+    purpose: 'login',
+    tenantId: PLATFORM_TENANT_ID,
+  });
   return res.data;
 }
 

@@ -17,6 +17,7 @@ import InviteWelcomePage from './pages/InviteWelcome';
 import OnboardingPage from './pages/Onboarding';
 import ForgotPasswordPage from './pages/ForgotPassword';
 import ResetPasswordPage from './pages/ResetPassword';
+import { hasMerchantFullAccess, isScanOnlyUser } from './lib/permissions';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, accessToken } = useAuthStore();
@@ -26,6 +27,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuthStore();
   if (user) {
+    if (isScanOnlyUser(user)) {
+      return <Navigate to="/dashboard/scan" replace />;
+    }
     const isMerchantAdmin = user.roles?.includes('MERCHANT_ADMIN');
     if (isMerchantAdmin && user.hasCompletedOnboarding === false) {
       return <Navigate to="/onboarding" replace />;
@@ -33,6 +37,19 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/dashboard" replace />;
   }
   return <>{children}</>;
+}
+
+function MerchantAdminRoute({ children }: { children: React.ReactNode }) {
+  const { user } = useAuthStore();
+  return hasMerchantFullAccess(user) ? <>{children}</> : <Navigate to="/dashboard/scan" replace />;
+}
+
+function DashboardIndexRoute() {
+  const { user } = useAuthStore();
+  if (isScanOnlyUser(user)) {
+    return <Navigate to="/dashboard/scan" replace />;
+  }
+  return <DashboardHome />;
 }
 
 function App() {
@@ -77,14 +94,14 @@ function App() {
             </ProtectedRoute>
           }
         >
-          <Route index element={<DashboardHome />} />
+          <Route index element={<DashboardIndexRoute />} />
           <Route path="scan" element={<ScanPage />} />
-          <Route path="customers" element={<CustomersPage />} />
-          <Route path="transactions" element={<TransactionsPage />} />
-          <Route path="rewards" element={<RewardsPage />} />
-          <Route path="staff" element={<StaffPage />} />
-          <Route path="settings" element={<SettingsPage />} />
-          <Route path="pilot-report" element={<PilotReportPage />} />
+          <Route path="customers" element={<MerchantAdminRoute><CustomersPage /></MerchantAdminRoute>} />
+          <Route path="transactions" element={<MerchantAdminRoute><TransactionsPage /></MerchantAdminRoute>} />
+          <Route path="rewards" element={<MerchantAdminRoute><RewardsPage /></MerchantAdminRoute>} />
+          <Route path="staff" element={<MerchantAdminRoute><StaffPage /></MerchantAdminRoute>} />
+          <Route path="settings" element={<MerchantAdminRoute><SettingsPage /></MerchantAdminRoute>} />
+          <Route path="pilot-report" element={<MerchantAdminRoute><PilotReportPage /></MerchantAdminRoute>} />
         </Route>
         <Route path="/" element={<Navigate to="/login" replace />} />
       </Routes>
