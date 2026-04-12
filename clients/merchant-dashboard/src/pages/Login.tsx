@@ -120,9 +120,33 @@ export default function Login() {
         setTokens(mockToken, 'demo-refresh-token');
         setUser({ email: email || 'admin@demo.com', id: 'demo-user' });
         navigate('/dashboard');
-      } else {
+      } else if (isAdminOtpUser(email)) {
         await requestOtpCode();
         return;
+      } else {
+        const response = await authApi.login(email, password);
+        const { access_token, refresh_token } = response.data;
+
+        setTokens(access_token, refresh_token);
+
+        const userResponse = await authApi.me();
+        const userData = userResponse.data;
+
+        if (!isMerchantDashboardUser(userData)) {
+          logout();
+          throw new Error('This account is not allowed to access the merchant dashboard.');
+        }
+
+        setUser(userData);
+
+        const isMerchantAdmin = userData.roles?.includes('MERCHANT_ADMIN');
+        if (isScanOnlyUser(userData)) {
+          navigate('/dashboard/scan');
+        } else if (isMerchantAdmin && userData.hasCompletedOnboarding === false) {
+          navigate('/onboarding');
+        } else {
+          navigate('/dashboard');
+        }
       }
     } catch (err: any) {
       const status = err?.response?.status;
@@ -406,7 +430,7 @@ export default function Login() {
               )}
 
               <Button type="submit" className="w-full" size="lg" disabled={loginLoading}>
-                {loginLoading ? (adminOtpStep ? 'Verifying code...' : 'Sending code...') : (adminOtpStep ? 'Verify Code' : 'Send Verification Code')}
+                {loginLoading ? (adminOtpStep ? 'Verifying code...' : 'Logging in...') : (adminOtpStep ? 'Verify Code' : 'Login')}
               </Button>
 
               {adminOtpStep && (
