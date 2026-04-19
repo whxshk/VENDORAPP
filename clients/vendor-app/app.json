@@ -1,30 +1,48 @@
 {
   "expo": {
-    "name": "SharkBand Vendor",
-    "slug": "sharkband-vendor-app",
+    "name": "SharkBand",
+    "slug": "sharkband-customer-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
+    "scheme": "sharkband",
+    "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
-    "updates": {
-      "fallbackToCacheTimeout": 0
+      "backgroundColor": "#0A1931"
     },
     "assetBundlePatterns": ["**/*"],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": false,
+      "bundleIdentifier": "com.sharkband.customerapp",
+      "buildNumber": "1"
     },
     "android": {
+      "package": "com.sharkband.customerapp",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FFFFFF"
+        "backgroundColor": "#0A1931"
       }
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    }
+    "extra": {
+      "apiBaseUrl": "https://api.sharkband.cloud/api/v1",
+      "eas": {
+        "projectId": "YOUR_EAS_PROJECT_ID"
+      }
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0A1931",
+          "image": "./assets/splash.png",
+          "imageWidth": 200
+        }
+      ]
+    ]
   }
 }
