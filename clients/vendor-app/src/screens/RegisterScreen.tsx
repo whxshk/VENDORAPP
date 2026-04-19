@@ -5,14 +5,18 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
+import type { AuthStackParamList } from '../navigation/types';
+
+type Nav = NativeStackNavigationProp<AuthStackParamList, 'Register'>;
 
 const NAVY = '#0A1931';
 const ORANGE = '#F97316';
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function RegisterScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<Nav>();
   const { register } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');

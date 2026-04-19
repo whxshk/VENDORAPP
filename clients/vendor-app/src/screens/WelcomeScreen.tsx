@@ -43,7 +43,7 @@ export default function WelcomeScreen() {
           ))}
         </View>
 
-        <TouchableOpacity style={styles.btn} onPress={completeOnboarding}>
+        <TouchableOpacity style={styles.btn} onPress={() => void completeOnboarding()}>
           <Text style={styles.btnText}>Let's Go! 🚀</Text>
         </TouchableOpacity>
 

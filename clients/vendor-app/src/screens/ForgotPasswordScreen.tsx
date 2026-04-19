@@ -5,13 +5,17 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { authService } from '../api/authService';
+import type { AuthStackParamList } from '../navigation/types';
+
+type Nav = NativeStackNavigationProp<AuthStackParamList, 'ForgotPassword'>;
 
 const NAVY = '#0A1931';
 const ORANGE = '#F97316';
 
 export default function ForgotPasswordScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<Nav>();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);

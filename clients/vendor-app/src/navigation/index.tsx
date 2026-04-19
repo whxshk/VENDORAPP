@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import type { AuthStackParamList, MainTabParamList, RootStackParamList } from './types';
 
 // Auth screens
 import LoginScreen from '../screens/LoginScreen';
@@ -19,23 +20,25 @@ import DiscoverScreen from '../screens/DiscoverScreen';
 import ActivityScreen from '../screens/ActivityScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 
-const Stack = createNativeStackNavigator();
-const Tab = createBottomTabNavigator();
+const RootStack = createNativeStackNavigator<RootStackParamList>();
+const AuthStack = createNativeStackNavigator<AuthStackParamList>();
+const Tab = createBottomTabNavigator<MainTabParamList>();
 
 const NAVY = '#0A1931';
 const ORANGE = '#F97316';
 
-function TabIcon({ name, focused }: { name: string; focused: boolean }) {
-  const icons: Record<string, string> = {
-    Home: '🏠',
-    Wallet: '💳',
-    Discover: '🔍',
-    Activity: '📋',
-    Profile: '👤',
-  };
+const TAB_ICONS: Record<keyof MainTabParamList, string> = {
+  Home: '🏠',
+  Wallet: '💳',
+  Discover: '🔍',
+  Activity: '📋',
+  Profile: '👤',
+};
+
+function TabIcon({ name, focused }: { name: keyof MainTabParamList; focused: boolean }) {
   return (
     <View style={{ alignItems: 'center' }}>
-      <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.4 }}>{icons[name]}</Text>
+      <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.4 }}>{TAB_ICONS[name]}</Text>
     </View>
   );
 }
@@ -45,9 +48,18 @@ function MainTabs() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarIcon: ({ focused }) => <TabIcon name={route.name} focused={focused} />,
+        tabBarIcon: ({ focused }) => (
+          <TabIcon name={route.name as keyof MainTabParamList} focused={focused} />
+        ),
         tabBarLabel: ({ focused }) => (
-          <Text style={{ fontSize: 11, color: focused ? ORANGE : '#9CA3AF', fontWeight: focused ? '700' : '400', marginTop: -4 }}>
+          <Text
+            style={{
+              fontSize: 11,
+              color: focused ? ORANGE : '#9CA3AF',
+              fontWeight: focused ? '700' : '400',
+              marginTop: -4,
+            }}
+          >
             {route.name}
           </Text>
         ),
@@ -70,14 +82,14 @@ function MainTabs() {
   );
 }
 
-function AuthStack() {
+function AuthNavigator() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Login" component={LoginScreen} />
-      <Stack.Screen name="Register" component={RegisterScreen} />
-      <Stack.Screen name="OTPVerification" component={OTPVerificationScreen} />
-      <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-    </Stack.Navigator>
+    <AuthStack.Navigator screenOptions={{ headerShown: false }}>
+      <AuthStack.Screen name="Login" component={LoginScreen} />
+      <AuthStack.Screen name="Register" component={RegisterScreen} />
+      <AuthStack.Screen name="OTPVerification" component={OTPVerificationScreen} />
+      <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+    </AuthStack.Navigator>
   );
 }
 
@@ -90,22 +102,22 @@ function LoadingScreen() {
   );
 }
 
-export default function Navigation() {
+export default function RootNavigator() {
   const { user, loading, hasCompletedOnboarding } = useAuth();
 
   if (loading) return <LoadingScreen />;
 
   return (
     <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <RootStack.Navigator screenOptions={{ headerShown: false }}>
         {!user ? (
-          <Stack.Screen name="Auth" component={AuthStack} />
+          <RootStack.Screen name="Auth" component={AuthNavigator} />
         ) : !hasCompletedOnboarding ? (
-          <Stack.Screen name="Welcome" component={WelcomeScreen} />
+          <RootStack.Screen name="Welcome" component={WelcomeScreen} />
         ) : (
-          <Stack.Screen name="Main" component={MainTabs} />
+          <RootStack.Screen name="Main" component={MainTabs} />
         )}
-      </Stack.Navigator>
+      </RootStack.Navigator>
     </NavigationContainer>
   );
 }

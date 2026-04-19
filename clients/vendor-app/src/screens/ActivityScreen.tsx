@@ -1,101 +1,148 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  RefreshControl,
+  TouchableOpacity,
+  ActivityIndicator,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { ledgerService } from '../api/ledgerService';
 
 const NAVY = '#0A1931';
 const ORANGE = '#F97316';
 
-const FILTERS = [
+type FilterKey = 'all' | 'earn' | 'redeem';
+
+const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'all', label: 'All' },
   { key: 'earn', label: 'Earned' },
   { key: 'redeem', label: 'Redeemed' },
 ];
 
-function txIcon(type: string) {
-  if (type === 'earn' || type === 'ADD_STAMP' || type === 'GIVE_POINTS') return '⬆️';
-  if (type === 'redeem' || type === 'REDEEM') return '🎁';
-  return '💠';
+interface Transaction {
+  id?: string;
+  transaction_type?: string;
+  type?: string;
+  points_change?: number;
+  stamps_change?: number;
+  amount?: number;
+  merchant_name?: string;
+  merchantName?: string;
+  description?: string;
+  loyalty_type?: string;
+  created_at?: string;
+  createdAt?: string;
+  timestamp?: string;
 }
 
-function txColor(type: string) {
-  if (type === 'earn' || type === 'ADD_STAMP' || type === 'GIVE_POINTS') return '#22C55E';
-  if (type === 'redeem' || type === 'REDEEM') return ORANGE;
-  return '#6B7280';
+function txTimestamp(tx: Transaction): string {
+  return tx.created_at ?? tx.createdAt ?? tx.timestamp ?? new Date().toISOString();
 }
 
-function formatDate(dateStr: string) {
+function txIsEarn(tx: Transaction): boolean {
+  const t = tx.transaction_type ?? tx.type ?? '';
+  return t === 'earn' || t === 'ADD_STAMP' || t === 'GIVE_POINTS';
+}
+
+function txAmount(tx: Transaction): number {
+  return Math.abs(tx.points_change ?? tx.stamps_change ?? tx.amount ?? 0);
+}
+
+function txUnit(tx: Transaction): string {
+  return tx.loyalty_type === 'stamps' || tx.stamps_change !== undefined ? 'stamps' : 'pts';
+}
+
+function formatDate(dateStr: string): string {
   const d = new Date(dateStr);
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-function formatTime(dateStr: string) {
+function formatTime(dateStr: string): string {
   const d = new Date(dateStr);
   return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 }
 
-function groupByDate(txs: any[]) {
-  const groups: { [key: string]: any[] } = {};
+interface DateGroup {
+  date: string;
+  items: Transaction[];
+}
+
+function groupByDate(txs: Transaction[]): DateGroup[] {
+  const groups: Record<string, Transaction[]> = {};
   for (const tx of txs) {
-    const key = formatDate(tx.created_at || tx.createdAt || tx.timestamp);
+    const key = formatDate(txTimestamp(tx));
     if (!groups[key]) groups[key] = [];
     groups[key].push(tx);
   }
   return Object.entries(groups).map(([date, items]) => ({ date, items }));
 }
 
-function TxRow({ tx }: { tx: any }) {
-  const type = tx.transaction_type || tx.type || '';
-  const isEarn = type === 'earn' || type === 'ADD_STAMP' || type === 'GIVE_POINTS';
-  const amount = tx.points_change ?? tx.stamps_change ?? tx.amount ?? 0;
-  const merchant = tx.merchant_name || tx.merchantName || 'Merchant';
-  const desc = tx.description || (isEarn ? 'Points earned' : 'Reward redeemed');
-  const time = formatTime(tx.created_at || tx.createdAt || tx.timestamp);
+function TxRow({ tx }: { tx: Transaction }) {
+  const isEarn = txIsEarn(tx);
+  const merchant = tx.merchant_name ?? tx.merchantName ?? 'Merchant';
+  const desc = tx.description ?? (isEarn ? 'Points earned' : 'Reward redeemed');
+  const time = formatTime(txTimestamp(tx));
+  const amount = txAmount(tx);
+  const unit = txUnit(tx);
 
   return (
     <View style={styles.txRow}>
       <View style={[styles.txIconBox, { backgroundColor: isEarn ? '#F0FDF4' : '#FFF7ED' }]}>
-        <Text style={styles.txIconText}>{txIcon(type)}</Text>
+        <Text style={styles.txIconText}>{isEarn ? '⬆️' : '🎁'}</Text>
       </View>
       <View style={styles.txInfo}>
-        <Text style={styles.txMerchant}>{merchant}</Text>
+        <Text style={styles.txMerchant} numberOfLines={1}>{merchant}</Text>
         <Text style={styles.txDesc} numberOfLines={1}>{desc}</Text>
         <Text style={styles.txTime}>{time}</Text>
       </View>
       <View style={styles.txAmountBox}>
-        <Text style={[styles.txAmount, { color: txColor(type) }]}>
-          {isEarn ? '+' : '-'}{Math.abs(amount)}
+        <Text style={[styles.txAmount, { color: isEarn ? '#22C55E' : ORANGE }]}>
+          {isEarn ? '+' : '-'}{amount}
         </Text>
-        <Text style={styles.txUnit}>{tx.loyalty_type === 'stamps' || tx.stamps_change !== undefined ? 'stamps' : 'pts'}</Text>
+        <Text style={styles.txUnit}>{unit}</Text>
       </View>
     </View>
   );
 }
 
+interface PageResult {
+  items: Transaction[];
+  nextPage: number;
+  hasMore: boolean;
+}
+
 export default function ActivityScreen() {
-  const queryClient = useQueryClient();
-  const [filter, setFilter] = useState('all');
+  const [filter, setFilter] = useState<FilterKey>('all');
   const [refreshing, setRefreshing] = useState(false);
 
   const {
     data,
     isLoading,
+    isError,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
     refetch,
-  } = useInfiniteQuery({
+  } = useInfiniteQuery<PageResult>({
     queryKey: ['activity', filter],
-    queryFn: async ({ pageParam = 1 }) => {
-      const params: any = { page: pageParam, limit: 20 };
-      if (filter === 'earn') params.type = 'earn';
-      if (filter === 'redeem') params.type = 'redeem';
+    queryFn: async ({ pageParam }) => {
+      const page = typeof pageParam === 'number' ? pageParam : 1;
+      const params: { page: number; limit: number; type?: string } = { page, limit: 20 };
+      if (filter !== 'all') params.type = filter;
+
       const res = await ledgerService.getHistory(params);
       const raw = res.data;
+      const items: Transaction[] = Array.isArray(raw)
+        ? raw
+        : raw?.transactions ?? raw?.items ?? [];
+
       return {
-        items: Array.isArray(raw) ? raw : (raw?.transactions || raw?.items || []),
-        nextPage: pageParam + 1,
+        items,
+        nextPage: page + 1,
         hasMore: Array.isArray(raw) ? raw.length === 20 : (raw?.hasMore ?? false),
       };
     },
@@ -125,6 +172,9 @@ export default function ActivityScreen() {
             key={f.key}
             style={[styles.filterBtn, filter === f.key && styles.filterBtnActive]}
             onPress={() => setFilter(f.key)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: filter === f.key }}
+            accessibilityLabel={`Filter by ${f.label}`}
           >
             <Text style={[styles.filterLabel, filter === f.key && styles.filterLabelActive]}>
               {f.label}
@@ -137,20 +187,32 @@ export default function ActivityScreen() {
         <View style={styles.center}>
           <ActivityIndicator color={ORANGE} size="large" />
         </View>
+      ) : isError ? (
+        <View style={styles.center}>
+          <Text style={styles.errorIcon}>⚠️</Text>
+          <Text style={styles.errorTitle}>Couldn't load activity</Text>
+          <TouchableOpacity style={styles.retryBtn} onPress={() => refetch()}>
+            <Text style={styles.retryText}>Try Again</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         <FlatList
           data={grouped}
           keyExtractor={(g) => g.date}
           contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ORANGE} />}
-          onEndReached={() => { if (hasNextPage && !isFetchingNextPage) fetchNextPage(); }}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ORANGE} />
+          }
+          onEndReached={() => {
+            if (hasNextPage && !isFetchingNextPage) fetchNextPage();
+          }}
           onEndReachedThreshold={0.4}
           renderItem={({ item: group }) => (
             <View style={styles.group}>
               <Text style={styles.groupDate}>{group.date}</Text>
               <View style={styles.groupCard}>
-                {group.items.map((tx: any, i: number) => (
-                  <View key={tx.id || i}>
+                {group.items.map((tx, i) => (
+                  <View key={tx.id ?? i}>
                     {i > 0 && <View style={styles.divider} />}
                     <TxRow tx={tx} />
                   </View>
@@ -203,7 +265,11 @@ const styles = StyleSheet.create({
   txAmountBox: { alignItems: 'flex-end', gap: 2 },
   txAmount: { fontSize: 18, fontWeight: '800' },
   txUnit: { fontSize: 10, color: '#9CA3AF', fontWeight: '600' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
+  errorIcon: { fontSize: 48 },
+  errorTitle: { fontSize: 16, fontWeight: '600', color: '#374151' },
+  retryBtn: { marginTop: 4, paddingVertical: 10, paddingHorizontal: 24, backgroundColor: NAVY, borderRadius: 12 },
+  retryText: { color: '#fff', fontWeight: '700' },
   footerLoader: { paddingVertical: 20, alignItems: 'center' },
   empty: { alignItems: 'center', paddingTop: 60, gap: 12 },
   emptyIcon: { fontSize: 56 },

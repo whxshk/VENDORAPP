@@ -5,16 +5,21 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
+import type { AuthStackParamList } from '../navigation/types';
+
+type Props = NativeStackScreenProps<AuthStackParamList, 'OTPVerification'>;
+type Nav = NativeStackNavigationProp<AuthStackParamList, 'OTPVerification'>;
 
 const NAVY = '#0A1931';
 const ORANGE = '#F97316';
 
 export default function OTPVerificationScreen() {
-  const navigation = useNavigation<any>();
-  const route = useRoute<any>();
+  const navigation = useNavigation<Nav>();
+  const route = useRoute<Props['route']>();
   const { verifyOtp, completeOnboarding } = useAuth();
-  const { email, purpose } = route.params || {};
+  const { email, purpose } = route.params;
 
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
@@ -52,7 +57,7 @@ export default function OTPVerificationScreen() {
     setLoading(true);
     try {
       await verifyOtp(email, fullCode, purpose);
-      completeOnboarding();
+      await completeOnboarding();
     } catch (error: any) {
       const msg =
         error?.response?.data?.error?.message ||

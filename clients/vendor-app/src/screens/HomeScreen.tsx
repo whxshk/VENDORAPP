@@ -1,5 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, RefreshControl } from 'react-native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  ActivityIndicator,
+  TouchableOpacity,
+  RefreshControl,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import QRCode from 'react-native-qrcode-svg';
 import { useAuth } from '../context/AuthContext';
@@ -8,22 +16,32 @@ import { customerService } from '../api/customerService';
 const NAVY = '#0A1931';
 const ORANGE = '#F97316';
 
+// Refresh at half the server-issued interval, minimum 30 s
+const MIN_REFRESH_MS = 30_000;
+
 export default function HomeScreen() {
   const { user } = useAuth();
   const [qrPayload, setQrPayload] = useState<string | null>(null);
-  const [refreshIntervalSec, setRefreshIntervalSec] = useState(30);
+  const [qrLoading, setQrLoading] = useState(true);
+  const [qrError, setQrError] = useState(false);
+  const [refreshIntervalMs, setRefreshIntervalMs] = useState(60_000);
   const [merchantCount, setMerchantCount] = useState(0);
   const [totalPoints, setTotalPoints] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
-  const [qrLoading, setQrLoading] = useState(true);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchQrToken = useCallback(async () => {
     try {
+      setQrError(false);
       const res = await customerService.getQrToken();
       setQrPayload(res.data.qrPayload);
-      if (res.data.refreshIntervalSec) setRefreshIntervalSec(res.data.refreshIntervalSec);
+      if (res.data.refreshIntervalSec) {
+        // Use half the server-issued TTL, no less than MIN_REFRESH_MS
+        const half = Math.floor(res.data.refreshIntervalSec / 2) * 1000;
+        setRefreshIntervalMs(Math.max(MIN_REFRESH_MS, half));
+      }
     } catch {
-      // Customer not linked yet
+      setQrError(true);
     } finally {
       setQrLoading(false);
     }
@@ -32,10 +50,14 @@ export default function HomeScreen() {
   const fetchMemberships = useCallback(async () => {
     try {
       const res = await customerService.getMemberships();
-      const memberships = Array.isArray(res.data) ? res.data : (res.data?.memberships || []);
+      const memberships: Array<{ points_balance?: number }> = Array.isArray(res.data)
+        ? res.data
+        : res.data?.memberships ?? [];
       setMerchantCount(memberships.length);
-      setTotalPoints(memberships.reduce((sum: number, m: any) => sum + (m.points_balance || 0), 0));
-    } catch {}
+      setTotalPoints(memberships.reduce((sum, m) => sum + (m.points_balance ?? 0), 0));
+    } catch {
+      // Non-critical — stats remain at 0 until next refresh
+    }
   }, []);
 
   useEffect(() => {
@@ -43,25 +65,31 @@ export default function HomeScreen() {
     fetchMemberships();
   }, [fetchQrToken, fetchMemberships]);
 
-  // Auto-refresh QR token
+  // Re-start interval when refreshIntervalMs changes
   useEffect(() => {
-    const interval = setInterval(fetchQrToken, Math.max(15, Math.floor(refreshIntervalSec / 2)) * 1000);
-    return () => clearInterval(interval);
-  }, [fetchQrToken, refreshIntervalSec]);
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(fetchQrToken, refreshIntervalMs);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [fetchQrToken, refreshIntervalMs]);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([fetchQrToken(), fetchMemberships()]);
+    await Promise.allSettled([fetchQrToken(), fetchMemberships()]);
     setRefreshing(false);
   };
 
-  const firstName = user?.full_name?.split(' ')[0] || user?.name?.split(' ')[0] || 'there';
+  const firstName =
+    user?.full_name?.split(' ')[0] ?? user?.name?.split(' ')[0] ?? 'there';
 
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView
         contentContainerStyle={styles.scroll}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ORANGE} />}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ORANGE} />
+        }
       >
         {/* Greeting */}
         <View style={styles.greeting}>
@@ -84,6 +112,19 @@ export default function HomeScreen() {
             <View style={styles.qrSection}>
               {qrLoading ? (
                 <ActivityIndicator color={NAVY} size="large" />
+              ) : qrError ? (
+                <View style={styles.qrPlaceholder}>
+                  <Text style={styles.qrPlaceholderIcon}>⚠️</Text>
+                  <Text style={styles.qrPlaceholderText}>Couldn't load QR code</Text>
+                  <TouchableOpacity
+                    style={styles.qrRetryBtn}
+                    onPress={fetchQrToken}
+                    accessibilityRole="button"
+                    accessibilityLabel="Retry loading QR code"
+                  >
+                    <Text style={styles.qrRetryText}>Retry</Text>
+                  </TouchableOpacity>
+                </View>
               ) : qrPayload ? (
                 <QRCode value={qrPayload} size={240} backgroundColor="#fff" color={NAVY} />
               ) : (
@@ -98,7 +139,9 @@ export default function HomeScreen() {
             <View style={styles.cardFooter}>
               <View style={styles.cardFooterStat}>
                 <Text style={styles.cardStatLabel}>Active Cards</Text>
-                <Text style={styles.cardStatValue}>{merchantCount} merchant{merchantCount !== 1 ? 's' : ''}</Text>
+                <Text style={styles.cardStatValue}>
+                  {merchantCount} merchant{merchantCount !== 1 ? 's' : ''}
+                </Text>
               </View>
               <View style={styles.cardFooterDivider} />
               <View style={styles.cardFooterStat}>
@@ -108,13 +151,20 @@ export default function HomeScreen() {
             </View>
 
             <View style={styles.cardHint}>
-              <Text style={styles.cardHintText}>📲  Show this QR code to earn & redeem rewards</Text>
+              <Text style={styles.cardHintText}>
+                📲  Show this QR code to earn &amp; redeem rewards
+              </Text>
             </View>
           </View>
         </View>
 
         {/* Refresh hint */}
-        <TouchableOpacity onPress={fetchQrToken} style={styles.refreshBtn}>
+        <TouchableOpacity
+          onPress={fetchQrToken}
+          style={styles.refreshBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Refresh QR code"
+        >
           <Text style={styles.refreshBtnText}>🔄 Refresh QR Code</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -137,7 +187,9 @@ const styles = StyleSheet.create({
   qrSection: { backgroundColor: '#fff', padding: 24, alignItems: 'center', justifyContent: 'center', minHeight: 280 },
   qrPlaceholder: { alignItems: 'center', gap: 8 },
   qrPlaceholderIcon: { fontSize: 48 },
-  qrPlaceholderText: { color: '#9CA3AF', fontSize: 14 },
+  qrPlaceholderText: { color: '#9CA3AF', fontSize: 14, textAlign: 'center' },
+  qrRetryBtn: { marginTop: 8, paddingVertical: 8, paddingHorizontal: 20, backgroundColor: NAVY, borderRadius: 10 },
+  qrRetryText: { color: '#fff', fontWeight: '700', fontSize: 14 },
   cardFooter: { backgroundColor: NAVY, paddingHorizontal: 20, paddingVertical: 16, flexDirection: 'row', alignItems: 'center' },
   cardFooterStat: { flex: 1, alignItems: 'center' },
   cardFooterDivider: { width: 1, height: 32, backgroundColor: 'rgba(255,255,255,0.2)' },

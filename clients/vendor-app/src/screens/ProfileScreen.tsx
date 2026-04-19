@@ -1,18 +1,31 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+  ScrollView,
+  Linking,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
 import { customerService } from '../api/customerService';
 
 const NAVY = '#0A1931';
-const ORANGE = '#F97316';
+
+// Replace with actual URLs before App Store / Play Store submission
+const PRIVACY_URL = 'https://sharkband.cloud/privacy';
+const TERMS_URL = 'https://sharkband.cloud/terms';
+const SUPPORT_EMAIL = 'support@sharkband.cloud';
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.infoRow}>
       <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value}</Text>
+      <Text style={styles.infoValue} numberOfLines={1}>{value}</Text>
     </View>
   );
 }
@@ -29,7 +42,12 @@ function MenuItem({
   danger?: boolean;
 }) {
   return (
-    <TouchableOpacity style={styles.menuItem} onPress={onPress}>
+    <TouchableOpacity
+      style={styles.menuItem}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
       <Text style={styles.menuIcon}>{icon}</Text>
       <Text style={[styles.menuLabel, danger && styles.menuLabelDanger]}>{label}</Text>
       <Text style={styles.menuChevron}>›</Text>
@@ -39,6 +57,7 @@ function MenuItem({
 
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
+  const queryClient = useQueryClient();
   const [deletingAccount, setDeletingAccount] = useState(false);
 
   const { data: profile } = useQuery({
@@ -50,14 +69,22 @@ export default function ProfileScreen() {
     enabled: !!user,
   });
 
-  const displayName = profile?.full_name || profile?.name || user?.full_name || user?.name || 'Customer';
-  const displayEmail = profile?.email || user?.email || '';
-  const initial = displayName[0]?.toUpperCase() || '?';
+  const displayName = profile?.full_name ?? profile?.name ?? user?.full_name ?? user?.name ?? 'Customer';
+  const displayEmail = profile?.email ?? user?.email ?? '';
+  const displayPhone = profile?.phone ?? user?.phone ?? '';
+  const initial = displayName[0]?.toUpperCase() ?? '?';
 
   const handleLogout = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: logout },
+      {
+        text: 'Sign Out',
+        style: 'destructive',
+        onPress: async () => {
+          queryClient.clear(); // Wipe cached data before next user logs in
+          await logout();
+        },
+      },
     ]);
   };
 
@@ -74,16 +101,29 @@ export default function ProfileScreen() {
             try {
               setDeletingAccount(true);
               await customerService.deleteAccount();
+              queryClient.clear();
               await logout();
             } catch {
-              Alert.alert('Error', 'Failed to delete account. Please contact support.');
-            } finally {
               setDeletingAccount(false);
+              Alert.alert('Error', 'Failed to delete account. Please contact support@sharkband.cloud.');
             }
           },
         },
       ],
     );
+  };
+
+  const openUrl = async (url: string) => {
+    const supported = await Linking.canOpenURL(url);
+    if (supported) {
+      await Linking.openURL(url);
+    } else {
+      Alert.alert('Error', `Unable to open ${url}`);
+    }
+  };
+
+  const openSupport = () => {
+    Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=SharkBand Support`);
   };
 
   return (
@@ -110,26 +150,30 @@ export default function ProfileScreen() {
             <InfoRow label="Full Name" value={displayName} />
             <View style={styles.divider} />
             <InfoRow label="Email" value={displayEmail} />
-            {profile?.phone && (
+            {displayPhone ? (
               <>
                 <View style={styles.divider} />
-                <InfoRow label="Phone" value={profile.phone} />
+                <InfoRow label="Phone" value={displayPhone} />
               </>
-            )}
+            ) : null}
           </View>
         </View>
 
-        {/* App */}
+        {/* Legal */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>App</Text>
+          <Text style={styles.sectionTitle}>Legal</Text>
           <View style={styles.card}>
-            <MenuItem icon="🔔" label="Notifications" onPress={() => {}} />
+            <MenuItem icon="🔒" label="Privacy Policy" onPress={() => openUrl(PRIVACY_URL)} />
             <View style={styles.divider} />
-            <MenuItem icon="🔒" label="Privacy Policy" onPress={() => {}} />
-            <View style={styles.divider} />
-            <MenuItem icon="📄" label="Terms of Service" onPress={() => {}} />
-            <View style={styles.divider} />
-            <MenuItem icon="💬" label="Support" onPress={() => {}} />
+            <MenuItem icon="📄" label="Terms of Service" onPress={() => openUrl(TERMS_URL)} />
+          </View>
+        </View>
+
+        {/* Support */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Help</Text>
+          <View style={styles.card}>
+            <MenuItem icon="💬" label="Contact Support" onPress={openSupport} />
           </View>
         </View>
 
@@ -144,14 +188,14 @@ export default function ProfileScreen() {
         </View>
 
         <Text style={styles.appVersion}>SharkBand v1.0.0</Text>
-
-        {deletingAccount && (
-          <View style={styles.overlay}>
-            <ActivityIndicator color={ORANGE} size="large" />
-            <Text style={styles.overlayText}>Deleting account...</Text>
-          </View>
-        )}
       </ScrollView>
+
+      {deletingAccount && (
+        <View style={styles.overlay}>
+          <ActivityIndicator color="#fff" size="large" />
+          <Text style={styles.overlayText}>Deleting account...</Text>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -179,6 +223,6 @@ const styles = StyleSheet.create({
   menuLabelDanger: { color: '#EF4444' },
   menuChevron: { fontSize: 20, color: '#D1D5DB' },
   appVersion: { textAlign: 'center', color: '#D1D5DB', fontSize: 12, marginTop: 24 },
-  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(255,255,255,0.9)', alignItems: 'center', justifyContent: 'center', gap: 12 },
-  overlayText: { fontSize: 14, color: '#6B7280' },
+  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center', gap: 16 },
+  overlayText: { fontSize: 14, color: '#fff', fontWeight: '600' },
 });
