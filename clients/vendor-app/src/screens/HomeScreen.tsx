@@ -15,8 +15,6 @@ import { customerService } from '../api/customerService';
 
 const NAVY = '#0A1931';
 const ORANGE = '#F97316';
-
-// Refresh at half the server-issued interval, minimum 30 s
 const MIN_REFRESH_MS = 30_000;
 
 export default function HomeScreen() {
@@ -24,11 +22,21 @@ export default function HomeScreen() {
   const [qrPayload, setQrPayload] = useState<string | null>(null);
   const [qrLoading, setQrLoading] = useState(true);
   const [qrError, setQrError] = useState(false);
-  const [refreshIntervalMs, setRefreshIntervalMs] = useState(60_000);
+  const [refreshIntervalSec, setRefreshIntervalSec] = useState(60);
+  const [countdown, setCountdown] = useState(60);
   const [merchantCount, setMerchantCount] = useState(0);
   const [totalPoints, setTotalPoints] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const startCountdown = useCallback((seconds: number) => {
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    setCountdown(seconds);
+    countdownRef.current = setInterval(() => {
+      setCountdown((c) => (c > 0 ? c - 1 : 0));
+    }, 1000);
+  }, []);
 
   const fetchQrToken = useCallback(async () => {
     try {
@@ -36,16 +44,15 @@ export default function HomeScreen() {
       const res = await customerService.getQrToken();
       setQrPayload(res.data.qrPayload);
       if (res.data.refreshIntervalSec) {
-        // Use half the server-issued TTL, no less than MIN_REFRESH_MS
-        const half = Math.floor(res.data.refreshIntervalSec / 2) * 1000;
-        setRefreshIntervalMs(Math.max(MIN_REFRESH_MS, half));
+        setRefreshIntervalSec(res.data.refreshIntervalSec);
+        startCountdown(res.data.refreshIntervalSec);
       }
     } catch {
       setQrError(true);
     } finally {
       setQrLoading(false);
     }
-  }, []);
+  }, [startCountdown]);
 
   const fetchMemberships = useCallback(async () => {
     try {
@@ -56,7 +63,7 @@ export default function HomeScreen() {
       setMerchantCount(memberships.length);
       setTotalPoints(memberships.reduce((sum, m) => sum + (m.points_balance ?? 0), 0));
     } catch {
-      // Non-critical — stats remain at 0 until next refresh
+      // Non-critical
     }
   }, []);
 
@@ -65,14 +72,22 @@ export default function HomeScreen() {
     fetchMemberships();
   }, [fetchQrToken, fetchMemberships]);
 
-  // Re-start interval when refreshIntervalMs changes
   useEffect(() => {
+    const ms = Math.max(MIN_REFRESH_MS, Math.floor(refreshIntervalSec / 2) * 1000);
     if (intervalRef.current) clearInterval(intervalRef.current);
-    intervalRef.current = setInterval(fetchQrToken, refreshIntervalMs);
+    intervalRef.current = setInterval(() => {
+      fetchQrToken();
+    }, ms);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [fetchQrToken, refreshIntervalMs]);
+  }, [fetchQrToken, refreshIntervalSec]);
+
+  useEffect(() => {
+    return () => {
+      if (countdownRef.current) clearInterval(countdownRef.current);
+    };
+  }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -80,8 +95,7 @@ export default function HomeScreen() {
     setRefreshing(false);
   };
 
-  const firstName =
-    user?.full_name?.split(' ')[0] ?? user?.name?.split(' ')[0] ?? 'there';
+  const firstName = user?.full_name?.split(' ')[0] ?? user?.name?.split(' ')[0] ?? 'there';
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -97,68 +111,75 @@ export default function HomeScreen() {
           <Text style={styles.greetingName}>{firstName} 👋</Text>
         </View>
 
-        {/* Card */}
+        {/* QR Wallet Card — no rotation per design spec */}
         <View style={styles.cardWrapper}>
-          <View style={[styles.card, { transform: [{ rotate: '-3deg' }] }]}>
-            {/* Card header */}
+          <View style={styles.card}>
+            {/* Card Header */}
             <View style={styles.cardHeader}>
-              <View style={styles.cardHeaderLeft}>
-                <Text style={styles.cardShark}>🦈</Text>
-                <Text style={styles.cardBrand}>SHARKBAND</Text>
+              <View style={styles.cardBrand}>
+                <View style={styles.cardLogoBox}>
+                  <Text style={styles.cardLogoEmoji}>🦈</Text>
+                </View>
+                <Text style={styles.cardBrandName}>SHARKBAND</Text>
               </View>
+              {!qrLoading && !qrError && (
+                <Text style={styles.cardTimer}>
+                  Refreshes in {countdown}s
+                </Text>
+              )}
             </View>
 
-            {/* QR */}
+            {/* QR Code area */}
             <View style={styles.qrSection}>
               {qrLoading ? (
                 <ActivityIndicator color={NAVY} size="large" />
               ) : qrError ? (
-                <View style={styles.qrPlaceholder}>
-                  <Text style={styles.qrPlaceholderIcon}>⚠️</Text>
-                  <Text style={styles.qrPlaceholderText}>Couldn't load QR code</Text>
+                <View style={styles.qrError}>
+                  <Text style={styles.qrErrorIcon}>⚠️</Text>
+                  <Text style={styles.qrErrorText}>Couldn't load QR code</Text>
                   <TouchableOpacity
-                    style={styles.qrRetryBtn}
+                    style={styles.retryBtn}
                     onPress={fetchQrToken}
                     accessibilityRole="button"
-                    accessibilityLabel="Retry loading QR code"
                   >
-                    <Text style={styles.qrRetryText}>Retry</Text>
+                    <Text style={styles.retryBtnText}>Retry</Text>
                   </TouchableOpacity>
                 </View>
               ) : qrPayload ? (
-                <QRCode value={qrPayload} size={240} backgroundColor="#fff" color={NAVY} />
+                <QRCode value={qrPayload} size={200} backgroundColor="#fff" color={NAVY} />
               ) : (
-                <View style={styles.qrPlaceholder}>
-                  <Text style={styles.qrPlaceholderIcon}>📱</Text>
-                  <Text style={styles.qrPlaceholderText}>QR code loading...</Text>
+                <View style={styles.qrError}>
+                  <Text style={styles.qrErrorIcon}>📱</Text>
+                  <Text style={styles.qrErrorText}>QR code loading...</Text>
                 </View>
               )}
             </View>
 
-            {/* Card footer */}
+            {/* Card Footer */}
             <View style={styles.cardFooter}>
-              <View style={styles.cardFooterStat}>
-                <Text style={styles.cardStatLabel}>Active Cards</Text>
-                <Text style={styles.cardStatValue}>
-                  {merchantCount} merchant{merchantCount !== 1 ? 's' : ''}
-                </Text>
+              <View style={styles.cardFooterRow}>
+                <View style={styles.cardStat}>
+                  <Text style={styles.cardStatLabel}>ACTIVE CARDS</Text>
+                  <Text style={styles.cardStatValue}>
+                    {merchantCount} merchant{merchantCount !== 1 ? 's' : ''}
+                  </Text>
+                </View>
+                <View style={styles.cardStat}>
+                  <Text style={styles.cardStatLabel}>TOTAL POINTS</Text>
+                  <Text style={[styles.cardStatValue, { color: ORANGE }]}>
+                    {totalPoints.toLocaleString()} pts
+                  </Text>
+                </View>
               </View>
-              <View style={styles.cardFooterDivider} />
-              <View style={styles.cardFooterStat}>
-                <Text style={styles.cardStatLabel}>Total Points</Text>
-                <Text style={styles.cardStatValue}>{totalPoints} pts</Text>
+              <View style={styles.cardHint}>
+                <Text style={styles.cardHintIcon}>📲</Text>
+                <Text style={styles.cardHintText}>Show this code to earn &amp; redeem rewards</Text>
               </View>
-            </View>
-
-            <View style={styles.cardHint}>
-              <Text style={styles.cardHintText}>
-                📲  Show this QR code to earn &amp; redeem rewards
-              </Text>
             </View>
           </View>
         </View>
 
-        {/* Refresh hint */}
+        {/* Manual refresh */}
         <TouchableOpacity
           onPress={fetchQrToken}
           style={styles.refreshBtn}
@@ -174,29 +195,83 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#F9FAFB' },
-  scroll: { flexGrow: 1, paddingBottom: 24 },
-  greeting: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 8 },
-  greetingSmall: { fontSize: 11, fontWeight: '600', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 1.5 },
-  greetingName: { fontSize: 26, fontWeight: '800', color: NAVY, marginTop: 2 },
-  cardWrapper: { paddingHorizontal: 20, paddingVertical: 16, alignItems: 'center' },
-  card: { width: '100%', backgroundColor: '#fff', borderRadius: 20, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 20 }, shadowOpacity: 0.4, shadowRadius: 40, elevation: 12 },
-  cardHeader: { backgroundColor: NAVY, paddingHorizontal: 20, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  cardHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  cardShark: { fontSize: 24 },
-  cardBrand: { color: '#fff', fontSize: 14, fontWeight: '700', letterSpacing: 2 },
-  qrSection: { backgroundColor: '#fff', padding: 24, alignItems: 'center', justifyContent: 'center', minHeight: 280 },
-  qrPlaceholder: { alignItems: 'center', gap: 8 },
-  qrPlaceholderIcon: { fontSize: 48 },
-  qrPlaceholderText: { color: '#9CA3AF', fontSize: 14, textAlign: 'center' },
-  qrRetryBtn: { marginTop: 8, paddingVertical: 8, paddingHorizontal: 20, backgroundColor: NAVY, borderRadius: 10 },
-  qrRetryText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  cardFooter: { backgroundColor: NAVY, paddingHorizontal: 20, paddingVertical: 16, flexDirection: 'row', alignItems: 'center' },
-  cardFooterStat: { flex: 1, alignItems: 'center' },
-  cardFooterDivider: { width: 1, height: 32, backgroundColor: 'rgba(255,255,255,0.2)' },
-  cardStatLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 11 },
-  cardStatValue: { color: '#fff', fontSize: 16, fontWeight: '700', marginTop: 2 },
-  cardHint: { backgroundColor: NAVY, paddingHorizontal: 20, paddingBottom: 16, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)' },
-  cardHintText: { color: 'rgba(255,255,255,0.6)', fontSize: 12, textAlign: 'center' },
+  scroll: { flexGrow: 1, paddingBottom: 32 },
+  greeting: { paddingHorizontal: 24, paddingTop: 28, paddingBottom: 4 },
+  greetingSmall: { fontSize: 11, fontWeight: '700', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 4 },
+  greetingName: { fontSize: 26, fontWeight: '800', color: NAVY, letterSpacing: -0.5 },
+  cardWrapper: { paddingHorizontal: 20, paddingVertical: 20 },
+  card: {
+    backgroundColor: 'white',
+    borderRadius: 22,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.18,
+    shadowRadius: 40,
+    elevation: 12,
+  },
+  cardHeader: {
+    backgroundColor: NAVY,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  cardBrand: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  cardLogoBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardLogoEmoji: { fontSize: 18 },
+  cardBrandName: { color: 'white', fontSize: 14, fontWeight: '800', letterSpacing: 2 },
+  cardTimer: { color: 'rgba(255,255,255,0.45)', fontSize: 11, fontWeight: '500' },
+  qrSection: {
+    backgroundColor: 'white',
+    paddingVertical: 24,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 260,
+  },
+  qrError: { alignItems: 'center', gap: 8 },
+  qrErrorIcon: { fontSize: 48 },
+  qrErrorText: { color: '#9CA3AF', fontSize: 14, textAlign: 'center' },
+  retryBtn: { marginTop: 4, paddingVertical: 8, paddingHorizontal: 20, backgroundColor: NAVY, borderRadius: 10 },
+  retryBtnText: { color: 'white', fontWeight: '700', fontSize: 14 },
+  cardFooter: { backgroundColor: NAVY },
+  cardFooterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: 12,
+  },
+  cardStat: { gap: 4 },
+  cardStatLabel: {
+    color: 'rgba(255,255,255,0.45)',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+  },
+  cardStatValue: { color: 'white', fontSize: 17, fontWeight: '800' },
+  cardHint: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  cardHintIcon: { fontSize: 14 },
+  cardHintText: { color: 'rgba(255,255,255,0.4)', fontSize: 11 },
   refreshBtn: { alignSelf: 'center', paddingVertical: 8, paddingHorizontal: 16 },
   refreshBtnText: { color: ORANGE, fontSize: 14, fontWeight: '600' },
 });

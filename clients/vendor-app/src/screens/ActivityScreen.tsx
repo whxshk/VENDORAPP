@@ -15,6 +15,16 @@ import { ledgerService } from '../api/ledgerService';
 const NAVY = '#0A1931';
 const ORANGE = '#F97316';
 
+const MERCHANT_COLORS = [
+  '#1e3a5f', '#3b1f0d', '#0d2b1a', '#1a0d2b',
+  '#2b0d1a', '#1a2b0d', '#0d1a2b', '#2b1a0d',
+];
+function merchantColor(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return MERCHANT_COLORS[Math.abs(hash) % MERCHANT_COLORS.length];
+}
+
 type FilterKey = 'all' | 'earn' | 'redeem';
 
 const FILTERS: { key: FilterKey; label: string }[] = [
@@ -91,8 +101,8 @@ function TxRow({ tx }: { tx: Transaction }) {
 
   return (
     <View style={styles.txRow}>
-      <View style={[styles.txIconBox, { backgroundColor: isEarn ? '#F0FDF4' : '#FFF7ED' }]}>
-        <Text style={styles.txIconText}>{isEarn ? '⬆️' : '🎁'}</Text>
+      <View style={[styles.txIconBox, { backgroundColor: merchantColor(merchant) }]}>
+        <Text style={styles.txInitial}>{merchant[0]?.toUpperCase() ?? '?'}</Text>
       </View>
       <View style={styles.txInfo}>
         <Text style={styles.txMerchant} numberOfLines={1}>{merchant}</Text>
@@ -256,8 +266,8 @@ const styles = StyleSheet.create({
   groupCard: { backgroundColor: '#fff', borderRadius: 16, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },
   divider: { height: 1, backgroundColor: '#F3F4F6', marginHorizontal: 16 },
   txRow: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 },
-  txIconBox: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  txIconText: { fontSize: 18 },
+  txIconBox: { width: 44, height: 44, borderRadius: 13, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  txInitial: { color: 'rgba(255,255,255,0.85)', fontSize: 16, fontWeight: '800' },
   txInfo: { flex: 1, gap: 2 },
   txMerchant: { fontSize: 14, fontWeight: '700', color: '#111827' },
   txDesc: { fontSize: 12, color: '#6B7280' },
